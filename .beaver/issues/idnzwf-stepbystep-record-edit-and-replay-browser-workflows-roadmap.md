@@ -7,7 +7,7 @@ priority: high
 labels:
     - roadmap
 created: 2026-08-08T07:07:08Z
-updated: 2026-08-10T05:13:11Z
+updated: 2026-08-10T06:47:19Z
 ---
 
 ## Goal
@@ -53,4 +53,4 @@ Related but outside this DAG: issue `ymz3md` (establish stack, checks, and dev c
 - Automatic Run-level retries (px25yw; ADR 0002) — Runs act on external websites and replay is not idempotent. Retrying exists only inside a step.
 - A reserved Worker pool for takeover-capable Runs (px25yw) — a waiting_for_human Run occupies a regular Worker slot until resume or timeout.
 - Pure master-detail (IDE-style) and pure narrative-sentence editor layouts (3iwv5i) — the editor is the hybrid: an inline card list whose card summaries are the narrative sentences.
-
+- Full-screen focus-page and modal takeover surfaces (4tjwpw) — the takeover surface is the browser pane embedded in the run detail; entering takeover never navigates away. Auto hand-back on a met success predicate (with a short grace countdown and a "stay in control" escape) is the confirmed behavior; heuristic pauses, having no predicate, stay manual.

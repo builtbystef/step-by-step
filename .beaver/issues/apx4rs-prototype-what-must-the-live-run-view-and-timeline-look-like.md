@@ -8,9 +8,10 @@ labels:
     - session:prototype
 depends_on:
     - px25yw
+    - 4tjwpw
 parent: idnzwf
 created: 2026-08-10T03:34:26Z
-updated: 2026-08-10T03:34:26Z
+updated: 2026-08-10T06:47:19Z
 ---
 
 Live prototype session (prototype skill). The execution architecture is settled (px25yw): run states queued/running/waiting_for_human/succeeded/failed/cancelled with machine-readable failure reasons; step status, log lines, and screenshot-ready events arrive over SSE; screenshots are fetched as Artifacts by URL; a Batch's Runs execute sequentially. Answer with disposable UI:
