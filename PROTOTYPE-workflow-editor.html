@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PROTOTYPE — workflow editor (disposable, node 3iwv5i)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --border: #e2e5ea; --text: #1a1f28;
+    --muted: #6b7280; --accent: #3b5bdb; --accent-soft: #eaeefb;
+    --green: #2f9e44; --green-soft: #e6f4ea; --amber: #e8930c; --amber-soft: #fdf3e1;
+    --red: #d6455d; --red-soft: #fbe9ec; --pill: #eef1f5; --code: #f1f3f7;
+    --shadow: 0 1px 3px rgba(20,24,34,.08);
+    font-size: 15px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
+  button { font: inherit; cursor: pointer; }
+  input, select, textarea { font: inherit; color: inherit; }
+  code, .code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: .85em; }
+
+  /* ---------- top chrome: prototype banner + variant switcher ---------- */
+  .proto-banner { background: #26210c; color: #f5e9b8; font-size: 12px; padding: 4px 14px; display: flex; justify-content: space-between; align-items: center; }
+  .variant-switch { position: fixed; right: 16px; bottom: 16px; z-index: 60; display: flex; gap: 6px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 6px; box-shadow: 0 4px 16px rgba(20,24,34,.18); }
+  .variant-switch button { border: 1px solid transparent; background: transparent; border-radius: 7px; padding: 6px 10px; font-size: 13px; color: var(--muted); }
+  .variant-switch button.on { background: var(--accent); color: #fff; }
+  .variant-switch .st-toggle { border-left: 1px solid var(--border); border-radius: 0; margin-left: 4px; padding-left: 10px; }
+
+  /* ---------- app header (shared) ---------- */
+  header.app { background: var(--panel); border-bottom: 1px solid var(--border); padding: 10px 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  header.app .wf-name { font-size: 17px; font-weight: 650; border: 1px solid transparent; border-radius: 6px; padding: 3px 6px; min-width: 120px; }
+  header.app .wf-name:hover, header.app .wf-name:focus { border-color: var(--border); background: #fff; outline: none; }
+  .draft-chip { font-size: 12px; padding: 3px 9px; border-radius: 20px; background: var(--amber-soft); color: #8a5b06; font-weight: 600; }
+  .draft-chip.clean { background: var(--green-soft); color: #1f6f31; }
+  .header-spacer { flex: 1; }
+  .ver-select { border: 1px solid var(--border); border-radius: 7px; padding: 6px 8px; background: #fff; font-size: 13px; color: var(--muted); }
+  .btn { border: 1px solid var(--border); background: #fff; border-radius: 8px; padding: 7px 14px; font-size: 14px; }
+  .btn:hover { border-color: #c9cdd6; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .btn.primary:hover { background: #3350c4; }
+  .btn.subtle { border: none; background: transparent; color: var(--muted); }
+  .btn.small { padding: 3px 9px; font-size: 12.5px; border-radius: 6px; }
+  .btn.danger { color: var(--red); }
+
+  main { max-width: 1200px; margin: 0 auto; padding: 20px; padding-bottom: 120px; }
+
+  .badge { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 10px; display: inline-block; }
+  .badge.optional { background: var(--accent-soft); color: var(--accent); }
+  .badge.disabled { background: var(--pill); color: var(--muted); }
+  .badge.fragile { background: var(--amber-soft); color: #8a5b06; }
+  .badge.timeout { background: var(--pill); color: var(--muted); font-weight: 500; }
+
+  .var-pill { background: var(--accent-soft); color: var(--accent); border-radius: 5px; padding: 0 5px; font-family: ui-monospace, Menlo, monospace; font-size: .85em; white-space: nowrap; }
+  .var-pill.secret { background: #f3e8fb; color: #8a3ec4; }
+
+  .type-icon { width: 30px; height: 30px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; background: var(--pill); flex: none; }
+
+  /* ---------- Variant A: vertical inline list ---------- */
+  .va-wrap { max-width: 720px; margin: 0 auto; }
+  .step-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; box-shadow: var(--shadow); position: relative; }
+  .step-card.disabled-step { opacity: .55; background: #fafbfc; }
+  .step-card .card-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; cursor: pointer; }
+  .step-card .idx { color: var(--muted); font-size: 12px; width: 18px; text-align: right; flex: none; }
+  .step-card .card-label { font-weight: 600; }
+  .step-card .card-summary { color: var(--muted); font-size: 13px; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .step-card .head-main { flex: 1; min-width: 0; }
+  .step-card .head-badges { display: flex; gap: 5px; flex: none; align-items: center; }
+  .step-card .card-tools { display: none; position: absolute; right: 10px; top: -13px; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); padding: 2px; gap: 2px; z-index: 5; }
+  .step-card:hover .card-tools { display: flex; }
+  .card-tools button { border: none; background: transparent; border-radius: 6px; padding: 3px 7px; font-size: 12.5px; color: var(--muted); }
+  .card-tools button:hover { background: var(--pill); color: var(--text); }
+  .card-body { border-top: 1px solid var(--border); padding: 14px 16px 16px; }
+  .add-step-row { text-align: center; margin: 14px 0; }
+
+  /* ---------- Variant B: master-detail ---------- */
+  .vb-grid { display: grid; grid-template-columns: 290px 1fr 260px; gap: 16px; align-items: start; }
+  .vb-rail, .vb-main, .vb-side { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); }
+  .vb-rail { padding: 8px; }
+  .vb-rail .rail-row { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 8px; cursor: pointer; position: relative; }
+  .vb-rail .rail-row:hover { background: var(--bg); }
+  .vb-rail .rail-row.sel { background: var(--accent-soft); }
+  .vb-rail .rail-row .idx { color: var(--muted); font-size: 11px; width: 16px; text-align: right; flex: none; }
+  .vb-rail .rail-row .type-icon { width: 24px; height: 24px; font-size: 12px; }
+  .vb-rail .rail-row .rl { flex: 1; min-width: 0; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .vb-rail .rail-row.disabled-step .rl { color: var(--muted); text-decoration: line-through; }
+  .vb-rail .rail-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+  .vb-main { padding: 18px 20px; min-height: 300px; }
+  .vb-side { padding: 14px 16px; }
+  .vb-side h3 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+
+  /* ---------- Variant C: narrative ---------- */
+  .vc-wrap { max-width: 760px; margin: 0 auto; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); padding: 28px 34px; }
+  .vc-title { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+  .sentence { padding: 7px 6px; border-radius: 8px; line-height: 1.9; position: relative; display: flex; gap: 10px; align-items: baseline; }
+  .sentence:hover { background: var(--bg); }
+  .sentence .idx { color: var(--muted); font-size: 12px; width: 22px; text-align: right; flex: none; }
+  .sentence .stext { flex: 1; }
+  .sentence.disabled-step .stext { color: var(--muted); text-decoration: line-through; }
+  .tok { border-bottom: 1.5px dashed #b8c2e8; padding: 1px 3px; border-radius: 4px; cursor: pointer; }
+  .tok:hover { background: var(--accent-soft); }
+  .tok.static { cursor: default; }
+  .tok.static:hover { background: transparent; }
+  .tok.target { color: #234; font-weight: 600; }
+  .tok.fragile-tok { border-bottom-color: var(--amber); }
+  .sentence .s-tools { display: none; gap: 2px; flex: none; }
+  .sentence:hover .s-tools { display: flex; }
+  .s-tools button { border: none; background: transparent; border-radius: 6px; padding: 2px 6px; font-size: 12px; color: var(--muted); }
+  .s-tools button:hover { background: var(--pill); color: var(--text); }
+  .vc-editor { border: 1px solid var(--border); border-radius: 10px; background: var(--bg); margin: 6px 0 10px 32px; padding: 14px 16px; }
+
+  /* ---------- shared step form ---------- */
+  .form-grid { display: grid; grid-template-columns: 130px 1fr; gap: 10px 14px; align-items: center; }
+  .form-grid label { font-size: 13px; color: var(--muted); }
+  .form-grid .full { grid-column: 1 / -1; }
+  .txt { border: 1px solid var(--border); border-radius: 7px; padding: 7px 10px; width: 100%; background: #fff; }
+  .txt:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .chk { display: inline-flex; gap: 6px; align-items: center; font-size: 13.5px; cursor: pointer; }
+  .envelope-bar { display: flex; gap: 16px; align-items: center; padding-top: 12px; margin-top: 14px; border-top: 1px dashed var(--border); font-size: 13.5px; flex-wrap: wrap; }
+  .envelope-bar .tnum { width: 60px; padding: 4px 8px; }
+  .hint { font-size: 12px; color: var(--muted); }
+  .value-hint { margin-top: 4px; }
+
+  /* ---------- selector panel ---------- */
+  .sel-panel { border: 1px solid var(--border); border-radius: 9px; background: #fbfcfe; margin-top: 4px; }
+  .sel-head { display: flex; align-items: center; gap: 8px; padding: 9px 12px; cursor: pointer; }
+  .sel-head .sel-desc { font-weight: 600; font-size: 13.5px; }
+  .sel-health { font-size: 12px; padding: 2px 8px; border-radius: 10px; }
+  .sel-health.good { background: var(--green-soft); color: #1f6f31; }
+  .sel-health.warn { background: var(--amber-soft); color: #8a5b06; }
+  .sel-body { border-top: 1px solid var(--border); padding: 10px 12px 12px; }
+  .cand { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 7px; }
+  .cand:hover { background: var(--pill); }
+  .cand .rank { font-size: 11px; color: var(--muted); width: 14px; text-align: right; }
+  .cand .kind { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 9px; background: var(--accent-soft); color: var(--accent); flex: none; }
+  .cand .kind.weak { background: var(--amber-soft); color: #8a5b06; }
+  .cand .cval { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--code); border-radius: 5px; padding: 2px 7px; }
+  .cand .uniq { color: var(--green); font-size: 12px; flex: none; }
+  .cand .c-tools { display: none; gap: 2px; }
+  .cand:hover .c-tools { display: flex; }
+  .c-tools button { border: none; background: transparent; padding: 2px 5px; border-radius: 5px; font-size: 11.5px; color: var(--muted); }
+  .c-tools button:hover { background: #e2e5ea; color: var(--text); }
+  .sel-actions { display: flex; gap: 8px; margin-top: 9px; }
+
+  /* ---------- variables ---------- */
+  .var-row { display: flex; align-items: center; gap: 8px; padding: 7px 6px; border-radius: 8px; }
+  .var-row:hover { background: var(--bg); }
+  .var-row .vname { font-family: ui-monospace, Menlo, monospace; font-size: 13.5px; font-weight: 600; flex: 1; }
+  .var-row .vuse { font-size: 12px; color: var(--muted); cursor: pointer; text-decoration: underline dotted; }
+  .var-row .vuse.unused { color: var(--amber); }
+  .secret-tag { font-size: 10.5px; font-weight: 700; background: #f3e8fb; color: #8a3ec4; padding: 1px 6px; border-radius: 8px; }
+  .vars-drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 360px; background: var(--panel); border-left: 1px solid var(--border); box-shadow: -8px 0 24px rgba(20,24,34,.12); z-index: 50; padding: 18px 20px; overflow-y: auto; }
+  .vars-drawer h2 { margin: 0 0 4px; font-size: 16px; }
+  .highlight-step { outline: 2px solid var(--accent) !important; outline-offset: 1px; }
+
+  /* ---------- modal / toast / state inspector ---------- */
+  .overlay { position: fixed; inset: 0; background: rgba(15,18,25,.45); z-index: 80; display: flex; align-items: center; justify-content: center; }
+  .modal { background: var(--panel); border-radius: 12px; padding: 22px 24px; width: 460px; max-width: 92vw; box-shadow: 0 12px 40px rgba(0,0,0,.25); }
+  .modal h2 { margin: 0 0 6px; font-size: 17px; }
+  .modal .m-sub { color: var(--muted); font-size: 13.5px; margin-bottom: 14px; }
+  .modal .m-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+  .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: 76px; background: #23283a; color: #fff; padding: 10px 18px; border-radius: 9px; font-size: 14px; z-index: 90; box-shadow: 0 6px 18px rgba(0,0,0,.3); }
+  .state-drawer { position: fixed; left: 0; right: 0; bottom: 0; max-height: 42vh; background: #14181f; color: #cdd6e4; z-index: 55; overflow: auto; padding: 12px 18px; font-size: 12px; display: none; }
+  .state-drawer.on { display: block; }
+  .state-drawer pre { margin: 0; white-space: pre-wrap; }
+  .diff-box { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 13px; }
+  .diff-box .d-add { color: var(--green); }
+  .diff-box .d-mod { color: var(--amber); }
+  .type-picker { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+  .type-picker button { border: 1px solid var(--border); background: #fff; border-radius: 9px; padding: 10px 4px; display: flex; flex-direction: column; gap: 4px; align-items: center; font-size: 12px; }
+  .type-picker button:hover { border-color: var(--accent); background: var(--accent-soft); }
+</style>
+</head>
+<body>
+<div class="proto-banner">
+  <span>⚠ PROTOTYPE — disposable UI for roadmap node 3iwv5i. Nothing persists. Three variants: A inline list · B master-detail · C narrative.</span>
+  <span id="banner-variant"></span>
+</div>
+<div id="app"></div>
+
+<div class="variant-switch">
+  <button id="vbA" onclick="setVariant('A')">A · Hybrid list ✓</button>
+  <button id="vbB" onclick="setVariant('B')">B · Master-detail</button>
+  <button id="vbC" onclick="setVariant('C')">C · Narrative</button>
+  <button class="st-toggle" onclick="toggleStateDrawer()" title="Show the Draft as stored">State ▾</button>
+</div>
+<div class="state-drawer" id="state-drawer"><pre id="state-json"></pre></div>
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+
+<script>
+/* =================== state =================== */
+let uid = 100;
+const nid = () => 's' + (uid++);
+
+const S = {
+  variant: 'A',
+  workflow: { name: 'Price check — ExampleShop', defaultTimeout: 30 },
+  versions: [
+    { n: 3, at: 'published 2 days ago' },
+    { n: 2, at: 'published Jul 30' },
+    { n: 1, at: 'published Jul 22' },
+  ],
+  draftDirty: true,
+  variables: [
+    { name: 'email',    secret: false },
+    { name: 'password', secret: true  },
+    { name: 'query',    secret: false },
+  ],
+  steps: [],
+  expanded: null,      // A: expanded card, C: open editor
+  selected: null,      // B: selected step
+  selOpen: {},         // selector panel open per step id
+  varsOpen: false,     // A/C variables drawer
+  highlightVar: null,
+  stateDrawer: false,
+};
+
+function T(desc, cands) { return { description: desc, candidates: cands }; }
+function C(kind, value, weak) { return { kind, value, unique: true, weak: !!kind.match(/css|nth/) || !!weak }; }
+
+S.steps = [
+  { id: nid(), type: 'navigate', label: 'Open the login page', optional: false, disabled: false, timeout: null,
+    payload: { url: 'https://shop.example.com/login' } },
+  { id: nid(), type: 'click', label: "Dismiss cookie banner", optional: true, disabled: false, timeout: 5,
+    payload: { target: T('“Accept all” button', [
+      C('role+name', 'role=button[name="Accept all"]'),
+      C('text', 'text="Accept all"'),
+      C('css', '#cookie-bar > div > button:nth-child(2)'),
+    ]) } },
+  { id: nid(), type: 'type', label: 'Enter the account email', optional: false, disabled: false, timeout: null,
+    payload: { value: '{{email}}', target: T('Email field', [
+      C('test-id', '[data-testid="login-email"]'),
+      C('label', 'label="Email address"'),
+      C('placeholder', 'placeholder="you@example.com"'),
+      C('css', '#email'),
+    ]) } },
+  { id: nid(), type: 'type', label: 'Enter the password', optional: false, disabled: false, timeout: null,
+    payload: { value: '{{password}}', target: T('Password field', [
+      C('test-id', '[data-testid="login-password"]'),
+      C('label', 'label="Password"'),
+      C('css', '#password'),
+    ]) } },
+  { id: nid(), type: 'click', label: 'Sign in', optional: false, disabled: false, timeout: null,
+    payload: { target: T('“Sign in” button', [
+      C('role+name', 'role=button[name="Sign in"]'),
+      C('text', 'text="Sign in"'),
+    ]) } },
+  { id: nid(), type: 'wait', label: 'Wait for the account menu', optional: false, disabled: false, timeout: 10,
+    payload: { mode: 'element', seconds: null, target: T('Account menu', [
+      C('test-id', '[data-testid="account-menu"]'),
+      C('role+name', 'role=navigation[name="Account"]'),
+    ]) } },
+  { id: nid(), type: 'navigate', label: 'Search for the product', optional: false, disabled: false, timeout: null,
+    payload: { url: 'https://shop.example.com/search?q={{query}}' } },
+  { id: nid(), type: 'select', label: 'Sort by lowest price', optional: false, disabled: false, timeout: null,
+    payload: { value: 'Price: Low to High', target: T('Sort dropdown', [
+      C('label', 'label="Sort by"'),
+      C('css', 'select.sort-order'),
+    ]) } },
+  { id: nid(), type: 'extract', label: 'Collect the product list', optional: false, disabled: false, timeout: null,
+    payload: { mode: 'list', outputName: 'products',
+      target: T('Product card (repeats)', [
+        C('test-id', '[data-testid="product-card"]'),
+        C('css', '.results-grid > article'),
+      ]),
+      fields: [
+        { name: 'name',  subSelector: 'h3.product-title' },
+        { name: 'price', subSelector: '.price' },
+      ] } },
+  { id: nid(), type: 'extract', label: 'Save the result count', optional: false, disabled: false, timeout: null,
+    payload: { mode: 'scalar', outputName: 'result_count', attr: 'text',
+      target: T('Results counter', [
+        C('css', '.results-header .count', true),
+        C('nth', '.results-header >> nth=1', true),
+      ]) } },
+  { id: nid(), type: 'download', label: 'Export the CSV', optional: false, disabled: false, timeout: 60,
+    payload: { target: T('“Export CSV” link', [
+      C('role+name', 'role=link[name="Export CSV"]'),
+      C('text', 'text="Export CSV"'),
+    ]) } },
+  { id: nid(), type: 'pause', label: 'Approve before checkout', optional: false, disabled: true, timeout: null,
+    payload: { message: 'Check the totals look right, then hand back.' } },
+];
+S.selected = S.steps[0].id;
+
+/* =================== helpers =================== */
+const TYPES = {
+  navigate: { icon: '🌐', name: 'Navigate' },
+  click:    { icon: '🖱', name: 'Click' },
+  type:     { icon: '⌨️', name: 'Type' },
+  select:   { icon: '☑️', name: 'Select' },
+  extract:  { icon: '📤', name: 'Extract' },
+  wait:     { icon: '⏳', name: 'Wait' },
+  download: { icon: '📥', name: 'Download' },
+  pause:    { icon: '✋', name: 'Pause for takeover' },
+};
+
+function esc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function fmtValue(v) { // render {{var}} pills inside a literal string
+  return esc(v).replace(/\{\{(\w+)\}\}/g, (m, name) => {
+    const vr = S.variables.find(x => x.name === name);
+    const cls = vr && vr.secret ? 'var-pill secret' : 'var-pill';
+    const missing = vr ? '' : ' style="background:var(--red-soft);color:var(--red)" title="No such Variable"';
+    return `<span class="${cls}"${missing}>{{${name}}}</span>`;
+  });
+}
+
+function stepVars(st) {
+  const strs = [];
+  if (st.payload.url) strs.push(st.payload.url);
+  if (st.payload.value) strs.push(st.payload.value);
+  const found = new Set();
+  strs.forEach(s => (s.match(/\{\{(\w+)\}\}/g) || []).forEach(m => found.add(m.slice(2, -2))));
+  return [...found];
+}
+function varUsage(name) { return S.steps.filter(st => stepVars(st).includes(name)); }
+
+function targetOf(st) { return st.payload.target || null; }
+function isFragile(st) {
+  const t = targetOf(st);
+  if (!t) return false;
+  return t.candidates.length > 0 && t.candidates.every(c => c.weak);
+}
+
+function summary(st) {
+  const p = st.payload;
+  switch (st.type) {
+    case 'navigate': return `Go to ${p.url}`;
+    case 'click':    return `Click ${p.target.description}`;
+    case 'type':     return `Type ${p.value} into ${p.target.description}`;
+    case 'select':   return `Choose “${p.value}” in ${p.target.description}`;
+    case 'extract':  return p.mode === 'list'
+      ? `Collect ${p.fields.map(f => f.name).join(', ')} from each ${p.target.description} → ${p.outputName}`
+      : `Save ${p.target.description} → ${p.outputName}`;
+    case 'wait':     return p.mode === 'element' ? `Until ${p.target.description} appears` : `For ${p.seconds}s`;
+    case 'download': return `From ${p.target.description}`;
+    case 'pause':    return p.message || 'Hand the browser to a human';
+  }
+}
+
+function markDirty() { S.draftDirty = true; }
+
+/* =================== actions =================== */
+function setVariant(v) { S.variant = v; render(); }
+function toggleStateDrawer() { S.stateDrawer = !S.stateDrawer; render(); }
+function toggleExpand(id) { S.expanded = S.expanded === id ? null : id; render(); }
+function selectStep(id) { S.selected = id; render(); }
+function toggleSel(id) { S.selOpen[id] = !S.selOpen[id]; render(); }
+function toggleVars() { S.varsOpen = !S.varsOpen; S.highlightVar = null; render(); }
+
+function stepById(id) { return S.steps.find(s => s.id === id); }
+function move(id, dir) {
+  const i = S.steps.findIndex(s => s.id === id);
+  const j = i + dir;
+  if (j < 0 || j >= S.steps.length) return;
+  [S.steps[i], S.steps[j]] = [S.steps[j], S.steps[i]];
+  markDirty(); render();
+}
+function removeStep(id) {
+  S.steps = S.steps.filter(s => s.id !== id);
+  if (S.selected === id) S.selected = S.steps[0]?.id ?? null;
+  if (S.expanded === id) S.expanded = null;
+  markDirty(); render();
+}
+function setEnv(id, key, val) { stepById(id)[key] = val; markDirty(); render(); }
+function setPayload(id, key, val) { stepById(id).payload[key] = val; markDirty(); render(); }
+function setLabelLive(id, val) { stepById(id).label = val; markDirty(); refreshStateJson(); } // no rerender while typing
+function setPayloadLive(id, key, val) { stepById(id).payload[key] = val; markDirty(); refreshStateJson(); }
+
+function candMove(stepId, idx) {
+  const t = targetOf(stepById(stepId));
+  const [c] = t.candidates.splice(idx, 1);
+  t.candidates.unshift(c);
+  markDirty(); render();
+}
+function candRemove(stepId, idx) {
+  const t = targetOf(stepById(stepId));
+  t.candidates.splice(idx, 1);
+  markDirty(); render();
+}
+function candAdd(stepId) {
+  const val = prompt('Selector (CSS or Playwright locator):');
+  if (!val) return;
+  targetOf(stepById(stepId)).candidates.push({ kind: 'manual', value: val, unique: false, weak: true });
+  markDirty(); render();
+}
+function repick(stepId) {
+  toast('Would open the recorder on the live page to pick the element again (out of scope for this prototype).');
+}
+
+function fieldSet(stepId, i, key, val) { stepById(stepId).payload.fields[i][key] = val; markDirty(); refreshStateJson(); }
+function fieldAdd(stepId) { stepById(stepId).payload.fields.push({ name: 'field', subSelector: '' }); markDirty(); render(); }
+function fieldRemove(stepId, i) { stepById(stepId).payload.fields.splice(i, 1); markDirty(); render(); }
+
+function varAdd() {
+  const name = prompt('Variable name (letters, digits, _):');
+  if (!name || !/^\w+$/.test(name)) return;
+  if (S.variables.some(v => v.name === name)) { toast('A Variable with that name exists.'); return; }
+  S.variables.push({ name, secret: false });
+  markDirty(); render();
+}
+function varToggleSecret(name) {
+  const v = S.variables.find(v => v.name === name);
+  v.secret = !v.secret; markDirty(); render();
+}
+function varRemove(name) {
+  const used = varUsage(name);
+  if (used.length) { toast(`Cannot delete: {{${name}}} is used by ${used.length} step${used.length > 1 ? 's' : ''}.`); return; }
+  S.variables = S.variables.filter(v => v.name !== name);
+  markDirty(); render();
+}
+function varHighlight(name) {
+  S.highlightVar = S.highlightVar === name ? null : name;
+  render();
+  const first = varUsage(name)[0];
+  if (first) document.querySelector(`[data-step="${first.id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+function insertVar(stepId, key, selId) {
+  const sel = document.getElementById(selId);
+  const name = sel.value;
+  if (!name) return;
+  const st = stepById(stepId);
+  st.payload[key] = (st.payload[key] || '') + `{{${name}}}`;
+  markDirty(); render();
+}
+
+function addStepPicker(atEnd) {
+  modal(`
+    <h2>Add a step</h2>
+    <div class="m-sub">In the real app most steps arrive from the recorder; adding by hand covers small fixes.</div>
+    <div class="type-picker">
+      ${Object.entries(TYPES).map(([k, t]) => `<button onclick="addStep('${k}')"><span style="font-size:19px">${t.icon}</span>${t.name}</button>`).join('')}
+    </div>
+    <div class="m-actions"><button class="btn" onclick="closeModal()">Cancel</button></div>`);
+}
+function addStep(type) {
+  closeModal();
+  const base = { id: nid(), type, label: `New ${TYPES[type].name.toLowerCase()} step`, optional: false, disabled: false, timeout: null, payload: {} };
+  const t = T('Pick an element…', []);
+  if (type === 'navigate') base.payload = { url: 'https://' };
+  if (type === 'click' || type === 'download') base.payload = { target: t };
+  if (type === 'type') base.payload = { value: '', target: t };
+  if (type === 'select') base.payload = { value: '', target: t };
+  if (type === 'extract') base.payload = { mode: 'scalar', outputName: 'value', attr: 'text', target: t, fields: [] };
+  if (type === 'wait') base.payload = { mode: 'duration', seconds: 3, target: t };
+  if (type === 'pause') base.payload = { message: '' };
+  S.steps.push(base);
+  S.expanded = base.id; S.selected = base.id;
+  markDirty(); render();
+}
+
+/* ---------- test run / publish ---------- */
+function testRun() {
+  modal(`
+    <h2>Test run the Draft</h2>
+    <div class="m-sub">Runs the Draft as it stands. The Run is flagged a test run and stores its own snapshot — no Version is created.</div>
+    <div class="form-grid">
+      ${S.variables.map(v => `
+        <label>{{${v.name}}}${v.secret ? ' <span class="secret-tag">SECRET</span>' : ''}</label>
+        <input class="txt" type="${v.secret ? 'password' : 'text'}" placeholder="${v.secret ? '••••••••' : 'value for this run'}">`).join('')}
+    </div>
+    <div class="m-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" onclick="closeModal(); toast('Test run started — it opens in the Run view (a different screen, prototyped in apx4rs).')">Start test run</button>
+    </div>`);
+}
+function publish() {
+  const next = S.versions[0].n + 1;
+  modal(`
+    <h2>Publish as Version ${next}</h2>
+    <div class="m-sub">Publishing freezes the Draft into an immutable Version. Schedules and Batches switch to it on their next run.</div>
+    <div class="diff-box">
+      Compared with Version ${S.versions[0].n}:<br>
+      <span class="d-mod">~ 2 steps changed</span> (Enter the password, Collect the product list)<br>
+      <span class="d-add">+ 1 step added</span> (Approve before checkout — disabled)
+    </div>
+    <div class="m-actions">
+      <button class="btn" onclick="closeModal()">Cancel</button>
+      <button class="btn primary" onclick="doPublish()">Publish v${next}</button>
+    </div>`);
+}
+function doPublish() {
+  const next = S.versions[0].n + 1;
+  S.versions.unshift({ n: next, at: 'published just now' });
+  S.draftDirty = false;
+  closeModal(); toast(`Published Version ${next}. Schedules and Batches now run v${next}.`);
+  render();
+}
+function viewVersion(sel) {
+  if (sel.value === 'draft') { render(); return; }
+  toast(`Version ${sel.value} is immutable — would open read-only, with “Restore to Draft” as the only action.`);
+  sel.value = 'draft';
+}
+
+/* ---------- modal / toast ---------- */
+function modal(html) { document.getElementById('modal-root').innerHTML = `<div class="overlay" onclick="if(event.target===this)closeModal()"><div class="modal">${html}</div></div>`; }
+function closeModal() { document.getElementById('modal-root').innerHTML = ''; }
+let toastTimer;
+function toast(msg) {
+  const r = document.getElementById('toast-root');
+  r.innerHTML = `<div class="toast">${esc(msg)}</div>`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => r.innerHTML = '', 3800);
+}
+
+/* =================== shared components =================== */
+function headerHtml() {
+  return `
+  <header class="app">
+    <input class="wf-name" value="${esc(S.workflow.name)}" oninput="S.workflow.name=this.value; markDirty(); refreshStateJson()">
+    <span class="draft-chip ${S.draftDirty ? '' : 'clean'}">${S.draftDirty ? 'Draft · unpublished changes' : `Draft · in sync with v${S.versions[0].n}`}</span>
+    <select class="ver-select" onchange="viewVersion(this)">
+      <option value="draft">Viewing: Draft</option>
+      ${S.versions.map(v => `<option value="${v.n}">v${v.n} — ${v.at}</option>`).join('')}
+    </select>
+    <div class="header-spacer"></div>
+    ${S.variant !== 'B' ? `<button class="btn" onclick="toggleVars()">Variables (${S.variables.length})</button>` : ''}
+    <button class="btn" onclick="testRun()">▷ Test run</button>
+    <button class="btn primary" onclick="publish()">Publish v${S.versions[0].n + 1}</button>
+  </header>`;
+}
+
+function badges(st) {
+  const b = [];
+  if (st.optional) b.push('<span class="badge optional" title="If the element never appears, skip this step instead of failing.">optional</span>');
+  if (st.disabled) b.push('<span class="badge disabled">off</span>');
+  if (st.timeout != null) b.push(`<span class="badge timeout">${st.timeout}s</span>`);
+  if (isFragile(st)) b.push('<span class="badge fragile" title="Only fragile selectors were captured for this element. Consider re-picking it.">fragile target</span>');
+  return b.join(' ');
+}
+
+function selectorPanel(st) {
+  const t = targetOf(st);
+  if (!t) return '';
+  const open = S.selOpen[st.id];
+  const fragile = isFragile(st);
+  const health = t.candidates.length === 0
+    ? `<span class="sel-health warn">no selectors — pick an element</span>`
+    : fragile
+      ? `<span class="sel-health warn">fragile — only position-based selectors</span>`
+      : `<span class="sel-health good">${t.candidates.length} ways to find it · verified when recorded</span>`;
+  return `
+  <div class="sel-panel">
+    <div class="sel-head" onclick="toggleSel('${st.id}')">
+      <span style="color:var(--muted);font-size:12px">${open ? '▾' : '▸'}</span>
+      <span class="sel-desc">How this step finds “${esc(t.description)}”</span>
+      ${health}
+    </div>
+    ${open ? `
+    <div class="sel-body">
+      <div class="hint" style="margin-bottom:7px">Tried top-to-bottom at replay; the first that matches exactly one element wins. Drag isn't wired — use “top”.</div>
+      ${t.candidates.map((c, i) => `
+        <div class="cand">
+          <span class="rank">${i + 1}</span>
+          <span class="kind ${c.weak ? 'weak' : ''}">${c.kind}</span>
+          <span class="cval code">${esc(c.value)}</span>
+          ${c.unique ? '<span class="uniq" title="Matched exactly one element at record time">✓ unique</span>' : '<span class="uniq" style="color:var(--amber)" title="Not verified">unverified</span>'}
+          <span class="c-tools">
+            ${i > 0 ? `<button onclick="candMove('${st.id}',${i})">↑ top</button>` : ''}
+            <button onclick="candRemove('${st.id}',${i})">remove</button>
+          </span>
+        </div>`).join('')}
+      <div class="sel-actions">
+        <button class="btn small" onclick="repick('${st.id}')">⊕ Pick element again…</button>
+        <button class="btn small subtle" onclick="candAdd('${st.id}')">Add selector by hand</button>
+      </div>
+    </div>` : ''}
+  </div>`;
+}
+
+function valueInput(st, key, placeholder) {
+  const val = st.payload[key] || '';
+  const selId = `ins-${st.id}-${key}`;
+  return `
+    <input class="txt" value="${esc(val)}" placeholder="${placeholder || ''}" oninput="setPayloadLive('${st.id}','${key}',this.value)" onchange="render()">
+    <div class="row value-hint full" style="grid-column:2">
+      <span class="hint">Preview: ${fmtValue(val) || '<i>empty</i>'}</span>
+      <span style="flex:1"></span>
+      <select id="${selId}" class="ver-select" style="padding:3px 6px;font-size:12px">
+        <option value="">Insert Variable…</option>
+        ${S.variables.map(v => `<option>${v.name}</option>`).join('')}
+      </select>
+      <button class="btn small" onclick="insertVar('${st.id}','${key}','${selId}')">Insert</button>
+    </div>`;
+}
+
+function stepForm(st) {
+  const p = st.payload;
+  let typeRows = '';
+  switch (st.type) {
+    case 'navigate':
+      typeRows = `<label>URL</label><div>${valueInput(st, 'url', 'https://…')}</div>`;
+      break;
+    case 'type':
+      typeRows = `<label>Text to type</label><div>${valueInput(st, 'value', 'literal text and {{variables}}')}</div>`;
+      break;
+    case 'select':
+      typeRows = `<label>Option to choose</label><div>${valueInput(st, 'value', 'visible option text')}</div>`;
+      break;
+    case 'extract':
+      typeRows = `
+        <label>Output name</label>
+        <div><input class="txt" style="max-width:220px" value="${esc(p.outputName)}" oninput="setPayloadLive('${st.id}','outputName',this.value)" onchange="render()">
+          <div class="hint value-hint">The Run's output object gets <span class="code">${esc(p.outputName)}</span> as a key.</div></div>
+        <label>Mode</label>
+        <div class="row">
+          <label class="chk"><input type="radio" name="mode-${st.id}" ${p.mode === 'scalar' ? 'checked' : ''} onchange="setPayload('${st.id}','mode','scalar')"> One value</label>
+          <label class="chk"><input type="radio" name="mode-${st.id}" ${p.mode === 'list' ? 'checked' : ''} onchange="setPayload('${st.id}','mode','list')"> A list — the element repeats</label>
+        </div>
+        ${p.mode === 'list' ? `
+        <label style="align-self:start;padding-top:8px">Fields per item</label>
+        <div>
+          ${p.fields.map((f, i) => `
+            <div class="row" style="margin-bottom:6px">
+              <input class="txt" style="max-width:130px" value="${esc(f.name)}" oninput="fieldSet('${st.id}',${i},'name',this.value)" onchange="render()" placeholder="field name">
+              <span class="hint">from</span>
+              <input class="txt code" style="flex:1" value="${esc(f.subSelector)}" oninput="fieldSet('${st.id}',${i},'subSelector',this.value)" onchange="render()" placeholder="selector inside the repeating element">
+              <button class="btn small subtle danger" onclick="fieldRemove('${st.id}',${i})">✕</button>
+            </div>`).join('')}
+          <button class="btn small" onclick="fieldAdd('${st.id}')">+ Add field</button>
+        </div>` : ''}`;
+      break;
+    case 'wait':
+      typeRows = `
+        <label>Wait for</label>
+        <div class="row">
+          <label class="chk"><input type="radio" name="wmode-${st.id}" ${p.mode === 'duration' ? 'checked' : ''} onchange="setPayload('${st.id}','mode','duration')"> A fixed time</label>
+          <label class="chk"><input type="radio" name="wmode-${st.id}" ${p.mode === 'element' ? 'checked' : ''} onchange="setPayload('${st.id}','mode','element')"> An element to appear</label>
+          ${p.mode === 'duration' ? `<input class="txt tnum" type="number" value="${p.seconds ?? 3}" oninput="setPayloadLive('${st.id}','seconds',+this.value)" onchange="render()"> <span class="hint">seconds</span>` : ''}
+        </div>`;
+      break;
+    case 'pause':
+      typeRows = `
+        <label style="align-self:start;padding-top:8px">Message to the human</label>
+        <div><textarea class="txt" rows="2" oninput="setPayloadLive('${st.id}','message',this.value)" onchange="render()" placeholder="Shown to whoever takes over the browser.">${esc(p.message)}</textarea></div>`;
+      break;
+  }
+  const showTarget = targetOf(st) && !(st.type === 'wait' && p.mode === 'duration');
+  return `
+  <div class="form-grid">
+    <label>Label</label>
+    <div><input class="txt" value="${esc(st.label)}" oninput="setLabelLive('${st.id}',this.value)" onchange="render()"></div>
+    ${typeRows}
+  </div>
+  ${showTarget ? selectorPanel(st) : ''}
+  <div class="envelope-bar">
+    <label class="chk" title="If the element never appears, skip this step instead of failing the Run.">
+      <input type="checkbox" ${st.optional ? 'checked' : ''} onchange="setEnv('${st.id}','optional',this.checked)"> Optional — skip if its element never appears</label>
+    <label class="chk"><input type="checkbox" ${st.disabled ? 'checked' : ''} onchange="setEnv('${st.id}','disabled',this.checked)"> Disabled — keep it, don't run it</label>
+    <span class="row"><span class="hint">Timeout</span>
+      <input class="txt tnum" type="number" placeholder="${S.workflow.defaultTimeout}" value="${st.timeout ?? ''}"
+        onchange="setEnv('${st.id}','timeout',this.value===''?null:+this.value)">
+      <span class="hint">s (blank = workflow default ${S.workflow.defaultTimeout}s)</span></span>
+    <span style="flex:1"></span>
+    <button class="btn small subtle danger" onclick="removeStep('${st.id}')">Delete step</button>
+  </div>`;
+}
+
+function variablesList(compact) {
+  return `
+    ${S.variables.map(v => {
+      const used = varUsage(v.name);
+      return `
+      <div class="var-row">
+        <span class="vname">{{${v.name}}}</span>
+        ${v.secret ? '<span class="secret-tag">SECRET</span>' : ''}
+        <span class="vuse ${used.length ? '' : 'unused'}" onclick="varHighlight('${v.name}')"
+          title="Click to highlight the steps that use it">${used.length ? `used by ${used.length} step${used.length > 1 ? 's' : ''}` : 'unused'}</span>
+        <span class="c-tools" style="display:flex">
+          <button onclick="varToggleSecret('${v.name}')" title="A secret is stored encrypted, masked in logs and screenshots, and never travels in Batch rows.">${v.secret ? 'unmark' : 'secret'}</button>
+          <button onclick="varRemove('${v.name}')">✕</button>
+        </span>
+      </div>`;
+    }).join('')}
+    <div style="margin-top:8px"><button class="btn small" onclick="varAdd()">+ New Variable</button></div>
+    <div class="hint" style="margin-top:10px">Values arrive per Run — typed at “Test run”, supplied by a Batch's rows, or saved on a Schedule. Reference one as <span class="code">{{name}}</span> inside a Type value or a Navigate URL.</div>`;
+}
+
+function varsDrawerHtml() {
+  if (!S.varsOpen) return '';
+  return `
+  <div class="vars-drawer">
+    <div class="row" style="justify-content:space-between">
+      <h2>Variables</h2>
+      <button class="btn subtle" onclick="toggleVars()">✕ Close</button>
+    </div>
+    <div class="hint" style="margin-bottom:10px">Named inputs this Workflow declares.</div>
+    ${variablesList()}
+  </div>`;
+}
+
+/* =================== variant A: inline list =================== */
+function renderA() {
+  return `
+  <main><div class="va-wrap">
+    ${S.steps.map((st, i) => `
+      <div class="step-card ${st.disabled ? 'disabled-step' : ''} ${S.highlightVar && stepVars(st).includes(S.highlightVar) ? 'highlight-step' : ''}" data-step="${st.id}">
+        <div class="card-tools">
+          <button onclick="event.stopPropagation();move('${st.id}',-1)" title="Move up">↑</button>
+          <button onclick="event.stopPropagation();move('${st.id}',1)" title="Move down">↓</button>
+          <button onclick="event.stopPropagation();setEnv('${st.id}','disabled',${!st.disabled})">${st.disabled ? 'enable' : 'disable'}</button>
+          <button onclick="event.stopPropagation();removeStep('${st.id}')">delete</button>
+        </div>
+        <div class="card-head" onclick="toggleExpand('${st.id}')">
+          <span class="idx">${i + 1}</span>
+          <span class="type-icon">${TYPES[st.type].icon}</span>
+          <div class="head-main">
+            <div class="card-label">${esc(st.label)}</div>
+            <div class="card-summary">${sentence(st, false)}</div>
+          </div>
+          <div class="head-badges">${badges(st)}</div>
+        </div>
+        ${S.expanded === st.id ? `<div class="card-body">${stepForm(st)}</div>` : ''}
+      </div>`).join('')}
+    <div class="add-step-row"><button class="btn" onclick="addStepPicker()">+ Add step</button></div>
+  </div></main>`;
+}
+
+/* =================== variant B: master-detail =================== */
+function renderB() {
+  const sel = stepById(S.selected) || S.steps[0];
+  return `
+  <main><div class="vb-grid">
+    <div class="vb-rail">
+      ${S.steps.map((st, i) => `
+        <div class="rail-row ${sel && st.id === sel.id ? 'sel' : ''} ${st.disabled ? 'disabled-step' : ''} ${S.highlightVar && stepVars(st).includes(S.highlightVar) ? 'highlight-step' : ''}"
+          data-step="${st.id}" onclick="selectStep('${st.id}')">
+          <span class="idx">${i + 1}</span>
+          <span class="type-icon">${TYPES[st.type].icon}</span>
+          <span class="rl">${esc(st.label)}</span>
+          ${isFragile(st) ? '<span class="rail-dot" style="background:var(--amber)" title="fragile target"></span>' : ''}
+          ${st.optional ? '<span class="rail-dot" style="background:var(--accent)" title="optional"></span>' : ''}
+        </div>`).join('')}
+      <div style="padding:8px"><button class="btn small" style="width:100%" onclick="addStepPicker()">+ Add step</button></div>
+    </div>
+    <div class="vb-main">
+      ${sel ? `
+        <div class="row" style="justify-content:space-between;margin-bottom:14px">
+          <div class="row"><span class="type-icon">${TYPES[sel.type].icon}</span>
+            <strong>${TYPES[sel.type].name} step</strong> ${badges(sel)}</div>
+          <div class="row">
+            <button class="btn small" onclick="move('${sel.id}',-1)">↑ Move up</button>
+            <button class="btn small" onclick="move('${sel.id}',1)">↓ Move down</button>
+          </div>
+        </div>
+        ${stepForm(sel)}` : '<div class="hint">No step selected.</div>'}
+    </div>
+    <div class="vb-side">
+      <h3>Variables</h3>
+      ${variablesList(true)}
+    </div>
+  </div></main>`;
+}
+
+/* =================== variant C: narrative =================== */
+function tok(stepId, label, cls, live) {
+  if (live === false) return `<span class="tok static ${cls || ''}">${label}</span>`;
+  return `<span class="tok ${cls || ''}" onclick="toggleExpand('${stepId}')">${label}</span>`;
+}
+function sentence(st, live) {
+  const p = st.payload;
+  const tg = t => tok(st.id, esc(t.description), 'target' + (isFragile(st) ? ' fragile-tok' : ''), live);
+  const vv = v => tok(st.id, fmtValue(v) || '<i>empty</i>', '', live);
+  switch (st.type) {
+    case 'navigate': return `Go to ${vv(p.url)}.`;
+    case 'click':    return `Click ${tg(p.target)}${st.optional ? ' <span class="hint">(if it appears)</span>' : ''}.`;
+    case 'type':     return `Type ${vv(p.value)} into ${tg(p.target)}.`;
+    case 'select':   return `Choose ${vv('“' + p.value + '”')} in ${tg(p.target)}.`;
+    case 'extract':  return p.mode === 'list'
+      ? `From each ${tg(p.target)}, collect ${tok(st.id, p.fields.map(f => esc(f.name)).join(', '))} as <span class="var-pill">${esc(p.outputName)}</span>.`
+      : `Save the text of ${tg(p.target)} as <span class="var-pill">${esc(p.outputName)}</span>.`;
+    case 'wait':     return p.mode === 'element' ? `Wait until ${tg(p.target)} appears.` : `Wait ${tok(st.id, p.seconds + ' seconds')}.`;
+    case 'download': return `Download the file behind ${tg(p.target)}.`;
+    case 'pause':    return `Pause for a human — ${tok(st.id, esc(p.message) || '<i>no instructions</i>')}.`;
+  }
+}
+function renderC() {
+  return `
+  <main><div class="vc-wrap">
+    <div class="vc-title">The Workflow, read top to bottom. Click any underlined part to edit that step; hover a line for its tools.</div>
+    ${S.steps.map((st, i) => `
+      <div class="sentence ${st.disabled ? 'disabled-step' : ''} ${S.highlightVar && stepVars(st).includes(S.highlightVar) ? 'highlight-step' : ''}" data-step="${st.id}">
+        <span class="idx">${i + 1}.</span>
+        <span class="stext">${sentence(st)} ${st.timeout != null ? `<span class="badge timeout">${st.timeout}s</span>` : ''}</span>
+        <span class="s-tools">
+          <button onclick="move('${st.id}',-1)">↑</button>
+          <button onclick="move('${st.id}',1)">↓</button>
+          <button onclick="setEnv('${st.id}','disabled',${!st.disabled})">${st.disabled ? 'enable' : 'off'}</button>
+          <button onclick="toggleExpand('${st.id}')">edit</button>
+        </span>
+      </div>
+      ${S.expanded === st.id ? `<div class="vc-editor">${stepForm(st)}</div>` : ''}`).join('')}
+    <div class="add-step-row" style="text-align:left;margin-left:32px"><button class="btn small" onclick="addStepPicker()">+ Add step</button></div>
+  </div></main>`;
+}
+
+/* =================== render =================== */
+function refreshStateJson() {
+  if (!S.stateDrawer) return;
+  const draft = {
+    workflow: S.workflow,
+    draftDirty: S.draftDirty,
+    publishedVersions: S.versions.map(v => v.n),
+    variables: S.variables,
+    steps: S.steps,
+  };
+  document.getElementById('state-json').textContent = JSON.stringify(draft, null, 2);
+}
+function render() {
+  document.getElementById('banner-variant').textContent = `Variant ${S.variant}`;
+  ['A', 'B', 'C'].forEach(v => document.getElementById('vb' + v).classList.toggle('on', S.variant === v));
+  const body = S.variant === 'A' ? renderA() : S.variant === 'B' ? renderB() : renderC();
+  document.getElementById('app').innerHTML = headerHtml() + body + varsDrawerHtml();
+  document.getElementById('state-drawer').classList.toggle('on', S.stateDrawer);
+  refreshStateJson();
+}
+render();
+</script>
+</body>
+</html>
