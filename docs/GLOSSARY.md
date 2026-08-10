@@ -52,6 +52,14 @@ _Avoid_: cron job, timer
 A file that a Run produces: a screenshot, a download, or a trace.
 _Avoid_: attachment, output file
 
+**Secret**:
+A named, encrypted value in a user's vault. A Workflow's secret Variable binds to a Secret by name, and the value itself never appears in step payloads, logs, or Artifacts.
+_Avoid_: credential, vault entry
+
+**Auth State**:
+A user's saved signed-in browser state (cookies and web storage) for one site, captured with consent from the extension or written back by a Worker. A Run's browser receives the user's Auth State for the sites it touches before it starts.
+_Avoid_: session state, storage state, login blob
+
 **Worker**:
 A long-lived process that executes at most one Run at a time, with an exclusive browser for that Run. The number of Workers is the instance's total Run concurrency.
 _Avoid_: runner, executor, agent

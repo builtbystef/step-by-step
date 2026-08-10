@@ -7,7 +7,7 @@ priority: high
 labels:
     - roadmap
 created: 2026-08-08T07:07:08Z
-updated: 2026-08-10T06:47:19Z
+updated: 2026-08-10T18:45:08Z
 ---
 
 ## Goal
@@ -54,3 +54,8 @@ Related but outside this DAG: issue `ymz3md` (establish stack, checks, and dev c
 - A reserved Worker pool for takeover-capable Runs (px25yw) — a waiting_for_human Run occupies a regular Worker slot until resume or timeout.
 - Pure master-detail (IDE-style) and pure narrative-sentence editor layouts (3iwv5i) — the editor is the hybrid: an inline card list whose card summaries are the narrative sentences.
 - Full-screen focus-page and modal takeover surfaces (4tjwpw) — the takeover surface is the browser pane embedded in the run detail; entering takeover never navigates away. Auto hand-back on a met success predicate (with a short grace countdown and a "stay in control" escape) is the confirmed behavior; heuristic pauses, having no predicate, stay manual.
+- Cloud KMS integration for Secret/Auth State encryption (7o0nmx; ADR 0003) — v1 is an env-supplied 32-byte master key with app-level envelope encryption; losing the key means stored values are unrecoverable by design.
+- Per-workflow secret values (7o0nmx) — Secrets live in a user-level vault and workflows bind by name; one rotation point.
+- Per-domain locks or freshness stamps for Auth State write-back (7o0nmx) — concurrent same-user same-domain runs are last-write-wins; worst case is one extra login/takeover on the next run.
+- Suppressing screenshots on secret-referencing steps (7o0nmx) — password fields mask themselves and that is accepted; trace capture is bracketed around those steps instead, and log lines are redacted.
+- Silent Auth State export from the extension (7o0nmx) — capture is an explicit per-domain opt-in prompt at recording save.
