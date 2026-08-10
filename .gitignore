@@ -1,0 +1,11 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.*
+.secrets/
+
+# OS
+.DS_Store
