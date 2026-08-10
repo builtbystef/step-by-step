@@ -7,7 +7,7 @@ priority: high
 labels:
     - roadmap
 created: 2026-08-08T07:07:08Z
-updated: 2026-08-10T22:44:16Z
+updated: 2026-08-10T23:47:39Z
 ---
 
 ## Goal
@@ -60,3 +60,7 @@ Related but outside this DAG: issue `ymz3md` (establish stack, checks, and dev c
 - Suppressing screenshots on secret-referencing steps (7o0nmx) — password fields mask themselves and that is accepted; trace capture is bracketed around those steps instead, and log lines are redacted.
 - Silent Auth State export from the extension (7o0nmx) — capture is an explicit per-domain opt-in prompt at recording save.
 - A closable/reopenable debugger infobar during recording (zm0rfq) — dismissing the bar detaches `chrome.debugger`, ending role/name capture, and Chrome offers no reopen. The recording UX presents the bar as the fixed, visible cost of an active recording.
+
+- OAuth/OIDC sign-in for v1 (imtsfx) — email/password only; no external identity dependency in a self-hosted stack. OIDC is a clean later addition.
+- Email-based self-serve password reset (imtsfx) — admin-set temp passwords with forced change on first login; SMTP reset can layer on later.
+- Soft delete / deletion grace period (imtsfx) — account deletion is a hard cascade behind a type-the-username confirmation.

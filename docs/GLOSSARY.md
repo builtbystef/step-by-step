@@ -60,6 +60,10 @@ _Avoid_: credential, vault entry
 A user's saved signed-in browser state (cookies and web storage) for one site, captured with consent from the extension or written back by a Worker. A Run's browser receives the user's Auth State for the sites it touches before it starts.
 _Avoid_: session state, storage state, login blob
 
+**Instance Admin**:
+A user with instance-level powers: creating, disabling, deleting, and password-resetting users, and toggling open signup. Tenancy isolation still applies — an Instance Admin never sees another user's Workflows, Runs, Secrets, or Auth State.
+_Avoid_: superuser, operator, owner
+
 **Worker**:
 A long-lived process that executes at most one Run at a time, with an exclusive browser for that Run. The number of Workers is the instance's total Run concurrency.
 _Avoid_: runner, executor, agent
