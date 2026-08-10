@@ -1,0 +1,392 @@
+{
+  "axCache": {
+    "816ens-1": {},
+    "eq5239-1": {},
+    "eq5239-2": {},
+    "eq5239-3": {}
+  },
+  "axTimings": [
+    {
+      "name": "Username",
+      "ok": true,
+      "partialTreeMs": 5,
+      "queryMs": 21,
+      "recId": "eq5239-1",
+      "role": "textbox",
+      "totalMs": 26,
+      "uniqueInAxTree": true
+    },
+    {
+      "name": "Username",
+      "ok": true,
+      "partialTreeMs": 4,
+      "queryMs": 21,
+      "recId": "eq5239-1",
+      "role": "textbox",
+      "totalMs": 25,
+      "uniqueInAxTree": true
+    },
+    {
+      "name": "Password",
+      "ok": true,
+      "partialTreeMs": 5,
+      "queryMs": 2,
+      "recId": "eq5239-2",
+      "role": "textbox",
+      "totalMs": 7,
+      "uniqueInAxTree": true
+    },
+    {
+      "name": "Password",
+      "ok": true,
+      "partialTreeMs": 5,
+      "queryMs": 13,
+      "recId": "eq5239-2",
+      "role": "textbox",
+      "totalMs": 18,
+      "uniqueInAxTree": true
+    },
+    {
+      "name": "\uf090 Login",
+      "ok": true,
+      "partialTreeMs": 3,
+      "queryMs": 11,
+      "recId": "eq5239-3",
+      "role": "button",
+      "totalMs": 14,
+      "uniqueInAxTree": true
+    },
+    {
+      "name": "",
+      "ok": true,
+      "partialTreeMs": 2,
+      "recId": "816ens-1",
+      "role": "generic",
+      "totalMs": 2
+    }
+  ],
+  "notes": [
+    "MSG ax-prefetch sender.tab=1363405443 frame=0 rec.tab=1363405443",
+    "MSG ax-prefetch sender.tab=1363405443 frame=0 rec.tab=1363405443",
+    "MSG evt sender.tab=1363405443 frame=0 rec.tab=1363405443",
+    "MSG ax-prefetch sender.tab=1363405443 frame=0 rec.tab=1363405443",
+    "MSG evt sender.tab=1363405443 frame=0 rec.tab=1363405443",
+    "MSG ax-prefetch sender.tab=1363405443 frame=0 rec.tab=1363405443",
+    "MSG evt sender.tab=1363405443 frame=0 rec.tab=1363405443",
+    "MSG ax-prefetch sender.tab=1363405443 frame=0 rec.tab=1363405443",
+    "MSG evt sender.tab=1363405443 frame=0 rec.tab=1363405443",
+    "MSG evt sender.tab=1363405443 frame=0 rec.tab=1363405443",
+    "MSG cs-hello sender.tab=1363405443 frame=0 rec.tab=1363405443",
+    "content script alive on https://the-internet.herokuapp.com/secure",
+    "MSG ax-prefetch sender.tab=1363405443 frame=0 rec.tab=1363405443",
+    "MSG evt sender.tab=1363405443 frame=0 rec.tab=1363405443",
+    "MSG cs-hello sender.tab=1363405443 frame=0 rec.tab=1363405443",
+    "content script alive on https://the-internet.herokuapp.com/dropdown",
+    "MSG evt sender.tab=1363405443 frame=0 rec.tab=1363405443",
+    "MSG cs-hello sender.tab=1363405443 frame=0 rec.tab=1363405443",
+    "content script alive on https://the-internet.herokuapp.com/download"
+  ],
+  "startUrl": "https://the-internet.herokuapp.com/login",
+  "startedAt": "2026-08-10T19:38:32.011Z",
+  "steps": [
+    {
+      "origin": "recording-start",
+      "ts": 1786390712011,
+      "type": "navigate",
+      "url": "https://the-internet.herokuapp.com/login"
+    },
+    {
+      "ax": {
+        "name": "Username",
+        "ok": true,
+        "partialTreeMs": 4,
+        "queryMs": 21,
+        "role": "textbox",
+        "totalMs": 25,
+        "uniqueInAxTree": true
+      },
+      "meta": {
+        "tag": "INPUT",
+        "text": ""
+      },
+      "selectors": [
+        {
+          "kind": "role",
+          "name": "Username",
+          "role": "textbox",
+          "verified": true
+        },
+        {
+          "kind": "label",
+          "value": "Username",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "#username",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "input[name=\"username\"]",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "div:nth-of-type(1) > div > input",
+          "verified": true
+        }
+      ],
+      "ts": 1786390712091,
+      "type": "click",
+      "url": "https://the-internet.herokuapp.com/login"
+    },
+    {
+      "ax": {
+        "name": "Username",
+        "ok": true,
+        "partialTreeMs": 4,
+        "queryMs": 21,
+        "role": "textbox",
+        "totalMs": 25,
+        "uniqueInAxTree": true
+      },
+      "isPassword": false,
+      "meta": {
+        "tag": "INPUT"
+      },
+      "selectors": [
+        {
+          "kind": "role",
+          "name": "Username",
+          "role": "textbox",
+          "verified": true
+        },
+        {
+          "kind": "label",
+          "value": "Username",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "#username",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "input[name=\"username\"]",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "div:nth-of-type(1) > div > input",
+          "verified": true
+        }
+      ],
+      "ts": 1786390712146,
+      "type": "fill",
+      "url": "https://the-internet.herokuapp.com/login",
+      "value": "tomsmith"
+    },
+    {
+      "ax": {
+        "name": "Password",
+        "ok": true,
+        "partialTreeMs": 5,
+        "queryMs": 13,
+        "role": "textbox",
+        "totalMs": 18,
+        "uniqueInAxTree": true
+      },
+      "meta": {
+        "tag": "INPUT",
+        "text": ""
+      },
+      "selectors": [
+        {
+          "kind": "role",
+          "name": "Password",
+          "role": "textbox",
+          "verified": true
+        },
+        {
+          "kind": "label",
+          "value": "Password",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "#password",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "input[name=\"password\"]",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "div:nth-of-type(2) > div > input",
+          "verified": true
+        }
+      ],
+      "ts": 1786390712147,
+      "type": "click",
+      "url": "https://the-internet.herokuapp.com/login"
+    },
+    {
+      "ax": {
+        "name": "Password",
+        "ok": true,
+        "partialTreeMs": 5,
+        "queryMs": 13,
+        "role": "textbox",
+        "totalMs": 18,
+        "uniqueInAxTree": true
+      },
+      "isPassword": true,
+      "meta": {
+        "tag": "INPUT"
+      },
+      "selectors": [
+        {
+          "kind": "role",
+          "name": "Password",
+          "role": "textbox",
+          "verified": true
+        },
+        {
+          "kind": "label",
+          "value": "Password",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "#password",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "input[name=\"password\"]",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "div:nth-of-type(2) > div > input",
+          "verified": true
+        }
+      ],
+      "ts": 1786390712216,
+      "type": "fill",
+      "url": "https://the-internet.herokuapp.com/login",
+      "value": "SuperSecretPassword!"
+    },
+    {
+      "assertedNavigation": "https://the-internet.herokuapp.com/secure",
+      "ax": {
+        "name": "\uf090 Login",
+        "ok": true,
+        "partialTreeMs": 3,
+        "queryMs": 11,
+        "role": "button",
+        "totalMs": 14,
+        "uniqueInAxTree": true
+      },
+      "meta": {
+        "tag": "BUTTON",
+        "text": "Login"
+      },
+      "selectors": [
+        {
+          "kind": "role",
+          "name": "\uf090 Login",
+          "role": "button",
+          "verified": true
+        },
+        {
+          "kind": "text",
+          "value": "Login",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "form > button",
+          "verified": true
+        }
+      ],
+      "ts": 1786390712217,
+      "type": "click",
+      "url": "https://the-internet.herokuapp.com/login"
+    },
+    {
+      "ax": {
+        "name": "",
+        "ok": true,
+        "partialTreeMs": 2,
+        "role": "generic",
+        "totalMs": 2
+      },
+      "capturedText": "You logged into a secure area! \u00d7",
+      "meta": {
+        "tag": "DIV"
+      },
+      "selectors": [
+        {
+          "kind": "css",
+          "value": "#flash",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "div:nth-of-type(1) > div > div",
+          "verified": true
+        }
+      ],
+      "ts": 1786390712434,
+      "type": "extract",
+      "url": "https://the-internet.herokuapp.com/secure"
+    },
+    {
+      "transition": "typed",
+      "ts": 1786390712476,
+      "type": "navigate",
+      "url": "https://the-internet.herokuapp.com/dropdown"
+    },
+    {
+      "ax": null,
+      "meta": {
+        "tag": "SELECT"
+      },
+      "optionLabel": "Option 2",
+      "selectors": [
+        {
+          "kind": "css",
+          "value": "#dropdown",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "select",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "select",
+          "verified": true
+        }
+      ],
+      "ts": 1786390712521,
+      "type": "select",
+      "url": "https://the-internet.herokuapp.com/dropdown",
+      "value": "2"
+    },
+    {
+      "transition": "typed",
+      "ts": 1786390712558,
+      "type": "navigate",
+      "url": "https://the-internet.herokuapp.com/download"
+    }
+  ],
+  "stoppedAt": "2026-08-10T19:38:43.167Z",
+  "tabId": 1363405443
+}

@@ -1,0 +1,21 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body { font: 13px monospace; width: 360px; padding: 10px; }
+      button { margin: 2px; padding: 6px 10px; }
+      textarea { width: 100%; height: 220px; font: 11px monospace; }
+      #status { margin: 6px 0; }
+    </style>
+  </head>
+  <body>
+    <strong>PROTOTYPE recorder — disposable</strong>
+    <div id="status">…</div>
+    <button id="start">Start recording</button>
+    <button id="stop">Stop</button>
+    <button id="download">Download JSON</button>
+    <textarea id="json" readonly></textarea>
+    <script src="popup.js"></script>
+  </body>
+</html>

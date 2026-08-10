@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "PROTOTYPE stepbystep recorder (disposable)",
+  "version": "0.0.1",
+  "description": "Throwaway feasibility prototype for roadmap node zm0rfq. Records semantic steps on the-internet.herokuapp.com.",
+  "permissions": ["debugger", "downloads", "webNavigation", "storage", "tabs"],
+  "host_permissions": ["https://the-internet.herokuapp.com/*"],
+  "background": { "service_worker": "sw.js" },
+  "content_scripts": [
+    {
+      "matches": ["https://the-internet.herokuapp.com/*"],
+      "js": ["content.js"],
+      "all_frames": true,
+      "run_at": "document_idle"
+    }
+  ],
+  "action": { "default_popup": "popup.html" }
+}

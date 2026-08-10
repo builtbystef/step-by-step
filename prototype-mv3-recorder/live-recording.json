@@ -1,0 +1,443 @@
+{
+  "axCache": {
+    "1": {
+      "name": "some-file.txt",
+      "ok": true,
+      "partialTreeMs": 13,
+      "queryMs": 51,
+      "role": "link",
+      "totalMs": 64,
+      "uniqueInAxTree": true
+    },
+    "2": {
+      "name": "",
+      "ok": true,
+      "partialTreeMs": 22,
+      "role": "combobox",
+      "totalMs": 22
+    },
+    "3": {
+      "error": "{\"code\":-32000,\"message\":\"Could not find node with given id\"}",
+      "ok": false,
+      "totalMs": 4
+    },
+    "4": {
+      "error": "{\"code\":-32000,\"message\":\"Could not find node with given id\"}",
+      "ok": false,
+      "totalMs": 4
+    },
+    "5": {
+      "name": "Password",
+      "ok": true,
+      "partialTreeMs": 13,
+      "queryMs": 7,
+      "role": "textbox",
+      "totalMs": 19,
+      "uniqueInAxTree": true
+    },
+    "6": {
+      "name": "Password",
+      "ok": true,
+      "partialTreeMs": 21,
+      "queryMs": 4,
+      "role": "textbox",
+      "totalMs": 26,
+      "uniqueInAxTree": true
+    },
+    "7": {
+      "error": "{\"code\":-32000,\"message\":\"Could not find node with given id\"}",
+      "name": " Login",
+      "ok": false,
+      "partialTreeMs": 20,
+      "role": "button",
+      "totalMs": 243
+    }
+  },
+  "axTimings": [
+    {
+      "error": "{\"code\":-32000,\"message\":\"Could not find node with given id\"}",
+      "ok": false,
+      "recId": "1",
+      "totalMs": 33
+    },
+    {
+      "name": "Username",
+      "ok": true,
+      "partialTreeMs": 31,
+      "queryMs": 13,
+      "recId": "2",
+      "role": "textbox",
+      "totalMs": 43,
+      "uniqueInAxTree": true
+    },
+    {
+      "error": "{\"code\":-32000,\"message\":\"Could not find node with given id\"}",
+      "ok": false,
+      "recId": "3",
+      "totalMs": 4
+    },
+    {
+      "error": "{\"code\":-32000,\"message\":\"Could not find node with given id\"}",
+      "ok": false,
+      "recId": "4",
+      "totalMs": 4
+    },
+    {
+      "name": "Password",
+      "ok": true,
+      "partialTreeMs": 13,
+      "queryMs": 7,
+      "recId": "5",
+      "role": "textbox",
+      "totalMs": 19,
+      "uniqueInAxTree": true
+    },
+    {
+      "name": "Password",
+      "ok": true,
+      "partialTreeMs": 21,
+      "queryMs": 4,
+      "recId": "6",
+      "role": "textbox",
+      "totalMs": 26,
+      "uniqueInAxTree": true
+    },
+    {
+      "error": "{\"code\":-32000,\"message\":\"Could not find node with given id\"}",
+      "name": " Login",
+      "ok": false,
+      "partialTreeMs": 20,
+      "recId": "7",
+      "role": "button",
+      "totalMs": 243
+    },
+    {
+      "error": "{\"code\":-32000,\"message\":\"Could not find node with given id\"}",
+      "ok": false,
+      "recId": "1",
+      "totalMs": 27
+    },
+    {
+      "name": "",
+      "ok": true,
+      "partialTreeMs": 22,
+      "recId": "2",
+      "role": "combobox",
+      "totalMs": 22
+    },
+    {
+      "name": "some-file.txt",
+      "ok": true,
+      "partialTreeMs": 13,
+      "queryMs": 51,
+      "recId": "1",
+      "role": "link",
+      "totalMs": 64,
+      "uniqueInAxTree": true
+    }
+  ],
+  "notes": [],
+  "startUrl": "https://the-internet.herokuapp.com/login",
+  "startedAt": "2026-08-10T19:18:44.377Z",
+  "steps": [
+    {
+      "origin": "recording-start",
+      "ts": 1786389524377,
+      "type": "navigate",
+      "url": "https://the-internet.herokuapp.com/login"
+    },
+    {
+      "ax": null,
+      "meta": {
+        "tag": "INPUT",
+        "text": ""
+      },
+      "selectors": [
+        {
+          "kind": "label",
+          "value": "Username",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "#username",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "input[name=\"username\"]",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "div:nth-of-type(1) > div > input",
+          "verified": true
+        }
+      ],
+      "ts": 1786389555946,
+      "type": "click",
+      "url": "https://the-internet.herokuapp.com/login"
+    },
+    {
+      "ax": {
+        "name": "Username",
+        "ok": true,
+        "partialTreeMs": 31,
+        "queryMs": 13,
+        "role": "textbox",
+        "totalMs": 43,
+        "uniqueInAxTree": true
+      },
+      "isPassword": false,
+      "meta": {
+        "tag": "INPUT"
+      },
+      "selectors": [
+        {
+          "kind": "role",
+          "name": "Username",
+          "role": "textbox",
+          "verified": true
+        },
+        {
+          "kind": "label",
+          "value": "Username",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "#username",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "input[name=\"username\"]",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "div:nth-of-type(1) > div > input",
+          "verified": true
+        }
+      ],
+      "ts": 1786389565889,
+      "type": "fill",
+      "url": "https://the-internet.herokuapp.com/login",
+      "value": "tomsmith"
+    },
+    {
+      "ax": null,
+      "meta": {
+        "tag": "INPUT",
+        "text": ""
+      },
+      "selectors": [
+        {
+          "kind": "label",
+          "value": "Password",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "#password",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "input[name=\"password\"]",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "div:nth-of-type(2) > div > input",
+          "verified": true
+        }
+      ],
+      "ts": 1786389567591,
+      "type": "click",
+      "url": "https://the-internet.herokuapp.com/login"
+    },
+    {
+      "ax": {
+        "name": "Password",
+        "ok": true,
+        "partialTreeMs": 21,
+        "queryMs": 4,
+        "role": "textbox",
+        "totalMs": 26,
+        "uniqueInAxTree": true
+      },
+      "isPassword": true,
+      "meta": {
+        "tag": "INPUT"
+      },
+      "selectors": [
+        {
+          "kind": "role",
+          "name": "Password",
+          "role": "textbox",
+          "verified": true
+        },
+        {
+          "kind": "label",
+          "value": "Password",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "#password",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "input[name=\"password\"]",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "div:nth-of-type(2) > div > input",
+          "verified": true
+        }
+      ],
+      "ts": 1786389575765,
+      "type": "fill",
+      "url": "https://the-internet.herokuapp.com/login",
+      "value": "SuperSecretPassword!"
+    },
+    {
+      "assertedNavigation": "https://the-internet.herokuapp.com/secure",
+      "ax": null,
+      "meta": {
+        "tag": "BUTTON",
+        "text": "Login"
+      },
+      "selectors": [
+        {
+          "kind": "text",
+          "value": "Login",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "form > button",
+          "verified": true
+        }
+      ],
+      "ts": 1786389575767,
+      "type": "click",
+      "url": "https://the-internet.herokuapp.com/login"
+    },
+    {
+      "transition": "link",
+      "ts": 1786389598724,
+      "type": "navigate",
+      "url": "https://the-internet.herokuapp.com/dropdown"
+    },
+    {
+      "ax": {
+        "name": "",
+        "ok": true,
+        "partialTreeMs": 22,
+        "role": "combobox",
+        "totalMs": 22
+      },
+      "meta": {
+        "tag": "SELECT"
+      },
+      "optionLabel": "Option 2",
+      "selectors": [
+        {
+          "kind": "css",
+          "value": "#dropdown",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "select",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "select",
+          "verified": true
+        }
+      ],
+      "ts": 1786389649178,
+      "type": "select",
+      "url": "https://the-internet.herokuapp.com/dropdown",
+      "value": "2"
+    },
+    {
+      "ax": {
+        "name": "",
+        "ok": true,
+        "partialTreeMs": 22,
+        "role": "combobox",
+        "totalMs": 22
+      },
+      "meta": {
+        "tag": "SELECT",
+        "text": "Please select an option Option 1 Option 2"
+      },
+      "selectors": [
+        {
+          "kind": "css",
+          "value": "#dropdown",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "select",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "select",
+          "verified": true
+        }
+      ],
+      "ts": 1786389649178,
+      "type": "click",
+      "url": "https://the-internet.herokuapp.com/dropdown"
+    },
+    {
+      "transition": "link",
+      "ts": 1786389665222,
+      "type": "navigate",
+      "url": "https://the-internet.herokuapp.com/download"
+    },
+    {
+      "ax": {
+        "error": "{\"code\":-32000,\"message\":\"Could not find node with given id\"}",
+        "ok": false,
+        "totalMs": 27
+      },
+      "download": {
+        "filename": "/home/stefan/Downloads/some-file.txt",
+        "ts": 1786389672949,
+        "url": "https://the-internet.herokuapp.com/download/some-file.txt"
+      },
+      "meta": {
+        "tag": "A",
+        "text": "some-file.txt"
+      },
+      "selectors": [
+        {
+          "kind": "text",
+          "value": "some-file.txt",
+          "verified": true
+        },
+        {
+          "kind": "css",
+          "value": "a:nth-of-type(3)",
+          "verified": true
+        }
+      ],
+      "ts": 1786389672912,
+      "type": "click",
+      "url": "https://the-internet.herokuapp.com/download"
+    }
+  ],
+  "stoppedAt": "2026-08-10T19:22:27.691Z",
+  "tabId": 1900389370
+}
