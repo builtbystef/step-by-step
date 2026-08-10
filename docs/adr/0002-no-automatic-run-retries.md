@@ -1,0 +1,3 @@
+# 0002 — No automatic Run retries
+
+Context: a Run performs real actions on external websites — clicks, form submissions, downloads — and a crash mid-Run leaves unknown external side effects. Decision: the system never retries a Run automatically; a Run that dies (worker loss, timeout, step failure) becomes `failed` with a machine-readable reason, and only the user re-runs it deliberately. Reason: replaying non-idempotent actions can double a purchase or a submission, which is worse than asking the user to retry; retrying lives only inside a step, where Playwright's actionability waits are safe.

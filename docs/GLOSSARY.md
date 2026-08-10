@@ -51,3 +51,7 @@ _Avoid_: cron job, timer
 **Artifact**:
 A file that a Run produces: a screenshot, a download, or a trace.
 _Avoid_: attachment, output file
+
+**Worker**:
+A long-lived process that executes at most one Run at a time, with an exclusive browser for that Run. The number of Workers is the instance's total Run concurrency.
+_Avoid_: runner, executor, agent

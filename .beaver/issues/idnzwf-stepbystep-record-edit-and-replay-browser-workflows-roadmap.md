@@ -7,7 +7,7 @@ priority: high
 labels:
     - roadmap
 created: 2026-08-08T07:07:08Z
-updated: 2026-08-10T02:56:24Z
+updated: 2026-08-10T05:13:11Z
 ---
 
 ## Goal
@@ -22,13 +22,13 @@ Related but outside this DAG: issue `ymz3md` (establish stack, checks, and dev c
 
 <!-- In-scope questions that are too vague to be nodes. They become nodes as the roadmap advances. -->
 
-- Artifact storage: backend choice, retention policy, linkage from runs and steps to artifacts.
-- Scheduling engine details: cron expression UX, timezones, missed-run and overlap policy.
-- Batch creation/management UI and live run timeline UX — prototype candidates; the run timeline sharpens after the execution-architecture node (px25yw). (The workflow editor UX became node 3iwv5i when the data model settled.)
+- Artifact storage: retention policy, linkage from runs and steps to artifacts. (The backend choice settled in px25yw: S3-compatible, MinIO in the compose stack, workers write directly.)
+- Scheduling engine details: cron expression UX, timezones, missed-run and overlap policy. (The dispatch mechanism settled in px25yw: a backend scheduler loop scans Postgres each minute and enqueues due Runs.)
+- Batch creation/management UI — prototype candidate. (The workflow editor UX became node 3iwv5i when the data model settled; the live run view became node apx4rs when the execution architecture settled.)
 - Extracted data delivery: where a Run's assembled output object goes — view in UI, download, webhook, API. (The per-step schema settled in ds8zyn.)
 - Saved reusable datasets (a list-of-rows entity that outlives one batch) — revisit when usage shows the reuse pattern; v1 batches own their rows (8iuuh8).
-- Monorepo layout, local dev environment (docker compose), deployment target and hosting.
-- Observability: run logs, worker health, metrics.
+- Monorepo layout, local dev environment, deployment target and hosting. (The service list settled in px25yw: one docker compose stack — backend, Workers, Postgres, Redis, MinIO.)
+- Observability: run logs, worker health, metrics. (px25yw gives the primitives: worker heartbeats on Run rows, log-line events over Redis pub/sub.)
 
 ## Out of scope
 
@@ -49,3 +49,8 @@ Related but outside this DAG: issue `ymz3md` (establish stack, checks, and dev c
 - Weighted multi-locator voting at replay for v1 (f10wq3) — the 29.5% robustness gain was measured across five XPath generators on 2015-era apps, and voting can let converging broken locators out-vote correct ones. Ordered fallback over a ranked list is the v1 policy; `wljln8` confirms it.
 - Pinning a Schedule or Batch to a specific Version (ds8zyn) — they always execute the latest published Version; pinning is addable later as an optional version pointer.
 - Nested/hierarchical extraction records (ds8zyn) — an extract step yields a named scalar or a flat list of records with named fields.
+- Dynamic per-run container spawning and worker autoscaling (px25yw) — a fixed pool of Worker containers; the backend never holds Docker-socket privileges. Concurrency scales by redeploying with more replicas.
+- Automatic Run-level retries (px25yw; ADR 0002) — Runs act on external websites and replay is not idempotent. Retrying exists only inside a step.
+- A reserved Worker pool for takeover-capable Runs (px25yw) — a waiting_for_human Run occupies a regular Worker slot until resume or timeout.
+- Pure master-detail (IDE-style) and pure narrative-sentence editor layouts (3iwv5i) — the editor is the hybrid: an inline card list whose card summaries are the narrative sentences.
+
