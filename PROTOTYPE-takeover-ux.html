@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PROTOTYPE — takeover UX (roadmap node 4tjwpw) — disposable</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#f5f6f8; --panel:#ffffff; --ink:#1a2130; --mut:#68738a; --line:#e3e7ee;
+    --auto:#2f6fed; --auto-bg:#e8effd;
+    --wait:#b97a08; --wait-bg:#fdf3e0;
+    --human:#7c3aed; --human-bg:#f1eafd;
+    --ok:#178a50; --ok-bg:#e2f5ea;
+    --bad:#c92f34; --bad-bg:#fbe9e9;
+    --verify:#0d8f95; --verify-bg:#e0f5f6;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.45 system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+  button{font:inherit;cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:7px;padding:6px 12px}
+  button:hover{border-color:#b9c2d0}
+  button.primary{background:var(--auto);border-color:var(--auto);color:#fff}
+  button.warn{background:var(--wait);border-color:var(--wait);color:#fff}
+  button.human{background:var(--human);border-color:var(--human);color:#fff}
+  button.danger{background:#fff;border-color:var(--bad);color:var(--bad)}
+  button:disabled{opacity:.45;cursor:default}
+  .chip{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:2px 10px;font-size:12px;font-weight:600}
+  .chip::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+  .chip.queued{background:#eceff4;color:var(--mut)}
+  .chip.running{background:var(--auto-bg);color:var(--auto)}
+  .chip.waiting_for_human{background:var(--wait-bg);color:var(--wait)}
+  .chip.succeeded{background:var(--ok-bg);color:var(--ok)}
+  .chip.failed{background:var(--bad-bg);color:var(--bad)}
+  .chip.cancelled{background:#eceff4;color:var(--mut)}
+
+  /* prototype harness bar */
+  #harness{background:#20242c;color:#cbd2dd;padding:8px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;position:sticky;top:0;z-index:50}
+  #harness b{color:#fff}
+  #harness .grp{display:flex;gap:6px;align-items:center;padding:0 10px;border-left:1px solid #3a4150}
+  #harness button{background:#2c323d;border-color:#454d5c;color:#dde3ec;padding:4px 10px;font-size:12px}
+  #harness button.on{background:var(--auto);border-color:var(--auto);color:#fff}
+  #harness .tag{font-size:11px;background:#c9542b;color:#fff;border-radius:4px;padding:2px 6px;font-weight:700;letter-spacing:.4px}
+
+  #app{max-width:1180px;margin:18px auto;padding:0 16px}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px}
+  .runhead{display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .runhead h1{font-size:16px;margin:0}
+  .runhead .sub{color:var(--mut);font-size:12px}
+  .runhead .spacer{flex:1}
+
+  .layout{display:grid;grid-template-columns:340px 1fr;gap:0}
+  .layout.threecol{grid-template-columns:340px 1fr}
+  .leftrail{border-right:1px solid var(--line);padding:14px 0;min-height:420px}
+  .mainpane{padding:16px 18px;min-width:0}
+
+  /* steps */
+  .steps{list-style:none;margin:0;padding:0}
+  .steps li{display:flex;gap:10px;padding:7px 16px;align-items:flex-start}
+  .steps li.current{background:#f2f6fe}
+  .steps li.currentwait{background:var(--wait-bg)}
+  .s-ico{width:20px;height:20px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:11px;margin-top:1px;border:1.5px solid var(--line);color:var(--mut);background:#fff}
+  .s-ico.done{background:var(--ok);border-color:var(--ok);color:#fff}
+  .s-ico.run{border-color:var(--auto);color:var(--auto);animation:pulse 1.2s infinite}
+  .s-ico.wait{background:var(--wait);border-color:var(--wait);color:#fff}
+  .s-ico.fail{background:var(--bad);border-color:var(--bad);color:#fff}
+  .s-ico.skip{background:#eceff4;color:var(--mut)}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(47,111,237,.35)}50%{box-shadow:0 0 0 5px rgba(47,111,237,0)}}
+  .s-body{min-width:0}
+  .s-title{font-weight:600;font-size:13px}
+  .s-det{color:var(--mut);font-size:12px}
+  .s-note{font-size:12px;margin-top:2px}
+  .s-note.wait{color:var(--wait)}
+  .s-note.bad{color:var(--bad)}
+  .s-note.human{color:var(--human)}
+
+  /* timeline strip */
+  .tlwrap{padding:12px 18px;border-top:1px solid var(--line)}
+  .tlbar{display:flex;height:18px;border-radius:5px;overflow:hidden;border:1px solid var(--line)}
+  .tlbar .seg{min-width:6px}
+  .seg.auto{background:var(--auto)}
+  .seg.waiting{background:var(--wait);background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.35) 0 4px,transparent 4px 8px)}
+  .seg.human{background:var(--human)}
+  .seg.verify{background:var(--verify)}
+  .tlmarks{position:relative;height:16px;font-size:10px;color:var(--mut)}
+  .tlleg{display:flex;gap:14px;font-size:11px;color:var(--mut);margin-top:6px;flex-wrap:wrap}
+  .tlleg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+
+  /* wait card */
+  .waitcard{border:1.5px solid var(--wait);background:var(--wait-bg);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+  .waitcard h2{margin:0 0 4px;font-size:15px;color:#7a5104}
+  .waitcard .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:10px}
+  .cd{font-variant-numeric:tabular-nums;font-weight:700;font-size:15px;color:var(--wait)}
+  .cd.low{color:var(--bad);animation:pulse 1s infinite}
+  .predchip{display:inline-flex;gap:7px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:7px;padding:5px 10px;font-size:12px}
+  .predchip .st{font-weight:700}
+  .predchip .st.unmet{color:var(--wait)}
+  .predchip .st.met{color:var(--ok)}
+
+  /* fake vnc */
+  .vncframe{border:2px solid var(--line);border-radius:10px;overflow:hidden;position:relative;background:#3b3f46}
+  .vncframe.humanctl{border-color:var(--human);box-shadow:0 0 0 3px var(--human-bg)}
+  .vncframe.waitctl{border-color:var(--wait)}
+  .fakebrowser{background:#dfe2e7;padding-top:0}
+  .fb-chrome{display:flex;align-items:center;gap:8px;background:#e9ebef;padding:6px 10px;border-bottom:1px solid #ccd1d9}
+  .fb-dots{display:flex;gap:5px}
+  .fb-dots i{width:10px;height:10px;border-radius:50%;background:#c3c9d3;display:block}
+  .fb-url{flex:1;background:#fff;border:1px solid #ccd1d9;border-radius:99px;padding:3px 12px;font-size:12px;color:#454e60;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fb-url b{color:#178a50;font-weight:600}
+  .fb-page{background:#fff;min-height:270px;padding:26px;display:flex;align-items:center;justify-content:center}
+  .fb-page .inner{width:min(340px,100%)}
+  .fb-page h3{margin:0 0 4px;font-size:17px}
+  .fb-page p{color:#68738a;font-size:13px;margin:0 0 14px}
+  .fb-page input[type=text]{width:100%;padding:8px 10px;border:1px solid #ccd1d9;border-radius:6px;font:inherit;letter-spacing:4px;text-align:center;font-size:16px}
+  .fb-page .fbtn{width:100%;margin-top:10px;background:#1f6b3b;color:#fff;border:none;border-radius:6px;padding:9px}
+  .fb-err{color:var(--bad);font-size:12px;margin-top:6px;min-height:14px}
+  .captchabox{border:1px solid #ccd1d9;border-radius:4px;padding:14px;display:flex;align-items:center;gap:12px;background:#f9f9fa}
+  .captchabox .cb{width:26px;height:26px;border:2px solid #b3bac6;border-radius:3px;background:#fff;flex:none;display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--ok);cursor:pointer}
+  .fb-dash .tile{border:1px solid var(--line);border-radius:6px;padding:10px;margin-bottom:8px;font-size:13px}
+  .vncoverlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;background:rgba(26,33,48,.45);color:#fff;text-align:center;padding:20px}
+  .vncoverlay.readonly{background:transparent;align-items:flex-start;justify-content:flex-start;pointer-events:none}
+  .ro-badge{background:rgba(26,33,48,.78);font-size:11px;padding:4px 10px;border-radius:99px;margin:8px}
+  .vnc-note{font-size:12px;color:var(--mut);margin-top:6px}
+
+  /* takeover control bar */
+  .ctlbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#241b3d;color:#e6def7;border-radius:10px 10px 0 0;padding:10px 14px}
+  .ctlbar .who{font-weight:700;color:#fff}
+  .ctlbar .sec{font-size:12px;color:#bdaee6}
+  .ctlbar .spacer{flex:1}
+  .ctlbar .cd{color:#ffd08a}
+  .ctlbar .cd.low{color:#ff9d9d}
+  .ctlwrap{margin-bottom:14px}
+  .ctlwrap .vncframe{border-radius:0 0 10px 10px;border-top:none}
+  .predline{display:flex;gap:10px;align-items:center;background:#f4f1fb;border:1px solid var(--line);border-top:none;padding:8px 14px;font-size:12px;border-radius:0 0 10px 10px}
+  .predline .st{font-weight:700}
+  .predline .st.unmet{color:var(--wait)} .predline .st.met{color:var(--ok)}
+  .readyhint{background:var(--ok-bg);color:var(--ok);font-weight:600;border-radius:6px;padding:2px 8px;font-size:12px}
+
+  /* variant A fullscreen */
+  #fsroot{position:fixed;inset:0;background:#17131f;z-index:100;display:flex;flex-direction:column}
+  #fsroot .fsmain{flex:1;display:flex;align-items:center;justify-content:center;padding:18px;min-height:0}
+  #fsroot .fsmain .vncholder{width:min(880px,100%)}
+  #fsroot .predline{border-radius:0 0 10px 10px}
+
+  /* variant B modal */
+  #modalback{position:fixed;inset:0;background:rgba(15,18,26,.62);z-index:100;display:flex;align-items:center;justify-content:center;padding:24px}
+  #modalback .modal{width:min(860px,100%);max-height:100%;overflow:auto;border-radius:12px;background:var(--panel)}
+
+  /* heuristic banner */
+  .heur{border:1.5px dashed var(--wait);background:var(--wait-bg);border-radius:10px;padding:12px 14px;margin-bottom:14px}
+  .heur b{color:#7a5104}
+  .heur .row{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap}
+
+  /* verify + terminal banners */
+  .verifying{border:1.5px solid var(--verify);background:var(--verify-bg);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;gap:10px;align-items:center}
+  .spin{width:14px;height:14px;border:2px solid var(--verify);border-top-color:transparent;border-radius:50%;animation:rot .8s linear infinite;flex:none}
+  @keyframes rot{to{transform:rotate(360deg)}}
+  .terminal{border-radius:10px;padding:12px 16px;margin-bottom:14px;font-weight:600}
+  .terminal.ok{background:var(--ok-bg);color:var(--ok);border:1.5px solid var(--ok)}
+  .terminal.bad{background:var(--bad-bg);color:var(--bad);border:1.5px solid var(--bad)}
+  .terminal.gray{background:#eceff4;color:var(--mut);border:1.5px solid #cdd4de}
+  .terminal .why{font-weight:400;font-size:13px;margin-top:4px}
+
+  /* predicate fail dialog */
+  .faildlg{border:1.5px solid var(--bad);background:var(--bad-bg);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+  .faildlg .row{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+
+  /* event log */
+  .evlog{font-size:12px;color:var(--mut);max-height:180px;overflow:auto;padding:10px 16px}
+  .evlog div{padding:2px 0;display:flex;gap:8px}
+  .evlog .t{font-variant-numeric:tabular-nums;flex:none;color:#9aa4b6}
+  .evlog .k-human{color:var(--human);font-weight:600}
+  .evlog .k-wait{color:var(--wait);font-weight:600}
+  .evlog .k-ok{color:var(--ok);font-weight:600}
+  .evlog .k-bad{color:var(--bad);font-weight:600}
+
+  #debug{max-width:1180px;margin:0 auto 30px;padding:0 16px}
+  #debug pre{background:#20242c;color:#9fdcb1;border-radius:8px;padding:10px 14px;font-size:11px;overflow:auto;margin:6px 0 0}
+  #debug summary{cursor:pointer;color:var(--mut);font-size:12px}
+  .hint{max-width:1180px;margin:10px auto 0;padding:0 16px;font-size:12px;color:var(--mut)}
+  h4.mini{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);margin:0;padding:10px 16px 4px}
+</style>
+</head>
+<body>
+
+<div id="harness">
+  <span class="tag">PROTOTYPE</span> <b>Takeover UX</b>
+  <span class="grp">Layout:
+    <button id="vA" onclick="setVariant('A')">A · Focus page</button>
+    <button id="vB" onclick="setVariant('B')">B · Modal</button>
+    <button id="vC" onclick="setVariant('C')">C · Embedded pane</button>
+  </span>
+  <span class="grp">Force:
+    <button onclick="forceLowTimer()">timer → 2 min</button>
+    <button onclick="forceHeuristic()" id="heurBtn">unexpected CAPTCHA</button>
+  </span>
+  <span class="grp"><button onclick="resetSim()">↺ restart run</button></span>
+  <span class="grp" style="border:none;color:#8792a5;font-size:11px">sim clock 60× — 1 s real = 1 min</span>
+</div>
+
+<div class="hint">A <b>Run</b> of “Download monthly invoice — Acme portal” is executing. Step 5 is a <b>pause-for-takeover</b> step (“Complete MFA if asked”). Try: let it reach the pause → take over → type any 6-digit code → the moment the success check is met, control hands back <b>automatically</b> after a short grace countdown (escape hatches: “Hand back now” / “Stay in control”). Then restart and try: hand back <i>without</i> solving · let the timer run out (force it low) · cancel during takeover · trigger the unexpected-CAPTCHA heuristic while automation runs.</div>
+
+<div id="app"></div>
+<div id="overlayroot"></div>
+
+<div id="debug"><details><summary>full sim state (debug)</summary><pre id="dbgpre"></pre></details></div>
+
+<script>
+/* ---------------- data ---------------- */
+const STEPS = [
+  {type:'navigate', title:'Navigate', det:'portal.acme.example/login', dur:2},
+  {type:'type',     title:'Type email', det:'#email ← stefan@example.com', dur:2},
+  {type:'type',     title:'Type password', det:'#password ← secret ACME_PASSWORD', dur:2},
+  {type:'click',    title:'Click “Sign in”', det:'button:has-text("Sign in")', dur:2},
+  {type:'humanAuth',title:'Pause for takeover — “Complete MFA if asked”', det:'success check: URL starts with portal.acme.example/dashboard · limit 30 min', dur:0},
+  {type:'navigate', title:'Navigate', det:'portal.acme.example/invoices', dur:2},
+  {type:'click',    title:'Click “May 2026”', det:'row:has-text("May 2026") >> a.download', dur:2},
+  {type:'download', title:'Download invoice', det:'invoice-2026-05.pdf → Artifact', dur:3},
+];
+const HUMAN_IDX = 4;
+const PRED = 'URL starts with portal.acme.example/dashboard';
+const TAKEOVER_LIMIT = 30; // sim minutes
+
+let S, timer;
+function initState(){
+  return {
+    variant: (S && S.variant) || 'A',
+    run:'running', failureReason:null, control:'automation',
+    stepIndex:0, stepStates:STEPS.map(()=> 'pending'),
+    t:0, stepT:0,
+    countdown:null,                // sim minutes left in takeover window
+    inTakeover:false,              // user engaged with the takeover surface
+    waitReason:null,               // 'step' | 'heuristic'
+    page:'login', mfa:'', mfaSolved:false, captchaSolved:false, fbErr:'',
+    heurBanner:false, heurStuck:false, heurDismissed:false,
+    verifying:false, predFailed:false,
+    autoback:null, autobackDismissed:false,
+    segments:[{kind:'auto',start:0,end:0}],
+    events:[], marks:[],
+  };
+}
+function ev(text, kind){ S.events.push({t:S.t, text, kind:kind||''}); }
+function mark(label){ S.marks.push({t:S.t,label}); }
+function seg(kind){ const last=S.segments[S.segments.length-1]; if(last) last.end=S.t; S.segments.push({kind,start:S.t,end:S.t}); }
+
+/* ---------------- sim loop (1 real second = 1 sim minute) ---------------- */
+function tick(){
+  S.t++;
+  const last=S.segments[S.segments.length-1]; if(last) last.end=S.t;
+
+  if(S.run==='running' && !S.verifying){
+    if(S.heurStuck){
+      S.stepT++;
+      if(S.stepT===3 && !S.heurBanner && !S.heurDismissed){
+        S.heurBanner=true;
+        ev('Heuristic: current page matches a known CAPTCHA pattern (recaptcha iframe). Automation keeps retrying.','k-wait');
+      }
+      if(S.stepT>=10){ failRun('step_failed', 'Step 2 timed out. Diagnostic attached: page matched a CAPTCHA pattern.'); }
+    } else {
+      S.stepT++;
+      const st=STEPS[S.stepIndex];
+      if(S.stepT>=st.dur){
+        S.stepStates[S.stepIndex]='done';
+        S.stepIndex++;
+        S.stepT=0;
+        advancePage();
+        if(S.stepIndex===HUMAN_IDX){ enterWaiting('step'); }
+        else if(S.stepIndex>=STEPS.length){ succeed(); }
+      }
+    }
+  }
+  if(S.autoback!==null && S.inTakeover){
+    S.autoback--;
+    if(S.autoback<=0){
+      S.autoback=null;
+      ev('Success check met — control handed back automatically.','k-ok');
+      handBack();
+      return;
+    }
+  }
+  if(S.run==='waiting_for_human' && S.countdown!==null){
+    S.countdown--;
+    if(S.countdown<=0){
+      ev('Takeover window expired. Browser session closed.','k-bad');
+      S.page='closed'; S.inTakeover=false; S.control='none';
+      failRun('takeover_timeout','No one completed the challenge within 30 minutes.');
+    }
+  }
+  render();
+}
+function advancePage(){
+  if(S.stepIndex===HUMAN_IDX) S.page = 'mfa';
+  else if(S.stepIndex===5) S.page='dashboard';
+  else if(S.stepIndex===6) S.page='invoices';
+  else if(S.stepIndex>=7) S.page='invoices';
+}
+function enterWaiting(reason){
+  S.run='waiting_for_human'; S.waitReason=reason; S.control='none';
+  S.countdown=TAKEOVER_LIMIT;
+  S.stepStates[HUMAN_IDX]= reason==='step' ? 'waiting' : S.stepStates[HUMAN_IDX];
+  seg('waiting');
+  mark('paused');
+  if(reason==='step'){
+    ev('Automation suspended at step 5 (pause-for-takeover). The browser is being held for you.','k-wait');
+  } else {
+    ev('You paused the run over a suspected CAPTCHA. The browser is being held for you.','k-wait');
+  }
+}
+function succeed(){
+  S.run='succeeded'; S.control='none'; seg('auto'); S.segments.pop(); // no trailing seg
+  ev('Run succeeded. 1 Artifact: invoice-2026-05.pdf','k-ok');
+  stopTimer();
+}
+function failRun(reason, why){
+  S.run='failed'; S.failureReason=reason; S.failWhy=why; S.control='none';
+  // mark step states
+  if(reason==='takeover_timeout') S.stepStates[HUMAN_IDX]='failed';
+  if(reason==='step_failed' && S.heurStuck) S.stepStates[S.stepIndex]='failed';
+  for(let i=0;i<STEPS.length;i++) if(S.stepStates[i]==='pending') S.stepStates[i]='skipped';
+  ev('Run failed: '+reason,'k-bad');
+  stopTimer();
+}
+
+/* ---------------- user actions ---------------- */
+function takeOver(){
+  S.inTakeover=true; S.control='human'; seg('human'); mark('you took control');
+  ev('You took control of the browser.','k-human');
+  render();
+}
+function leaveView(){ // close surface without handing back (A/B only)
+  S.inTakeover=false; S.control='none'; seg('waiting');
+  ev('You left the takeover view. The run is still waiting; the timer keeps counting.','k-wait');
+  render();
+}
+function stayInControl(){
+  S.autoback=null; S.autobackDismissed=true;
+  ev('Auto hand-back cancelled — you keep control until you hand back yourself.','k-human');
+  render();
+}
+function handBack(){
+  S.autoback=null;
+  S.inTakeover=false; S.verifying=true; S.control='automation'; seg('verify'); mark('control returned');
+  ev('You handed control back. Verifying the success check…','k-human');
+  render();
+  setTimeout(()=>{
+    S.verifying=false;
+    const met = S.waitReason==='heuristic' ? true : S.mfaSolved;
+    if(S.waitReason==='heuristic'){
+      // resume: retry the stuck step
+      S.heurStuck=false; S.heurBanner=false;
+      S.run='running'; seg('auto'); mark('resumed');
+      if(S.captchaSolved){
+        ev('Success check: none configured (heuristic pause). Retrying step 2.','k-ok');
+        S.page='login'; S.stepT=0;
+      } else {
+        ev('Retrying step 2 — the CAPTCHA is still present.','k-bad');
+        S.heurStuck=true; S.stepT=8; // will fail soon
+      }
+    } else if(met){
+      S.stepStates[HUMAN_IDX]='done';
+      S.stepIndex=HUMAN_IDX+1; S.stepT=0;
+      S.run='running'; S.countdown=null; seg('auto'); mark('resumed');
+      ev('Success check passed: URL is portal.acme.example/dashboard. Automation resumed at step 6.','k-ok');
+    } else {
+      S.predFailed=true; S.run='waiting_for_human'; S.control='none'; seg('waiting');
+      ev('Success check NOT met: URL is still portal.acme.example/mfa.','k-bad');
+    }
+    render();
+  }, 1400);
+}
+function retryTakeover(){ S.predFailed=false; takeOver(); }
+function failFromDialog(){ S.predFailed=false; S.page='closed'; failRun('takeover_timeout','You chose to fail the run: the success check could not be met.'); S.failureReason='step_failed'; render(); }
+function cancelRun(){
+  S.predFailed=false; S.inTakeover=false; S.page='closed';
+  S.run='cancelled'; S.control='none'; S.failureReason=null;
+  for(let i=0;i<STEPS.length;i++) if(S.stepStates[i]==='pending'||S.stepStates[i]==='waiting') S.stepStates[i]='skipped';
+  ev('You cancelled the run. The browser session closed.','');
+  stopTimer(); render();
+}
+function heurTakeOver(){ S.heurBanner=false; enterWaiting('heuristic'); S.page='captcha'; render(); }
+function heurDismiss(){ S.heurBanner=false; S.heurDismissed=true; ev('Heuristic warning dismissed. Automation keeps retrying until the step times out.',''); render(); }
+
+/* fake browser interactions (only when control==='human') */
+function mfaInput(v){ S.mfa=v.replace(/\D/g,'').slice(0,6); S.fbErr=''; render(); }
+function mfaSubmit(){
+  if(S.control!=='human') return;
+  if(S.mfa.length===6){ S.mfaSolved=true; S.page='dashboard'; S.fbErr='';
+    ev('Site accepted the MFA code. The page is now the dashboard.','k-human');
+    if(S.inTakeover && !S.autobackDismissed){
+      S.autoback=6;
+      ev('Success check met — handing control back automatically in a moment.','k-ok');
+    }
+  } else { S.fbErr='Enter the 6-digit code.'; }
+  render();
+}
+function captchaClick(){ if(S.control!=='human') return; S.captchaSolved=true; ev('CAPTCHA checkbox solved.','k-human'); render(); }
+
+/* harness */
+function setVariant(v){ S.variant=v; render(); }
+function forceLowTimer(){ if(S.run==='waiting_for_human'){ S.countdown=2; render(); } }
+function forceHeuristic(){
+  if(S.run==='running' && S.stepIndex<HUMAN_IDX && !S.heurStuck){
+    S.heurStuck=true; S.stepT=0; S.page='captcha'; S.captchaSolved=false;
+    S.stepStates[S.stepIndex]='pending';
+    ev('Step '+(S.stepIndex+1)+' cannot find its element; the page changed unexpectedly.','k-bad');
+    render();
+  }
+}
+function resetSim(){ stopTimer(); const v=S?S.variant:'A'; S=initState(); S.variant=v; ev('Run started (queued → running). Worker-2 opened a fresh Chromium.',''); startTimer(); render(); }
+function stopTimer(){ clearInterval(timer); timer=null; }
+function startTimer(){ stopTimer(); timer=setInterval(tick,1000); }
+
+/* ---------------- rendering ---------------- */
+const fmt = m => { m=Math.max(0,m); return String(Math.floor(m/60)).padStart(1,'0')+'h '+String(m%60).padStart(2,'0')+'m'; };
+const clk = m => String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+
+function stepIcon(i){
+  const st=S.stepStates[i];
+  if(st==='done') return '<span class="s-ico done">✓</span>';
+  if(st==='failed') return '<span class="s-ico fail">✕</span>';
+  if(st==='skipped') return '<span class="s-ico skip">–</span>';
+  if(i===S.stepIndex && S.run==='running') return '<span class="s-ico run">●</span>';
+  if(st==='waiting') return '<span class="s-ico wait">✋</span>';
+  return '<span class="s-ico">'+(i+1)+'</span>';
+}
+function stepsHtml(){
+  return '<h4 class="mini">Steps</h4><ul class="steps">'+STEPS.map((st,i)=>{
+    const cur = i===S.stepIndex && S.run==='running';
+    const curw = S.stepStates[i]==='waiting';
+    let note='';
+    if(curw) note='<div class="s-note wait">Waiting for you — '+fmt(S.countdown)+' left</div>';
+    if(cur && S.heurStuck) note='<div class="s-note bad">Element not found — retrying… (possible CAPTCHA)</div>';
+    if(i===HUMAN_IDX && S.stepStates[i]==='done') note='<div class="s-note human">Completed by you · verified ✓</div>';
+    if(S.stepStates[i]==='failed' && i===HUMAN_IDX) note='<div class="s-note bad">Takeover window expired</div>';
+    return '<li class="'+(cur?'current':'')+(curw?' currentwait':'')+'">'+stepIcon(i)+
+      '<div class="s-body"><div class="s-title">'+st.title+'</div><div class="s-det">'+st.det+'</div>'+note+'</div></li>';
+  }).join('')+'</ul>';
+}
+function timelineHtml(){
+  const total=Math.max(S.t,1);
+  const bar=S.segments.filter(s=>s.end>s.start).map(s=>
+    '<div class="seg '+s.kind+'" style="flex:'+((s.end-s.start)/total)+'" title="'+s.kind+' · '+(s.end-s.start)+' min"></div>').join('');
+  const marks=S.marks.map(m=>'<span style="position:absolute;left:'+(m.t/total*100)+'%;transform:translateX(-50%)">▲ '+m.label+'</span>').join('');
+  return '<div class="tlwrap"><h4 class="mini" style="padding:0 0 6px">Timeline · '+fmt(S.t)+' elapsed</h4>'+
+    '<div class="tlbar">'+bar+'</div><div class="tlmarks">'+marks+'</div>'+
+    '<div class="tlleg"><span><i style="background:var(--auto)"></i>automation</span><span><i style="background:var(--wait)"></i>waiting for you</span><span><i style="background:var(--human)"></i>you in control</span><span><i style="background:var(--verify)"></i>verifying</span></div></div>';
+}
+function evlogHtml(){
+  return '<h4 class="mini">Events</h4><div class="evlog">'+S.events.map(e=>
+    '<div><span class="t">'+clk(e.t)+'</span><span class="'+e.kind+'">'+e.text+'</span></div>').join('')+'</div>';
+}
+
+function fakeBrowserHtml(interactive){
+  const urls={login:'portal.acme.example/login', mfa:'portal.acme.example/mfa', dashboard:'portal.acme.example/dashboard', invoices:'portal.acme.example/invoices', captcha:'portal.acme.example/login', closed:''};
+  let page='';
+  if(S.page==='login') page='<div class="inner"><h3>Acme Portal</h3><p>Sign in to your account</p><div class="tile" style="border:1px solid #e3e7ee;border-radius:6px;padding:10px;font-size:13px;color:#68738a">email · password — filled by automation</div></div>';
+  if(S.page==='mfa') page='<div class="inner"><h3>Two-step verification</h3><p>Enter the 6-digit code from your authenticator app.</p>'+
+    '<input type="text" inputmode="numeric" placeholder="••••••" value="'+S.mfa+'" oninput="mfaInput(this.value)" '+(interactive?'':'disabled')+'>'+
+    '<button class="fbtn" onclick="mfaSubmit()" '+(interactive?'':'disabled')+'>Verify</button><div class="fb-err">'+S.fbErr+'</div></div>';
+  if(S.page==='captcha') page='<div class="inner"><h3>Checking your browser</h3><p>Please confirm you are human.</p><div class="captchabox"><span class="cb" onclick="captchaClick()">'+(S.captchaSolved?'✓':'')+'</span> I\'m not a robot</div></div>';
+  if(S.page==='dashboard') page='<div class="inner fb-dash"><h3>Dashboard</h3><p>Welcome back, Stefan</p><div class="tile">Open invoices · 3</div><div class="tile">Account · verified ✓</div></div>';
+  if(S.page==='invoices') page='<div class="inner fb-dash"><h3>Invoices</h3><div class="tile">May 2026 — €49.00 · <u>download</u></div><div class="tile">April 2026 — €49.00 · <u>download</u></div></div>';
+  if(S.page==='closed') return '<div class="fakebrowser"><div class="fb-page" style="background:#2b2f36;color:#8b93a3;min-height:270px"><div>Session ended — the browser for this Run has closed.</div></div></div>';
+
+  let overlay='';
+  if(!interactive && S.control==='automation') overlay='<div class="vncoverlay readonly"><span class="ro-badge">🔒 view only — automation in control</span></div>';
+  if(!interactive && S.run==='waiting_for_human' && !S.inTakeover) overlay=''; // handled by callers
+  return '<div class="fakebrowser"><div class="fb-chrome"><div class="fb-dots"><i></i><i></i><i></i></div><div class="fb-url"><b>https://</b>'+urls[S.page]+'</div></div><div class="fb-page">'+page+'</div></div>'+overlay;
+}
+
+function predState(){ return S.mfaSolved ? 'met' : 'unmet'; }
+function predLineHtml(){
+  if(S.waitReason==='heuristic') return '<div class="predline">Success check: <b>none</b> — handing back retries the blocked step.'+(S.captchaSolved?' <span class="readyhint">CAPTCHA solved — ready to hand back</span>':'')+'</div>';
+  const met=predState()==='met';
+  let tail='';
+  if(met && S.autoback!==null){
+    tail=' <span class="readyhint">✓ met — handing back in '+S.autoback+'s</span> '+
+      '<button class="primary" style="padding:2px 8px;font-size:12px" onclick="handBack()">Hand back now</button> '+
+      '<button style="padding:2px 8px;font-size:12px" onclick="stayInControl()">Stay in control</button>';
+  } else if(met){
+    tail=' <span class="readyhint">✓ ready to hand back</span>';
+  }
+  return '<div class="predline">Success check: “'+PRED+'” — currently <span class="st '+predState()+'">'+(met?'MET':'not met')+'</span>'+tail+'</div>';
+}
+function ctlbarHtml(compact){
+  const low=S.countdown!==null && S.countdown<=5;
+  return '<div class="ctlbar">'+
+    '<span class="who">✋ You are controlling this browser</span>'+
+    '<span class="sec">Run #1042 · worker-2 · portal.acme.example · encrypted, only you can see this session</span>'+
+    '<span class="spacer"></span>'+
+    '<span class="cd '+(low?'low':'')+'">⏱ '+fmt(S.countdown)+' left</span>'+
+    '<button class="primary" onclick="handBack()">Hand control back</button>'+
+    (compact?'':'<button onclick="leaveView()">Leave view</button>')+
+    '<button class="danger" onclick="cancelRun()">Cancel run</button>'+
+    '</div>';
+}
+
+function waitCardHtml(){
+  const low=S.countdown<=5;
+  const why = S.waitReason==='heuristic' ? 'You paused it over a suspected CAPTCHA.' :
+    'Step 5 (“Complete MFA if asked”) needs a human.';
+  return '<div class="waitcard"><h2>✋ This run is waiting for you</h2>'+
+    '<div>'+why+' The browser is being held open on worker-2.</div>'+
+    '<div class="row">'+
+      '<span class="cd '+(low?'low':'')+'">⏱ '+fmt(S.countdown)+' before the run fails</span>'+
+      '<button class="human" onclick="takeOver()">Take over browser</button>'+
+      '<button class="danger" onclick="cancelRun()">Cancel run</button>'+
+    '</div>'+
+    (S.waitReason==='step' ? '<div class="row"><span class="predchip">Resume requires: “'+PRED+'” <span class="st '+predState()+'">'+(predState()==='met'?'MET':'not met')+'</span></span></div>':'')+
+    '</div>';
+}
+function verifyingHtml(){ return '<div class="verifying"><span class="spin"></span> Control returned — verifying the success check: “'+(S.waitReason==='heuristic'?'retry blocked step':PRED)+'”…</div>'; }
+function predFailHtml(){
+  return '<div class="faildlg"><b>Success check not met.</b> The page URL is still portal.acme.example/mfa — the challenge doesn\'t look finished. Automation has NOT resumed; the browser is still being held ('+fmt(S.countdown)+' left).'+
+  '<div class="row"><button class="human" onclick="retryTakeover()">Keep control &amp; finish it</button><button class="danger" onclick="failFromDialog()">Give up — fail the run</button></div></div>';
+}
+function heurHtml(){
+  return '<div class="heur"><b>⚠ This step may be blocked by a CAPTCHA.</b> Step '+(S.stepIndex+1)+' can\'t find its element, and the page matches a known CAPTCHA pattern. Automation keeps retrying and the step will fail in ~'+(10-S.stepT)+' min.'+
+  '<div class="row"><button class="warn" onclick="heurTakeOver()">Pause run &amp; take over</button><button onclick="heurDismiss()">Dismiss — let it retry</button></div></div>';
+}
+function terminalHtml(){
+  if(S.run==='succeeded') return '<div class="terminal ok">✓ Run succeeded — 8 steps, 1 Artifact (invoice-2026-05.pdf).<div class="why">Step 5 was completed by you (2 min in control); everything else ran automatically.</div></div>';
+  if(S.run==='failed') return '<div class="terminal bad">✕ Run failed — '+S.failureReason+'<div class="why">'+(S.failWhy||'')+' Artifacts up to the failure are kept (screenshot of the final page attached).</div></div>';
+  if(S.run==='cancelled') return '<div class="terminal gray">◼ Run cancelled by you.<div class="why">Steps 1–'+(S.stepStates.filter(s=>s==='done').length)+' had completed; the rest were skipped. The browser session closed.</div></div>';
+  return '';
+}
+
+/* ---- main render ---- */
+function render(){
+  document.querySelectorAll('#harness [id^=v]').forEach(b=>b.classList.remove('on'));
+  const vb=document.getElementById('v'+S.variant); if(vb) vb.classList.add('on');
+  document.getElementById('heurBtn').disabled = !(S.run==='running' && S.stepIndex<HUMAN_IDX && !S.heurStuck);
+
+  const app=document.getElementById('app'), ov=document.getElementById('overlayroot');
+
+  /* run header */
+  const head='<div class="runhead"><h1>Run #1042 — Download monthly invoice · Acme portal</h1>'+
+    '<span class="chip '+S.run+'">'+S.run.replace(/_/g,' ')+'</span>'+
+    '<span class="sub">Version 7 · started by you · worker-2</span><span class="spacer"></span>'+
+    (S.run==='running'||S.run==='waiting_for_human'?'<button class="danger" onclick="cancelRun()">Cancel run</button>':'')+
+    '</div>';
+
+  /* main pane content per state */
+  let main='';
+  if(S.run==='failed'||S.run==='succeeded'||S.run==='cancelled') main+=terminalHtml();
+  if(S.heurBanner) main+=heurHtml();
+  if(S.verifying) main+=verifyingHtml();
+  if(S.predFailed) main+=predFailHtml();
+  if(S.run==='waiting_for_human' && !S.inTakeover && !S.verifying && !S.predFailed) main+=waitCardHtml();
+
+  const showEmbedded = S.variant==='C';
+  if(showEmbedded){
+    const interactive = S.inTakeover && S.control==='human';
+    const frameCls = interactive?'humanctl':(S.run==='waiting_for_human'?'waitctl':'');
+    main+='<div class="ctlwrap">'+
+      (interactive?ctlbarHtml(true):'')+
+      '<div class="vncframe '+frameCls+'" '+(interactive?'':'style="border-radius:10px"')+'>'+fakeBrowserHtml(interactive)+'</div>'+
+      (interactive?predLineHtml():'<div class="vnc-note">'+(S.run==='running'?'Live view of the worker browser (read-only while automation runs).':S.run==='waiting_for_human'?'The held browser — press “Take over browser” to control it.':'Final state of the browser.')+'</div>')+
+      '</div>';
+  } else if(S.run==='running'||S.verifying){
+    main+='<div class="vncframe" style="border-radius:10px"><div style="position:relative">'+fakeBrowserHtml(false)+'</div></div><div class="vnc-note">Live screenshot stream (read-only). The interactive view opens only during takeover.</div>';
+  } else if(S.run==='waiting_for_human' && !S.inTakeover){
+    main+='<div class="vncframe waitctl" style="border-radius:10px;opacity:.85">'+fakeBrowserHtml(false)+'</div><div class="vnc-note">Preview of the held browser — take over to interact.</div>';
+  } else if(S.page==='closed'){
+    main+='<div class="vncframe" style="border-radius:10px">'+fakeBrowserHtml(false)+'</div>';
+  }
+
+  app.innerHTML='<div class="card"><div class="layout">'+
+    '<div class="leftrail">'+stepsHtml()+evlogHtml()+'</div>'+
+    '<div class="mainpane">'+main+'</div>'+
+    '</div>'+timelineHtml()+'</div>';
+
+  /* overlay surfaces for A and B */
+  let ovh='';
+  if(S.inTakeover && S.variant==='A'){
+    ovh='<div id="fsroot">'+ctlbarHtml(false).replace('class="ctlbar"','class="ctlbar" style="border-radius:0"')+
+      '<div class="fsmain"><div class="vncholder"><div class="vncframe humanctl" style="border-radius:10px 10px 0 0">'+fakeBrowserHtml(true)+'</div>'+predLineHtml()+'</div></div></div>';
+  }
+  if(S.inTakeover && S.variant==='B'){
+    ovh='<div id="modalback"><div class="modal">'+ctlbarHtml(false)+
+      '<div style="padding:14px"><div class="vncframe humanctl">'+fakeBrowserHtml(true)+'</div></div>'+
+      '<div style="padding:0 14px 14px">'+predLineHtml()+'</div></div></div>';
+  }
+  ov.innerHTML=ovh;
+
+  /* debug */
+  const dbg={run:S.run,failure_reason:S.failureReason,control:S.control,in_takeover:S.inTakeover,wait_reason:S.waitReason,
+    step_index:S.stepIndex,step_states:S.stepStates,countdown_min:S.countdown,page:S.page,mfa_solved:S.mfaSolved,
+    captcha_solved:S.captchaSolved,verifying:S.verifying,pred_failed:S.predFailed,sim_elapsed_min:S.t,variant:S.variant};
+  document.getElementById('dbgpre').textContent=JSON.stringify(dbg,null,1);
+
+  /* keep mfa input caret usable: restore focus */
+  const inp=document.querySelector('.fb-page input[type=text]:not([disabled])');
+  if(inp && document.activeElement!==inp && S.mfa.length>0 && S.mfa.length<6) inp.focus({preventScroll:true});
+  if(inp && S.mfa) { inp.setSelectionRange(inp.value.length, inp.value.length); }
+}
+
+resetSim();
+</script>
+</body>
+</html>
