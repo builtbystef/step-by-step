@@ -67,3 +67,7 @@ Related but outside this DAG: issue `ymz3md` (establish stack, checks, and dev c
 - Admin demotion in the UI and audit logging of admin actions (spec ufnuvx) — delete or the promote-admin CLI cover v1's needs.
 - CDP response-body capture (spec u8q8p3) — no v1 step type consumes network bodies: extract reads the DOM, download uses chrome.downloads. Nothing network-level is retained, so no filtering policy is needed.
 - Replaying a Workflow to position the page for a Re-pick (spec u8q8p3) — the user navigates to the page themselves; re-pick stays free of Worker machinery.
+- Revealing a stored Auth State blob in the UI, and any audit log of reveals or vault changes (spec 54i6da) — a session blob has nothing a human can read usefully; Secret reveal is password-gated instead.
+- Expiry, TTL, refresh-ahead, or health-checking of stored Auth State (spec 54i6da) — a site's real session lifetime is invisible to us, so a stale record simply fails to authenticate and a login Step or takeover recovers.
+- Automatic capture of a domain a Run signs into, outside takeover consent (spec 54i6da) — new records come only from the recording-save opt-in or an explicit "keep this login?" at hand-back.
+- Per-Worker credentials and TLS on the Worker↔backend internal endpoints (spec 54i6da) — a shared compose token plus a non-terminal-Run check; a fixed compose pool has no provisioning step to hang per-Worker credentials on, and Workers are never internet-facing.
