@@ -13,7 +13,7 @@ depends_on:
     - wljln8
     - 3iwv5i
 created: 2026-08-11T18:47:59Z
-updated: 2026-08-11T18:47:59Z
+updated: 2026-08-11T21:33:02Z
 ---
 
 ## Problem Statement
@@ -116,16 +116,36 @@ payload by type:
 - Extract mode is an explicit toggle ("next click = extract"); the extract click is side-effect-free (`preventDefault`), recording captured text plus selectors.
 - No response-body capture. The extension never uses `Network.getResponseBody`; nothing network-level is retained.
 
+### Distribution, updates, and connection (n52g83)
+
+- **Unpacked distribution.** v1 ships no Chrome Web Store listing and no self-hosted `.crx`/`update_url` (off-store `.crx` installs are Linux-only). The backend serves the extension build paired with it at `GET /extension.zip`, alongside an install page (unzip → `chrome://extensions` → Developer mode → Load unpacked) that the app UI links. Accepted costs: Developer mode, no auto-update, and Chrome may disable an unpacked extension across updates or profile reloads. The install docs note in one sentence that Windows/macOS fleets can force-install through enterprise policy; nothing is built for it.
+- **Stable ID.** The manifest pins a `key`, so the extension ID does not vary with install directory. Nothing in the connect flow addresses the extension by ID; the pin exists for enterprise-policy installs and for later Web Store continuity.
+- **`minimum_chrome_version: "118"`** — an attached `chrome.debugger` session resets the service-worker idle timer from 118. Raise it if a slice needs a newer API.
+- **Version compatibility.** Because the instance serves its own build, skew is an edge case, not the normal path. The extension sends `X-Extension-Version` on session creation; the backend refuses below its declared minimum with a plain-language message linking the install page. `GET /api/extension/version` → `{ current, minimum_supported }` (unauthenticated) lets the app show an "update your extension" banner before a recording is attempted.
+
 ### Recording session protocol
 
 App-first: the Workflow is created and named in the web app; recording targets its Draft. Re-recording a Draft that already has Steps **replaces** them, behind a confirm in the app before the session starts.
 
+**The extension opens the channel, not the app.** `externally_connectable.matches` cannot express an arbitrary self-hosted origin — wildcard domains and subdomains of effective TLDs are rejected, so `<all_urls>`, `*://*/*`, and `*://*.com/*` are all invalid — and a self-hoster's origin is unknown at build time. One shared build therefore cannot be messaged by the app. Instead:
+
 ```
+Connect (once per instance, in the extension popup):
+  user enters the instance URL
+  -> chrome.permissions.request for that origin   // from a user gesture;
+                                                  // optional_host_permissions: ["*://*/*"]
+  -> extension opens the app's connect page there, injects its content script
+  -> page hands the handshake over window.postMessage
+  Fallback when the grant is declined: the app displays a one-time connect
+  code, the user pastes it into the popup, the extension exchanges it at the
+  backend. The one granted origin covers both content-script injection and
+  the service worker's fetch.
+
 Web app -> backend:
-  POST /api/workflows/{workflowId}/recording-sessions
+  POST /api/workflows/{workflowId}/recording-sessions   // X-Extension-Version
     -> { sessionId, token }        // token scoped to one user + one Draft, TTL 1 h
 
-Web app -> extension (externally_connectable allowlist):
+Web app -> extension (content script on the connected origin, postMessage):
   { sessionId, token, backendOrigin, workflowName, mode: "record" | "repick",
     stepId? }                      // stepId only for repick
 
@@ -137,8 +157,9 @@ Extension -> backend (direct fetch, Authorization: token):
     -> writes the Draft (replace); rejects unresolved needs-secret markers
 ```
 
+- The extension calls the backend directly; checkpoints are never relayed through the app tab, so a closed or dead tab cannot cost a recording.
 - Checkpoints exist so a killed service worker or expired token loses nothing: on token expiry mid-recording the app re-mints against the same session and the extension resumes; buffered Steps survive locally and on the server.
-- Every extension message is treated as untrusted: origin, sender, tab context, and payload are validated; content-script messages doubly so.
+- Every extension message is treated as untrusted: origin, sender, tab context, and payload are validated; content-script messages doubly so. A `window.postMessage` handshake is accepted only from the connected origin and only when it matches a nonce the extension generated for that connect attempt.
 - A **Re-pick session** is the same handshake scoped to one Step (`mode: "repick"`). The user navigates to the page themselves — the Workflow is not replayed to get there — and clicks the intended element; the extension computes a fresh verified candidate list and finalizes it to the session. The editor then shows old vs. new candidate lists and the user confirms, which patches that one Step in the Draft. Escape hatch: candidates are plain stored data and can be hand-edited in the editor.
 
 ### Editor (web app)
@@ -177,7 +198,7 @@ None beyond the stack already settled for the project (Next.js/TypeScript fronte
 
 Three seams:
 
-1. **Backend HTTP API** — the primary seam; tests speak HTTP to the app with a real Postgres. Good tests here assert external behavior: a Draft save with duplicate step ids → rejected (validation error naming the duplicate); duplicate-a-Workflow → every Step id differs from the source while order and payloads match; publish → a new immutable Version whose steps byte-match the Draft, and a step-level diff listing added/removed/changed Steps; finalize with an unresolved needs-secret marker → rejected; checkpoint after simulated session death → finalize still yields the full Step list; expired token → 401, re-mint against the same session resumes; re-pick finalize → exactly one Step's candidate list changes and its step id is preserved; deleting a Variable used by a Step → refused.
+1. **Backend HTTP API** — the primary seam; tests speak HTTP to the app with a real Postgres. Good tests here assert external behavior: a Draft save with duplicate step ids → rejected (validation error naming the duplicate); duplicate-a-Workflow → every Step id differs from the source while order and payloads match; publish → a new immutable Version whose steps byte-match the Draft, and a step-level diff listing added/removed/changed Steps; finalize with an unresolved needs-secret marker → rejected; checkpoint after simulated session death → finalize still yields the full Step list; expired token → 401, re-mint against the same session resumes; re-pick finalize → exactly one Step's candidate list changes and its step id is preserved; deleting a Variable used by a Step → refused; a session create carrying an `X-Extension-Version` below the declared minimum → refused with a machine-readable code, and `GET /api/extension/version` reports the same minimum.
 2. **Recorder capture pipeline at the extension boundary** — Playwright drives headless Chromium with the unpacked extension over local fixture pages; tests assert on the emitted Step JSON. Worked examples: a click on `<button data-testid="save">Save</button>` → a `click` Step whose candidate list starts with the testid candidate, role+name candidate present and verified; typing into a password field → a `type` Step with empty value and needs-secret marker, and the literal value appears nowhere in any emitted message; a click that navigates → one `click` Step with `assertedNavigation`, no separate `navigate` Step; a typed URL change → a standalone `navigate` Step; interactions inside a closed shadow root → the Step carries `unsupported` with the plain-language warning; a rapid click sequence → Steps in interaction order (the serialized-queue rule observable from outside). Known harness quirks from the prototype: native `<select>` popups and download events behave differently under an attached debugger — select is tested via `select_option`, and download-step capture is exercised in a real Chrome session, not the headless harness.
 3. **Selector resolution module** — pure-module tests against fixture pages. Worked examples: candidates [testid, role+name, css] where testid is gone and role+name matches one element → resolves via rank 1 and the result records rank 1; a candidate matching two elements → skipped, resolution continues down the list; all candidates ambiguous or missing → SelectorFailure at timeout, not before the deadline; an element that appears 2 s after navigation with a 30 s timeout → resolved (the re-walk loop observable from outside).
 
@@ -190,7 +211,10 @@ Prior art: none — this spec creates the first code and the first tests in the 
 - Self-healing selectors, automatic selector regeneration, weighted multi-locator voting (f10wq3, wljln8).
 - Version pinning for Schedules and Batches (ds8zyn).
 - Response-body capture of any kind (this spec).
-- Extension distribution, update channel, and minimum Chrome version — node n52g83 settles them.
+- Chrome Web Store publication (n52g83) — deferred, not rejected; it carries its own prerequisites (developer account, review, permission justification for `debugger` and broad optional host access) and sits on the roadmap's Frontier.
+- Self-hosted `.crx` with an `update_url`, and any extension auto-update mechanism (n52g83) — off-store `.crx` installs work on Linux only.
+- Enterprise-policy deployment of the extension (n52g83) — documented in one sentence, not built.
+- `externally_connectable`-based app-to-extension messaging (n52g83) — its match patterns cannot express an arbitrary self-hosted origin.
 - Execution architecture: Workers, queues, Run lifecycle, artifacts, live run view, takeover UX — the backend + workers + live-run area's spec. This spec defines only the selector-resolution contract that area consumes.
 - Secret and Auth State storage, encryption, and vault UX — the secrets area (7o0nmx and its spec). This spec only binds `type` Steps to secret Variables by name.
 - Editor UI automation — editor behavior is tested at the API seam; the layout was validated by prototype 3iwv5i.

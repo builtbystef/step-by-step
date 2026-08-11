@@ -7,7 +7,7 @@ priority: high
 labels:
     - roadmap
 created: 2026-08-08T07:07:08Z
-updated: 2026-08-11T19:44:30Z
+updated: 2026-08-11T21:33:02Z
 ---
 
 ## Goal
@@ -29,6 +29,7 @@ Related but outside this DAG: issue `ymz3md` (establish stack, checks, and dev c
 - Saved reusable datasets (a list-of-rows entity that outlives one batch) — revisit when usage shows the reuse pattern; v1 batches own their rows (8iuuh8).
 - Monorepo layout, local dev environment, deployment target and hosting. (The service list settled in px25yw: one docker compose stack — backend, Workers, Postgres, Redis, MinIO.)
 - Observability: run logs, worker health, metrics. (px25yw gives the primitives: worker heartbeats on Run rows, log-line events over Redis pub/sub.)
+- Chrome Web Store publication of the extension — deferred by n52g83, not rejected. It needs a developer account, review turnaround, permission justification for `debugger` and broad optional host access, and a decision between an unlisted and a public listing. Revisit when unpacked installation becomes the thing that hurts.
 
 ## Out of scope
 
@@ -71,3 +72,7 @@ Related but outside this DAG: issue `ymz3md` (establish stack, checks, and dev c
 - Expiry, TTL, refresh-ahead, or health-checking of stored Auth State (spec 54i6da) — a site's real session lifetime is invisible to us, so a stale record simply fails to authenticate and a login Step or takeover recovers.
 - Automatic capture of a domain a Run signs into, outside takeover consent (spec 54i6da) — new records come only from the recording-save opt-in or an explicit "keep this login?" at hand-back.
 - Per-Worker credentials and TLS on the Worker↔backend internal endpoints (spec 54i6da) — a shared compose token plus a non-terminal-Run check; a fixed compose pool has no provisioning step to hang per-Worker credentials on, and Workers are never internet-facing.
+
+- `externally_connectable`-based app-to-extension messaging (n52g83) — its match patterns forbid wildcard domains and subdomains of effective TLDs, so no single build can name an arbitrary self-hosted origin. The extension opens the channel instead.
+- Self-hosted `.crx` with an `update_url`, and extension auto-update of any kind, for v1 (n52g83) — off-store `.crx` installs work on Linux only, and the instance serves the build that pairs with it.
+- Enterprise-policy deployment of the extension (n52g83) — a documented escape hatch for Windows/macOS fleets, not a supported v1 path.
