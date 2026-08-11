@@ -63,4 +63,5 @@ Related but outside this DAG: issue `ymz3md` (establish stack, checks, and dev c
 
 - OAuth/OIDC sign-in for v1 (imtsfx) — email/password only; no external identity dependency in a self-hosted stack. OIDC is a clean later addition.
 - Email-based self-serve password reset (imtsfx) — admin-set temp passwords with forced change on first login; SMTP reset can layer on later.
-- Soft delete / deletion grace period (imtsfx) — account deletion is a hard cascade behind a type-the-username confirmation.
+- Soft delete / deletion grace period (imtsfx) — account deletion is a hard cascade behind a type-the-email confirmation.
+- Admin demotion in the UI and audit logging of admin actions (spec ufnuvx) — delete or the promote-admin CLI cover v1's needs.
