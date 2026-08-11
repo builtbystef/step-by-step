@@ -7,7 +7,7 @@ priority: high
 labels:
     - roadmap
 created: 2026-08-08T07:07:08Z
-updated: 2026-08-10T23:47:39Z
+updated: 2026-08-11T19:44:30Z
 ---
 
 ## Goal
@@ -65,3 +65,5 @@ Related but outside this DAG: issue `ymz3md` (establish stack, checks, and dev c
 - Email-based self-serve password reset (imtsfx) — admin-set temp passwords with forced change on first login; SMTP reset can layer on later.
 - Soft delete / deletion grace period (imtsfx) — account deletion is a hard cascade behind a type-the-email confirmation.
 - Admin demotion in the UI and audit logging of admin actions (spec ufnuvx) — delete or the promote-admin CLI cover v1's needs.
+- CDP response-body capture (spec u8q8p3) — no v1 step type consumes network bodies: extract reads the DOM, download uses chrome.downloads. Nothing network-level is retained, so no filtering policy is needed.
+- Replaying a Workflow to position the page for a Re-pick (spec u8q8p3) — the user navigates to the page themselves; re-pick stays free of Worker machinery.

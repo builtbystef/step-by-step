@@ -68,6 +68,10 @@ _Avoid_: superuser, operator, owner
 The condition where a Step resolves through a lower-ranked selector candidate than the one recorded as best, showing that the page has changed under the Workflow.
 _Avoid_: selector rot, degraded selector, healing signal
 
+**Re-pick**:
+The repair action for one Step's target: the user points at the intended element on the live page through the extension, and a fresh verified selector candidate list replaces the Step's old one in the Draft.
+_Avoid_: re-record element, selector refresh, heal
+
 **Worker**:
 A long-lived process that executes at most one Run at a time, with an exclusive browser for that Run. The number of Workers is the instance's total Run concurrency.
 _Avoid_: runner, executor, agent
