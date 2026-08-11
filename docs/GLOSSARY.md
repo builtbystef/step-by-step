@@ -64,6 +64,10 @@ _Avoid_: session state, storage state, login blob
 A user with instance-level powers: creating, disabling, deleting, and password-resetting users, and toggling open signup. Tenancy isolation still applies — an Instance Admin never sees another user's Workflows, Runs, Secrets, or Auth State.
 _Avoid_: superuser, operator, owner
 
+**Selector Drift**:
+The condition where a Step resolves through a lower-ranked selector candidate than the one recorded as best, showing that the page has changed under the Workflow.
+_Avoid_: selector rot, degraded selector, healing signal
+
 **Worker**:
 A long-lived process that executes at most one Run at a time, with an exclusive browser for that Run. The number of Workers is the instance's total Run concurrency.
 _Avoid_: runner, executor, agent
