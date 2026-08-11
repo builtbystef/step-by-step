@@ -7,7 +7,7 @@ priority: high
 labels:
     - roadmap
 created: 2026-08-08T07:07:08Z
-updated: 2026-08-11T21:33:02Z
+updated: 2026-08-11T23:41:40Z
 ---
 
 ## Goal
@@ -24,11 +24,11 @@ Related but outside this DAG: issue `ymz3md` (establish stack, checks, and dev c
 
 - Artifact storage: retention policy, linkage from runs and steps to artifacts. (The backend choice settled in px25yw: S3-compatible, MinIO in the compose stack, workers write directly.)
 - Scheduling engine details: cron expression UX, timezones, missed-run and overlap policy. (The dispatch mechanism settled in px25yw: a backend scheduler loop scans Postgres each minute and enqueues due Runs.)
-- Batch creation/management UI — prototype candidate. (The workflow editor UX became node 3iwv5i when the data model settled; the live run view became node apx4rs when the execution architecture settled.)
-- Extracted data delivery: where a Run's assembled output object goes — view in UI, download, webhook, API. (The per-step schema settled in ds8zyn.)
+- Batch creation UI: entering or uploading the rows, mapping columns to Variables, naming and re-running a Batch. (The batch *progress* view settled in apx4rs: a table of rows with inline drilldown. The workflow editor UX settled in 3iwv5i, the live run view in apx4rs.)
+- Extracted data delivery *outside the UI*: webhook, API, or push on completion. (The per-step schema settled in ds8zyn; the in-app half settled in apx4rs — a Run's Output tab renders the assembled object as a table with Download JSON/CSV, and a Batch's Output tab is the uniform table across rows with download-all.)
 - Saved reusable datasets (a list-of-rows entity that outlives one batch) — revisit when usage shows the reuse pattern; v1 batches own their rows (8iuuh8).
 - Monorepo layout, local dev environment, deployment target and hosting. (The service list settled in px25yw: one docker compose stack — backend, Workers, Postgres, Redis, MinIO.)
-- Observability: run logs, worker health, metrics. (px25yw gives the primitives: worker heartbeats on Run rows, log-line events over Redis pub/sub.)
+- Observability for the operator: worker health, pool saturation, instance metrics. (px25yw gives the primitives: worker heartbeats on Run rows, log-line events over Redis pub/sub. How a Run's log lines read to its owner settled in apx4rs: a Logs tab in the run detail's drawer, and per-step lines inside an expanded step.)
 - Chrome Web Store publication of the extension — deferred by n52g83, not rejected. It needs a developer account, review turnaround, permission justification for `debugger` and broad optional host access, and a decision between an unlisted and a public listing. Revisit when unpacked installation becomes the thing that hurts.
 
 ## Out of scope
@@ -72,6 +72,10 @@ Related but outside this DAG: issue `ymz3md` (establish stack, checks, and dev c
 - Expiry, TTL, refresh-ahead, or health-checking of stored Auth State (spec 54i6da) — a site's real session lifetime is invisible to us, so a stale record simply fails to authenticate and a login Step or takeover recovers.
 - Automatic capture of a domain a Run signs into, outside takeover consent (spec 54i6da) — new records come only from the recording-save opt-in or an explicit "keep this login?" at hand-back.
 - Per-Worker credentials and TLS on the Worker↔backend internal endpoints (spec 54i6da) — a shared compose token plus a non-terminal-Run check; a fixed compose pool has no provisioning step to hang per-Worker credentials on, and Workers are never internet-facing.
+
+- Timeline-spine and three-column ops-console layouts for the run detail (apx4rs) — the run detail is the cockpit: a step rail, the embedded browser pane as the main pane, and a Logs/Output/Artifacts drawer. The spine's two advantages, per-step inline expansion and control phases shown inside the step sequence, were grafted into the cockpit instead.
+- Time-travel scrubbing of a Run — a draggable gantt that reconstructs the page state at an arbitrary instant (apx4rs) — it requires per-moment reconstruction for a payoff that per-step screenshots already give, and it crowded the layout at laptop width.
+- Master-detail batch progress (a row list beside one row's detail) (apx4rs) — the batch progress view is a table whose rows expand in place, because a batch's work is scanning many rows for the few that need attention.
 
 - `externally_connectable`-based app-to-extension messaging (n52g83) — its match patterns forbid wildcard domains and subdomains of effective TLDs, so no single build can name an arbitrary self-hosted origin. The extension opens the channel instead.
 - Self-hosted `.crx` with an `update_url`, and extension auto-update of any kind, for v1 (n52g83) — off-store `.crx` installs work on Linux only, and the instance serves the build that pairs with it.
