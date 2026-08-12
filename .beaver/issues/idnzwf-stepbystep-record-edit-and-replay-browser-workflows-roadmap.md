@@ -7,7 +7,7 @@ priority: high
 labels:
     - roadmap
 created: 2026-08-08T07:07:08Z
-updated: 2026-08-12T01:03:23Z
+updated: 2026-08-12T02:16:01Z
 ---
 
 ## Goal
@@ -88,3 +88,10 @@ Related but outside this DAG: issue `ymz3md` (establish stack, checks, and dev c
 - A staged wizard for Batch creation, and a column-mapping screen on every import (tf6796) — creation is one grid-first page whose columns are the Workflow's Variables, so typing, pasting, importing, and reusing a past Batch's rows are the same surface. A mapping strip appears only when reconciliation is not confident.
 - Discarding incomplete rows at Batch creation, and refusing to create a Batch that has any (tf6796) — a row missing a value becomes a `skipped` row, so it stays visible and re-runnable through machinery spec 9gea5p already has. An empty Variable can be legitimate, so "run them anyway" remains available.
 - Silently dropping an uploaded column whose name matches a secret Variable (tf6796) — the drop is named on screen and happens client-side, so those values never reach the backend.
+
+- Preset tiles as the whole recurrence surface, and a raw cron field as the primary control (pjxuqx) — entry is a sentence of dropdowns with preset chips that fill it, and the generated cron shown beneath, always. Tiles alone drop the user onto bare cron at the first intermediate case; cron-first demands knowledge the product's premise says they do not have.
+- Guessing a plain-language reading for any cron expression (pjxuqx) — an expression the humanizer cannot phrase shortly says so, and the real next occurrences stand as the answer.
+- Default values declared on a Workflow's Variables as the source of an unattended Run's inputs (pjxuqx) — the value set is owned by the Schedule, so two Schedules of one Workflow can differ and no default leaks into manual Runs or Batch rows.
+- Silent prefill of a Schedule's values from the last manual Run (pjxuqx) — an explicit "fill from my last Run" button instead; silent prefill enshrines a throwaway or test Run's values in a job that then fires unattended forever.
+- Creating a Schedule with a Variable left empty (pjxuqx) — unlike a Batch row, which becomes a `skipped` row and stays visible (tf6796), an incomplete Schedule fails unattended on repeat, so it cannot be saved.
+- A per-Workflow Schedules surface separate from the global one (pjxuqx) — one all-Schedules table with rows expanding in place; the Workflow's Schedules tab is that same component, filtered.
