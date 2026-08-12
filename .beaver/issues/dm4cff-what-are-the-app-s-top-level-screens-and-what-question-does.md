@@ -1,14 +1,15 @@
 ---
 id: dm4cff
 title: What are the app's top-level screens, and what question does each one answer?
-state: todo
+state: done
+assignee: claude
 priority: high
 labels:
     - roadmap:idnzwf
     - session:grill
 parent: idnzwf
 created: 2026-08-12T03:51:49Z
-updated: 2026-08-12T03:51:49Z
+updated: 2026-08-12T04:07:12Z
 ---
 
 One live interview (grill-me), limited to information architecture. Five specs describe deep surfaces — the editor (d8ux2s), the vault (54i6da), the run detail and batch progress (9gea5p), Batch and Schedule creation (nno9gj) — and every one of them assumes a frame around it that no spec describes. Settle that frame:
@@ -23,3 +24,29 @@ One live interview (grill-me), limited to information architecture. Five specs d
 Inputs: the five published specs (`ufnuvx`, `d8ux2s`, `54i6da`, `9gea5p`, `nno9gj`), `docs/GLOSSARY.md`. Do not re-decide anything those specs settled; this node draws the map they hang on.
 
 The answer gates the shell-and-lists prototype, and with it the visual language.
+
+## Notes
+
+**claude** — 2026-08-12T04:07:08Z
+
+ANSWER — the app's map, settled in one grill session (user: "Yes go with all your recommendations", then "Agree with all, go with your recommendations"). Two facts established before the interview: no prototype branch drew any app chrome (all six are single bare surfaces, no nav), and nothing in the five published specs can tell a user that a Run is waiting for them unless they already have that Run open — SSE is per-Run and per-Batch only (9gea5p) and 8iuuh8 ruled out notifications.
+
+THE SHELL — a persistent left sidebar with exactly three primary destinations: Workflows, Runs, Schedules. Below them, separated: Settings, holding the sections Account, Secrets, Saved logins, Browser extension, and Admin (Users, Open signup) rendered only for an Instance Admin. Reason for putting Admin inside Settings rather than beside the work: on a single-user instance it is then one section of one screen instead of a destination competing for attention, and it is still one click from anywhere. No top-level Batches (nno9gj already refused a global Batches index) and no top-level vault (54i6da itself calls it "one Settings area with two sections").
+
+NO DASHBOARD. Sign-in lands on Workflows. A dashboard would be a third rendering of rows Runs and Schedules already own. 8iuuh8's promise that a waiting Run is "visible on the dashboard" is instead kept by the SHELL, on every screen: (1) an attention band across the top whenever any Run of the user's is in waiting_for_human, naming the Workflow, showing the countdown, linking to the run detail; (2) a count badge on the Runs nav item for non-terminal Runs. This is the one decision here with real reach, because the takeover deadline is real — default 30 min, and passing it fails the Run with takeover_timeout, so an unattended pause with no global signal silently burns its budget. CROSS-SPEC TOUCH, additive to 9gea5p: GET /api/attention -> {waiting: [{run_id, workflow_name, deadline_at}], running_count}, polled roughly every 10 s. v1 SSE is per-Run, so nothing existing can feed a shell-level indicator.
+
+RUNS HISTORY — both global and per-Workflow, as ONE component, exactly the rule nno9gj set for Schedules: a global Runs screen, and the Workflow's Runs tab is that same table filtered by workflow_id. Never two implementations. The question it answers is "what happened lately, and what is running now?" — a reverse-chronological activity log, filterable by status and trigger (manual | schedule | batch | test) over 9gea5p's GET /api/runs?workflow_id=&status=&cursor=. It is deliberately NOT the instance-wide "is anything unattended broken?" screen; nno9gj gave that to the all-Schedules table and that line holds. A Run row NAVIGATES to the run detail rather than expanding in place — the cockpit is a full screen with a live browser pane, so the expand-in-place pattern (batch rows, Schedules) does not fit it.
+
+THE WORKFLOW PAGE — a Workflow has a detail page with tabs: Editor (default, d8ux2s's card list) | Runs | Schedules | Batches. A list row click opens the Editor tab. A Run action sits in the Workflow page header, available from every tab, and on each list row's overflow. Reason: the per-Workflow Batches list (nno9gj's GET /api/batches?workflow_id=) has no other home now that a global Batches index is refused, and "how has this Workflow been doing" should not be a filter dance.
+
+THE WORKFLOWS LIST ROW — name (primary), the last Run's outcome chip with relative time ("failed - 2h ago"), a schedule indicator ("weekdays 09:00", or "3 schedules" when more than one), and the Draft chip d8ux2s already defines for the editor header (amber "unpublished changes" / green "in sync with v4") reused rather than reinvented. A Workflow with NO PUBLISHED VERSION reads "not published yet" and its Run action is disabled with that reason — the same state both 9gea5p and nno9gj return as 409 no_published_version. Actions: row click opens the editor; inline Run; overflow with New batch, New schedule, Duplicate (which d8ux2s already requires to mint fresh Step ids), Rename, Delete. New workflow is a primary button opening a name-only dialog, because d8ux2s's recording protocol is app-first — the Workflow is created and named in the app and recording then targets its Draft — and it lands on the empty Editor tab. AT FORTY ROWS: a search box and a sort control (last activity, default | name | created), and nothing else.
+
+AUTH SCREENS — three screens fully outside the shell (no sidebar, no attention band): Sign in (the unauthenticated landing); Sign up, reachable only when open signup is on or the instance has zero users, and in that bootstrap case saying in words that this account becomes the Instance Admin; and Set your password, the forced change on a temp password. The third must be its own screen outside the shell because ufnuvx has every other authenticated endpoint return 403 while must_change_password is set — a shell whose nav is all dead ends would be a lie. Signup closed renders a plain "registration is closed on this instance" page, not a 404. Inside the shell, Settings -> Account holds display name, voluntary password change, sign out everywhere, and the type-the-email delete-account confirmation; sign out is in the sidebar user menu.
+
+EMPTY AND FIRST-RUN STATES — a real screen, because n52g83 made installation unpacked and manual. Zero users: any visit lands on Sign up in bootstrap wording. No Workflows: the Workflows screen IS a first-run panel of two numbered steps — 1. Install the browser extension (download GET /extension.zip, the unzip -> chrome://extensions -> Developer mode -> Load unpacked steps, then connect by entering this instance's URL in the popup), showing its live connection state and staying visible until the extension is connected; 2. Create your first Workflow, available regardless, since naming a Workflow does not need the extension. A Workflow with no Steps: the editor's empty state, "Record your first steps", with Start recording disabled and replaced by the install/connect prompt when the extension is not connected. A Workflow with Steps but no Version: Run / New batch / New schedule disabled everywhere behind ONE identical sentence pointing at Publish, used in the list row, the Workflow header, and both creation pages. A Workflow with no Runs: the Runs tab offers Run; the Schedules tab offers New schedule. Global Runs empty points back at Workflows; global Schedules empty reads "nothing runs on a clock yet".
+
+EXTENSION CONNECTION STATE — a status pill in the sidebar footer with three states: "extension connected - v1.2", "extension not connected", "extension out of date" (from d8ux2s's GET /api/extension/version minimum_supported, which that spec already requires the app to warn on before a recording is attempted). Settings -> Browser extension is the full surface: download, install steps, connect instructions, current and minimum versions. PRECISION THE IMPLEMENTER NEEDS: the app can only know the extension exists because d8ux2s's connect flow has the extension inject its content script into the connected origin, so "not installed" and "installed but not connected to this instance" are INDISTINGUISHABLE from the app's side and must render as one state with one recovery path.
+
+NO GLOSSARY ADDITIONS — this node settles where things live; every concept it touches (Workflow, Run, Schedule, Batch, Secret, Auth State, Instance Admin) is already defined. No ADR: the only far-reaching decision is the attention band, and it is cheap to reverse.
+
+EXCLUDED (now on the roadmap's Out of scope): a dashboard/home screen; a top-level vault destination; folders, tags, and favourites on the Workflows list; a Selector Drift badge on the list row (it needs an aggregate no endpoint provides, and d8ux2s deliberately put drift where repair happens); expand-in-place rows in the Runs list.
