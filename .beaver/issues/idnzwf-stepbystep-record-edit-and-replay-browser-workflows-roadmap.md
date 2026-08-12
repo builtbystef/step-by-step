@@ -7,7 +7,7 @@ priority: high
 labels:
     - roadmap
 created: 2026-08-08T07:07:08Z
-updated: 2026-08-11T23:41:40Z
+updated: 2026-08-12T01:03:23Z
 ---
 
 ## Goal
@@ -22,13 +22,10 @@ Related but outside this DAG: issue `ymz3md` (establish stack, checks, and dev c
 
 <!-- In-scope questions that are too vague to be nodes. They become nodes as the roadmap advances. -->
 
-- Artifact storage: retention policy, linkage from runs and steps to artifacts. (The backend choice settled in px25yw: S3-compatible, MinIO in the compose stack, workers write directly.)
-- Scheduling engine details: cron expression UX, timezones, missed-run and overlap policy. (The dispatch mechanism settled in px25yw: a backend scheduler loop scans Postgres each minute and enqueues due Runs.)
-- Batch creation UI: entering or uploading the rows, mapping columns to Variables, naming and re-running a Batch. (The batch *progress* view settled in apx4rs: a table of rows with inline drilldown. The workflow editor UX settled in 3iwv5i, the live run view in apx4rs.)
-- Extracted data delivery *outside the UI*: webhook, API, or push on completion. (The per-step schema settled in ds8zyn; the in-app half settled in apx4rs — a Run's Output tab renders the assembled object as a table with Download JSON/CSV, and a Batch's Output tab is the uniform table across rows with download-all.)
+- Extracted data delivery *outside the app*: webhook, API, or push on completion. (The per-step schema settled in ds8zyn; the in-app half settled in apx4rs and spec 9gea5p — a Run's Output tab and `GET /api/runs/{id}/output?format=json|csv`, and the same across a Batch's rows.)
 - Saved reusable datasets (a list-of-rows entity that outlives one batch) — revisit when usage shows the reuse pattern; v1 batches own their rows (8iuuh8).
-- Monorepo layout, local dev environment, deployment target and hosting. (The service list settled in px25yw: one docker compose stack — backend, Workers, Postgres, Redis, MinIO.)
-- Observability for the operator: worker health, pool saturation, instance metrics. (px25yw gives the primitives: worker heartbeats on Run rows, log-line events over Redis pub/sub. How a Run's log lines read to its owner settled in apx4rs: a Logs tab in the run detail's drawer, and per-step lines inside an expanded step.)
+- Monorepo layout, local dev environment, deployment target and hosting. (The service list settled in px25yw: one docker compose stack — backend, Workers, Postgres, Redis, MinIO. Spec 9gea5p adds what a Worker image must carry: Xvfb, x11vnc, a minimal window manager.)
+- Observability for the operator: worker health, pool saturation, instance metrics. (The primitives exist — worker heartbeats on Run rows, log-line events over Redis pub/sub — and spec 9gea5p builds no dashboard on them. How a Run's log lines read to its owner settled in apx4rs and 9gea5p: a Logs tab in the run detail's drawer, and per-step lines inside an expanded step.)
 - Chrome Web Store publication of the extension — deferred by n52g83, not rejected. It needs a developer account, review turnaround, permission justification for `debugger` and broad optional host access, and a decision between an unlisted and a public listing. Revisit when unpacked installation becomes the thing that hurts.
 
 ## Out of scope
@@ -80,3 +77,10 @@ Related but outside this DAG: issue `ymz3md` (establish stack, checks, and dev c
 - `externally_connectable`-based app-to-extension messaging (n52g83) — its match patterns forbid wildcard domains and subdomains of effective TLDs, so no single build can name an arbitrary self-hosted origin. The extension opens the channel instead.
 - Self-hosted `.crx` with an `update_url`, and extension auto-update of any kind, for v1 (n52g83) — off-store `.crx` installs work on Linux only, and the instance serves the build that pairs with it.
 - Enterprise-policy deployment of the extension (n52g83) — a documented escape hatch for Windows/macOS fleets, not a supported v1 path.
+
+- Artifact retention, age- or size-based garbage collection, and storage quotas (spec 9gea5p) — Artifacts live until their Run or account is deleted; a terminal Run can be deleted, which purges its objects.
+- Event replay on reconnect — a Redis event buffer or `Last-Event-ID` on the SSE stream (spec 9gea5p) — a reconnecting client refetches the Run over REST, because Postgres already holds every durable fact and a second source of truth could only disagree with it.
+- A task/queue framework — arq, Celery, RQ (spec 9gea5p) — dispatch is a Redis list plus a conditional claim on the Run row, and a framework would bring its own retry policy, which ADR 0002 forbids.
+- Catch-up of missed scheduled occurrences (spec 9gea5p) — an instance down all night does not fire six 09:00 Runs when it returns; the occurrences are skipped and `next_due_at` moves forward.
+- Automatic pausing of a Run on heuristic challenge detection (spec 9gea5p) — the diagnostic informs the user and classifies a subsequent failure as `auth_challenge`; taking control stays the user's decision.
+- Per-Worker or per-Run VNC credentials, and concurrent takeover by two sessions (spec 9gea5p) — shared compose-supplied view-only and control credentials, enforced at the backend proxy, with one holder session at a time.

@@ -75,3 +75,7 @@ _Avoid_: re-record element, selector refresh, heal
 **Worker**:
 A long-lived process that executes at most one Run at a time, with an exclusive browser for that Run. The number of Workers is the instance's total Run concurrency.
 _Avoid_: runner, executor, agent
+
+**Takeover**:
+The interval where a human controls a paused Run's browser directly, while automation is suspended. It begins when the user takes control of a Run that is waiting for a human, and ends when control is handed back, the Run is abandoned, or the deadline passes.
+_Avoid_: handoff, intervention, manual mode

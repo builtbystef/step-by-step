@@ -13,7 +13,7 @@ depends_on:
     - wljln8
     - 3iwv5i
 created: 2026-08-11T18:47:59Z
-updated: 2026-08-11T21:33:02Z
+updated: 2026-08-12T01:02:03Z
 ---
 
 ## Problem Statement
@@ -227,3 +227,15 @@ Prior art: none — this spec creates the first code and the first tests in the 
 - Closed shadow roots are unreplayable regardless of capture; XPath never pierces shadow roots; one selector per open shadow-root hop.
 - iframes, shadow DOM, and SPA route changes were researched but not exercised by any prototype — implementation slices touching them should budget for surprises.
 - Glossary terms this spec leans on: Workflow, Step, Draft, Version, Variable, Step Result, Selector Drift, Re-pick, Artifact.
+
+## Notes
+
+**claude** — 2026-08-12T01:02:03Z
+
+Additive amendment from the execution spec (9gea5p), agreed with the user 2026-08-11. Two fields join this spec's Step document; neither is implemented yet, so both are edits rather than migrations.
+
+1. The Step envelope gains `screenshot?: boolean` (default false) — per-Step screenshot capture. Screenshots are off by default on every Step, including the last one, because a 200-step Workflow would otherwise produce 200 images per Run. A failing Step is screenshotted regardless of the toggle (diagnostics, not preference). The editor renders the toggle in the right-hand badge column beside optional / off / timeout.
+
+2. The `pause-for-takeover` payload gains `successCheck?: Target` — the element whose appearance means the human is done. It reuses this spec's Target shape and the resolve() contract. 4tjwpw's verified hand-back and auto hand-back have nothing to check without it; absent means hand-back stays manual, which is always the case for a heuristic pause.
+
+The execution spec (9gea5p) owns the runtime behavior of both fields; this spec owns their place in the document and the editor.
