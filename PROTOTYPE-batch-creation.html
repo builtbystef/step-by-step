@@ -1,0 +1,761 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PROTOTYPE — creating a Batch from a list of rows (roadmap node tf6796) — disposable</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#f5f6f8; --panel:#ffffff; --ink:#1a2130; --mut:#68738a; --line:#e3e7ee;
+    --auto:#2f6fed; --auto-bg:#e8effd;
+    --wait:#b97a08; --wait-bg:#fdf3e0;
+    --human:#7c3aed; --human-bg:#f1eafd;
+    --ok:#178a50; --ok-bg:#e2f5ea;
+    --bad:#c92f34; --bad-bg:#fbe9e9;
+    --drift:#a8600b; --drift-bg:#fdf0dd;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.45 system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+  button{font:inherit;cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:7px;padding:6px 12px}
+  button:hover{border-color:#b9c2d0}
+  button.primary{background:var(--auto);border-color:var(--auto);color:#fff}
+  button.warn{background:var(--wait);border-color:var(--wait);color:#fff}
+  button.danger{background:#fff;border-color:var(--bad);color:var(--bad)}
+  button.sm{padding:3px 9px;font-size:12px}
+  button:disabled{opacity:.45;cursor:default}
+  input,select{font:inherit;border:1px solid var(--line);border-radius:6px;padding:5px 8px;background:#fff;color:inherit}
+  a{color:var(--auto)}
+
+  #harness{background:#20242c;color:#cbd2dd;padding:8px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;position:sticky;top:0;z-index:50}
+  #harness b{color:#fff}
+  #harness .grp{display:flex;gap:6px;align-items:center;padding:0 10px;border-left:1px solid #3a4150}
+  #harness .lbl{font-size:11px;color:#8d97a8;text-transform:uppercase;letter-spacing:.5px}
+  #harness button{background:#2c323d;border-color:#454d5c;color:#dde3ec;padding:4px 10px;font-size:12px}
+  #harness button.on{background:var(--auto);border-color:var(--auto);color:#fff}
+  #harness button.onw{background:var(--drift);border-color:var(--drift);color:#fff}
+  #harness .tag{font-size:11px;background:#c9542b;color:#fff;border-radius:4px;padding:2px 6px;font-weight:700;letter-spacing:.4px}
+
+  #app{max-width:1180px;margin:18px auto 80px;padding:0 16px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px}
+  .muted{color:var(--mut)} .small{font-size:12px}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  h2.vtitle{font-size:13px;letter-spacing:.6px;text-transform:uppercase;color:var(--mut);margin:0 0 10px}
+
+  .wfhead{display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:12px 16px;margin-bottom:14px}
+  .wfhead h1{font-size:16px;margin:0}
+  .varpill{display:inline-flex;align-items:center;gap:5px;background:#eef1f6;border-radius:5px;padding:1px 7px;font-size:12px;color:#41506b;font-weight:600}
+  .varpill.secret{background:var(--human-bg);color:#5b21b6}
+  .varpill.newvar{background:var(--drift-bg);color:var(--drift);outline:1px dashed var(--drift)}
+
+  .note{border-radius:8px;padding:9px 12px;font-size:12.5px;margin:10px 0}
+  .note.info{background:var(--auto-bg);color:#1c4796;border:1px solid #c9d9fb}
+  .note.warn{background:var(--wait-bg);color:#7a5206;border:1px solid #f0dcb2}
+  .note.bad{background:var(--bad-bg);color:#8f2226;border:1px solid #f2cfd0}
+  .note.ok{background:var(--ok-bg);color:#0f6c3e;border:1px solid #c2e8d3}
+  .note.secret{background:var(--human-bg);color:#5b21b6;border:1px solid #ddcdfa}
+  .note.drift{background:var(--drift-bg);color:var(--drift);border:1px solid #e8d3ab}
+  .note b{font-weight:700}
+  .note .acts{margin-top:7px;display:flex;gap:7px;flex-wrap:wrap}
+
+  /* source tiles */
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+  .tile{border:1px solid var(--line);border-radius:9px;padding:14px;cursor:pointer;background:#fff}
+  .tile:hover{border-color:var(--auto);background:var(--auto-bg)}
+  .tile b{display:block;margin-bottom:3px}
+  .tile.on{border-color:var(--auto);background:var(--auto-bg)}
+
+  /* wizard */
+  .wsteps{display:flex;gap:0;border-bottom:1px solid var(--line);padding:0 16px}
+  .wstep{padding:11px 14px;font-size:12.5px;color:var(--mut);border-bottom:2px solid transparent;display:flex;gap:7px;align-items:center}
+  .wstep .n{width:19px;height:19px;border-radius:50%;background:#eceff4;color:var(--mut);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+  .wstep.on{color:var(--ink);border-bottom-color:var(--auto);font-weight:600}
+  .wstep.on .n{background:var(--auto);color:#fff}
+  .wstep.done .n{background:var(--ok);color:#fff}
+  .wbody{padding:16px}
+  .wfoot{display:flex;gap:8px;align-items:center;padding:12px 16px;border-top:1px solid var(--line);background:#fafbfc;border-radius:0 0 10px 10px}
+  .wfoot .spacer{flex:1}
+
+  /* mapping list */
+  .maprow{display:flex;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+  .maprow:last-child{border-bottom:none}
+  .maprow .vn{width:190px;flex:none}
+  .maprow .arrow{color:var(--mut)}
+  .maprow .hint{font-size:12px;color:var(--mut)}
+  .maprow.locked{opacity:.95}
+
+  /* grid */
+  .gridwrap{overflow-x:auto;border:1px solid var(--line);border-radius:9px;background:#fff}
+  table.grid{border-collapse:collapse;width:100%;font-size:13px}
+  table.grid th{background:#fafbfc;border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;font-weight:600;white-space:nowrap;vertical-align:top}
+  table.grid th .colname{font-size:12px;color:var(--mut);font-weight:600;margin-bottom:4px}
+  table.grid td{border-bottom:1px solid #f0f2f6;padding:3px 5px;vertical-align:middle}
+  table.grid tr:last-child td{border-bottom:none}
+  table.grid td.rn{color:var(--mut);font-size:12px;width:34px;text-align:right;padding-right:8px}
+  table.grid td input{width:100%;border-color:transparent;background:transparent}
+  table.grid td input:focus{border-color:var(--auto);background:#fff}
+  table.grid td.empty input{background:var(--wait-bg);border-color:#f0dcb2}
+  table.grid td.ignored{background:#f7f8fa;color:var(--mut)}
+  table.grid td.ignored input{color:var(--mut);text-decoration:line-through}
+  table.grid td.locked{background:var(--human-bg);color:#5b21b6;font-size:12px;text-align:center;white-space:nowrap}
+  table.grid th.ignored{background:#f2f4f7;color:var(--mut)}
+  table.grid th.newcol{background:var(--drift-bg)}
+  table.grid tr.badrow td.rn{color:var(--wait);font-weight:700}
+
+  /* footer bar */
+  .launchbar{display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:12px 16px;border-top:1px solid var(--line);background:#fafbfc;position:sticky;bottom:0;border-radius:0 0 10px 10px}
+  .launchbar .spacer{flex:1}
+  .counts{display:flex;gap:14px;font-size:12.5px;align-items:center}
+  .counts b{font-size:15px}
+  .radios{display:flex;gap:12px;font-size:12px;color:var(--mut);align-items:center}
+  .radios label{display:flex;gap:5px;align-items:center;cursor:pointer}
+
+  .chip{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:2px 10px;font-size:12px;font-weight:600}
+  .chip::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+  .chip.queued{background:#eceff4;color:var(--mut)}
+  .chip.running{background:var(--auto-bg);color:var(--auto)}
+  .chip.succeeded{background:var(--ok-bg);color:var(--ok)}
+  .chip.failed{background:var(--bad-bg);color:var(--bad)}
+  .chip.skipped{background:#eceff4;color:var(--mut)}
+
+  pre.payload{background:#20242c;color:#cbd2dd;padding:12px 14px;border-radius:9px;font-size:12px;overflow:auto;max-height:340px}
+  pre.payload .k{color:#8fb8ff}
+  .sect{margin-top:26px}
+  .sect h3{font-size:14px;margin:0 0 8px}
+</style>
+</head>
+<body>
+
+<div id="harness">
+  <span class="tag">PROTOTYPE</span> <b>Creating a Batch</b>
+  <span class="grp"><span class="lbl">variant</span>
+    <button id="vA" onclick="setVariant('A')">A · Wizard</button>
+    <button id="vB" onclick="setVariant('B')">B · Composer</button>
+    <button id="vC" onclick="setVariant('C')">C · Grid-first</button>
+  </span>
+  <span class="grp"><span class="lbl">input</span>
+    <button id="fpaste" onclick="loadFixture('paste')">paste (clean)</button>
+    <button id="fcsv" onclick="loadFixture('csv')">upload messy CSV</button>
+    <button id="ftyped" onclick="loadFixture('typed')">type by hand</button>
+    <button id="freuse" onclick="loadFixture('reuse')">reuse Batch #7 rows</button>
+  </span>
+  <span class="grp"><span class="lbl">workflow</span>
+    <button id="tdrift" onclick="toggleDrift()">Variables changed</button>
+  </span>
+  <span class="grp">
+    <button id="tpay" onclick="togglePayload()">show payload</button>
+    <button onclick="reset()">reset</button>
+  </span>
+</div>
+
+<div id="app"></div>
+
+<script>
+/* ─────────────────────────── fake workflow ─────────────────────────── */
+const BASE_VARS = [
+  {name:'search_term', secret:false},
+  {name:'city',        secret:false},
+  {name:'portal_password', secret:true},
+];
+const CHANGED_VARS = [
+  {name:'search_term', secret:false},
+  {name:'city',        secret:false},
+  {name:'industry',    secret:false, isNew:true},
+  {name:'portal_password', secret:true},
+];
+const ALIASES = {
+  city:['town','city_name','location','municipality'],
+  search_term:['query','term','keyword','search'],
+  industry:['sector','vertical','category'],
+};
+
+/* ─────────────────────────── fixtures ─────────────────────────── */
+const FIX = {
+  paste: {
+    source:'paste', label:'pasted from a spreadsheet',
+    headers:['search_term','city'],
+    rows:[
+      ['roofing contractor','Portland'],
+      ['hvac repair','Eugene'],
+      ['gutter cleaning','Salem'],
+      ['solar install','Medford'],
+    ],
+  },
+  csv: {
+    source:'csv', filename:'leads-q3.csv', label:'leads-q3.csv',
+    headers:['search_term','town','notes','portal_password'],
+    rows:[
+      ['roofing contractor','Portland','priority','hunter2'],
+      ['hvac repair','Eugene','','hunter2'],
+      ['roof inspection','','check twice','hunter2'],
+      ['gutter cleaning','Salem','','hunter2'],
+      ['','Bend','','hunter2'],
+      ['solar install','Medford','seasonal','hunter2'],
+    ],
+  },
+  reuse: {
+    source:'reuse', batch:'Batch #7 — 4 Aug', label:'rows copied from Batch #7',
+    headers:['search_term','city'],
+    rows:[
+      ['roofing contractor','Portland'],
+      ['hvac repair','Eugene'],
+      ['window replacement','Bend'],
+      ['deck staining','Corvallis'],
+      ['fence install','Albany'],
+    ],
+  },
+  typed: {source:'typed', label:'typed by hand', headers:[], rows:[]},
+};
+
+/* ─────────────────────────── state ─────────────────────────── */
+let S;
+function reset(){
+  S = {
+    variant: (S && S.variant) || 'A',
+    step: 1,
+    fixture: null,
+    raw: null,
+    mapping: {},
+    guessed: {},
+    edits: {},
+    name: '',
+    onMissing: 'skip',
+    varsChanged: false,
+    showPayload: (S && S.showPayload) || false,
+    launched: null,
+    driftFill: '',
+  };
+  render();
+}
+function vars(){ return S.varsChanged ? CHANGED_VARS : BASE_VARS; }
+function plainVars(){ return vars().filter(v=>!v.secret); }
+function secretVars(){ return vars().filter(v=>v.secret); }
+
+function setVariant(v){ S.variant=v; if(S.raw) S.step=Math.max(S.step,2); if(v==='C'&&!S.raw) loadFixtureSilently(); render(); }
+function toggleDrift(){ S.varsChanged=!S.varsChanged; if(S.raw) autoMap(); render(); }
+function togglePayload(){ S.showPayload=!S.showPayload; render(); }
+
+function today(){ return '12 Aug 2026'; }
+
+function loadFixture(key){
+  const f = FIX[key];
+  S.fixture = key; S.edits = {}; S.launched=null;
+  if(key==='typed'){
+    const cols = plainVars().map(v=>v.name);
+    S.raw = {source:'typed', label:f.label, headers:cols, rows:[0,1,2,3,4].map(()=>cols.map(()=> ''))};
+  } else {
+    S.raw = {source:f.source, label:f.label, filename:f.filename, batch:f.batch,
+             headers:[...f.headers], rows:f.rows.map(r=>[...r])};
+  }
+  autoMap();
+  S.name = key==='reuse' ? 'Portal lead export — rerun of Batch #7'
+                         : 'Portal lead export — ' + today();
+  S.step = 2;
+  render();
+}
+
+function autoMap(){
+  S.mapping = {}; S.guessed = {};
+  const hs = (S.raw ? S.raw.headers : []).map(h=>h.toLowerCase().trim());
+  plainVars().forEach(v=>{
+    let i = hs.indexOf(v.name);
+    if(i<0){
+      const al = ALIASES[v.name]||[];
+      for(const a of al){ const j=hs.indexOf(a); if(j>=0){ i=j; S.guessed[v.name]=true; break; } }
+    }
+    S.mapping[v.name] = i>=0 ? i : null;
+  });
+}
+
+/* ─────────────────────────── derived ─────────────────────────── */
+function rowCount(){ return S.raw ? S.raw.rows.length : 0; }
+function cellValue(i, vname){
+  const e = S.edits[i+':'+vname];
+  if(e!==undefined) return e;
+  const c = S.mapping[vname];
+  if(c==null) return '';
+  return (S.raw.rows[i] && S.raw.rows[i][c]) || '';
+}
+function setEdit(i, vname, val){ S.edits[i+':'+vname]=val; render(); }
+function setRaw(i, c, val){ S.raw.rows[i][c]=val; render(); }
+function unmappedVars(){ return plainVars().filter(v=>S.mapping[v.name]==null); }
+function secretColumnIdx(){
+  if(!S.raw) return -1;
+  return S.raw.headers.findIndex(h=> secretVars().some(v=>v.name===h.toLowerCase().trim()));
+}
+function ignoredCols(){
+  if(!S.raw) return [];
+  const used = new Set(Object.values(S.mapping).filter(x=>x!=null));
+  return S.raw.headers.map((h,i)=>({h,i})).filter(o=>!used.has(o.i));
+}
+function rowEmpties(i){
+  return plainVars().filter(v=> !String(cellValue(i,v.name)).trim()).map(v=>v.name);
+}
+function stats(){
+  const total = rowCount();
+  let bad=0;
+  for(let i=0;i<total;i++) if(rowEmpties(i).length) bad++;
+  const blank = countBlankRows();
+  return {total, bad, ready: total-bad, blank};
+}
+function countBlankRows(){
+  let n=0;
+  for(let i=0;i<rowCount();i++) if(rowEmpties(i).length===plainVars().length) n++;
+  return n;
+}
+function canLaunch(){
+  if(!S.raw || rowCount()===0) return false;
+  if(unmappedVars().length) return false;
+  const st=stats();
+  return S.onMissing==='skip' ? st.ready>0 : st.total>0;
+}
+function launchCount(){ const st=stats(); return S.onMissing==='skip' ? st.ready : st.total; }
+function etaText(){
+  const n=launchCount(); const secs=n*115;
+  const m=Math.round(secs/60);
+  return n+' Run'+(n===1?'':'s')+', one at a time · about '+(m>=60?(Math.floor(m/60)+' h '+(m%60)+' min'):(m+' min'));
+}
+function payload(){
+  const rows=[];
+  for(let i=0;i<rowCount();i++){
+    const miss = rowEmpties(i).length>0;
+    if(miss && S.onMissing==='skip') continue;
+    const o={};
+    plainVars().forEach(v=> o[v.name]=cellValue(i,v.name));
+    rows.push({variables:o});
+  }
+  return {name:S.name, rows};
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ─────────────────────────── shared fragments ─────────────────────────── */
+function wfHeadHTML(){
+  const pills = vars().map(v=>
+    `<span class="varpill ${v.secret?'secret':''} ${v.isNew?'newvar':''}">${v.secret?'&#128274; ':''}${esc(v.name)}${v.isNew?' · new':''}</span>`).join(' ');
+  return `<div class="card wfhead">
+    <div>
+      <h1>Portal lead export</h1>
+      <div class="small muted">Workflow · latest published Version v4 · 9 Steps</div>
+    </div>
+    <div style="flex:1"></div>
+    <div class="small muted" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">Variables: ${pills}</div>
+  </div>` + (S.varsChanged ? driftBannerHTML() : '');
+}
+function driftBannerHTML(){
+  return `<div class="note drift"><b>This Workflow changed while you were here.</b>
+    v5 was published and it declares a new Variable <b>industry</b>. A Batch always executes the latest
+    published Version (ds8zyn), so every row needs a value for it.
+    <div class="acts">
+      <button class="sm" onclick="fillNewVar()">Give every row the same industry…</button>
+      <button class="sm" onclick="toggleDrift()">Pretend it didn't (back to v4)</button>
+    </div></div>`;
+}
+function fillNewVar(){
+  const v = prompt('Value of industry for every row:', 'home services');
+  if(v==null) return;
+  for(let i=0;i<rowCount();i++) S.edits[i+':industry']=v;
+  render();
+}
+function secretNoteHTML(){
+  const sv = secretVars().map(v=>v.name).join(', ');
+  const si = secretColumnIdx();
+  if(si>=0){
+    return `<div class="note secret"><b>&#128274; The column <span class="mono">${esc(S.raw.headers[si])}</span> will be ignored.</b>
+      <span class="mono">${esc(sv)}</span> is a secret Variable — its value comes from your vault at run time and never travels in a Batch's rows.
+      Nothing from this column is stored.</div>`;
+  }
+  return `<div class="note secret">&#128274; <b>${esc(sv)}</b> is a secret Variable. Every Run in this Batch reads it from your
+    vault — it is not a column, and it cannot be one.</div>`;
+}
+function ignoredNoteHTML(){
+  const ig = ignoredCols().filter(o=>o.i!==secretColumnIdx());
+  if(!ig.length) return '';
+  return `<div class="note info">Not used: ${ig.map(o=>'<span class="mono">'+esc(o.h)+'</span>').join(', ')} —
+    this Workflow declares no Variable for ${ig.length===1?'it':'them'}. ${ig.length===1?'It is':'They are'} kept on the Batch for reading, never sent to a Run.</div>`;
+}
+function unmappedNoteHTML(){
+  const um = unmappedVars();
+  if(!um.length) return '';
+  return `<div class="note bad"><b>${um.map(v=>'<span class="mono">'+esc(v.name)+'</span>').join(' and ')}
+    ${um.length===1?'has':'have'} no column.</b> Every Step that references
+    ${um.length===1?'it':'them'} would run with an empty value, so the Batch cannot start until
+    ${um.length===1?'it is':'they are'} filled or mapped.</div>`;
+}
+function launchBarHTML(){
+  const st = stats();
+  const um = unmappedVars().length;
+  return `<div class="launchbar">
+    <div>
+      <div class="small muted">Batch name</div>
+      <input style="width:290px" value="${esc(S.name)}" oninput="S.name=this.value">
+    </div>
+    <div class="counts">
+      <div><b>${st.total}</b> <span class="muted">rows</span></div>
+      <div style="color:var(--ok)"><b>${st.ready}</b> <span class="muted">complete</span></div>
+      ${st.bad?`<div style="color:var(--wait)"><b>${st.bad}</b> <span class="muted">missing a value</span></div>`:''}
+    </div>
+    ${st.bad?`<div class="radios">
+      <span>Rows missing a value:</span>
+      <label><input type="radio" name="om" ${S.onMissing==='skip'?'checked':''} onchange="S.onMissing='skip';render()"> leave out</label>
+      <label><input type="radio" name="om" ${S.onMissing==='run'?'checked':''} onchange="S.onMissing='run';render()"> run anyway</label>
+    </div>`:''}
+    <div class="spacer"></div>
+    <div class="small muted" style="text-align:right">${canLaunch()?esc(etaText()):(um?'blocked':'nothing to run')}</div>
+    <button class="primary" ${canLaunch()?'':'disabled'} onclick="launch()">Start Batch</button>
+  </div>`;
+}
+function launch(){ S.launched = payload(); render(); window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'}); }
+
+/* ─────────────────────────── variant A — wizard ─────────────────────────── */
+function viewA(){
+  const steps = ['Rows','Columns','Check','Name & start'];
+  const head = `<div class="wsteps">` + steps.map((t,i)=>{
+    const n=i+1;
+    return `<div class="wstep ${S.step===n?'on':''} ${S.step>n?'done':''}" onclick="if(S.raw||${n}===1){S.step=${n};render()}">
+      <span class="n">${S.step>n?'&#10003;':n}</span>${t}</div>`;
+  }).join('') + `</div>`;
+
+  let body='';
+  if(S.step===1){
+    body = `<div class="wbody">
+      <h2 class="vtitle">Where do the rows come from?</h2>
+      <div class="tiles">
+        <div class="tile" onclick="loadFixture('paste')"><b>Paste a table</b><span class="small muted">From a spreadsheet or anywhere. Tab- or comma-separated.</span></div>
+        <div class="tile" onclick="loadFixture('csv')"><b>Upload a CSV</b><span class="small muted">A .csv or .tsv file from your machine.</span></div>
+        <div class="tile" onclick="loadFixture('typed')"><b>Type them here</b><span class="small muted">A small table, one column per Variable.</span></div>
+        <div class="tile" onclick="loadFixture('reuse')"><b>Reuse a past Batch's rows</b><span class="small muted">Copy the rows of an earlier Batch and edit them.</span></div>
+      </div></div>`;
+  } else if(S.step===2){
+    const si = secretColumnIdx();
+    const opts = (sel)=> `<option value="">— no column —</option>` + S.raw.headers.map((h,i)=>
+      `<option value="${i}" ${sel===i?'selected':''}>${esc(h)}</option>`).join('');
+    body = `<div class="wbody">
+      <h2 class="vtitle">Which column fills which Variable?</h2>
+      <div class="note info">Read <b>${esc(S.raw.label)}</b> — ${rowCount()} rows, ${S.raw.headers.length} columns,
+        first row used as the header. <a href="#" onclick="event.preventDefault()">the first row is data, not a header</a></div>
+      <div style="margin-top:6px">
+      ${plainVars().map(v=>`
+        <div class="maprow">
+          <div class="vn"><span class="varpill ${v.isNew?'newvar':''}">${esc(v.name)}</span></div>
+          <span class="arrow">&larr;</span>
+          <select onchange="S.mapping['${v.name}']=this.value===''?null:+this.value;S.guessed['${v.name}']=false;render()">${opts(S.mapping[v.name])}</select>
+          <span class="hint">${
+            S.mapping[v.name]==null ? '<span style="color:var(--bad)">nothing maps to this Variable</span>'
+            : S.guessed[v.name] ? '<span style="color:var(--wait)">guessed from the name — check it</span>'
+            : 'exact name match'}</span>
+        </div>`).join('')}
+      ${secretVars().map(v=>`
+        <div class="maprow locked">
+          <div class="vn"><span class="varpill secret">&#128274; ${esc(v.name)}</span></div>
+          <span class="arrow">&larr;</span>
+          <span class="small" style="color:#5b21b6;font-weight:600">your vault, at run time</span>
+          <span class="hint">a secret Variable can never come from a column</span>
+        </div>`).join('')}
+      </div>
+      ${si>=0?secretNoteHTML():''}
+      ${ignoredNoteHTML()}
+      ${unmappedNoteHTML()}
+    </div>`;
+  } else if(S.step===3){
+    body = `<div class="wbody">
+      <h2 class="vtitle">Check the rows</h2>
+      ${previewTableHTML()}
+      ${checkSummaryHTML()}
+    </div>`;
+  } else {
+    const st=stats();
+    body = `<div class="wbody">
+      <h2 class="vtitle">Name it and start</h2>
+      <div style="max-width:520px">
+        <div class="small muted" style="margin-bottom:4px">Batch name</div>
+        <input style="width:100%" value="${esc(S.name)}" oninput="S.name=this.value">
+        <div class="note ok" style="margin-top:14px">
+          <b>${launchCount()} Runs</b> of <b>Portal lead export v${S.varsChanged?5:4}</b>.
+          ${esc(etaText())}. ${st.bad&&S.onMissing==='skip'?`${st.bad} incomplete rows are left out.`:''}
+          ${st.bad&&S.onMissing==='run'?`${st.bad} incomplete rows will run with an empty value and will probably fail.`:''}
+        </div>
+        ${secretNoteHTML()}
+        <div class="note info">Rows run one at a time. A row that fails does not stop the rest, and you can re-run
+          a single row afterwards.</div>
+      </div>
+    </div>`;
+  }
+
+  const foot = `<div class="wfoot">
+    <button ${S.step===1?'disabled':''} onclick="S.step--;render()">Back</button>
+    <div class="spacer"></div>
+    ${S.step<4
+      ? `<button class="primary" ${(!S.raw||(S.step===2&&unmappedVars().length))?'disabled':''} onclick="S.step++;render()">Next</button>`
+      : `<button class="primary" ${canLaunch()?'':'disabled'} onclick="launch()">Start Batch</button>`}
+  </div>`;
+
+  return `<h2 class="vtitle">Variant A — wizard: one decision per screen</h2>
+    <div class="card">${head}${body}${foot}</div>`;
+}
+function previewTableHTML(){
+  const pv = plainVars();
+  let rows='';
+  for(let i=0;i<rowCount();i++){
+    const emp = rowEmpties(i);
+    rows += `<tr class="${emp.length?'badrow':''}"><td class="rn">${i+1}</td>` +
+      pv.map(v=>{
+        const val=cellValue(i,v.name);
+        const bad=!String(val).trim();
+        return `<td class="${bad?'empty':''}"><input value="${esc(val)}" placeholder="${bad?'empty':''}"
+          onchange="setEdit(${i},'${v.name}',this.value)"></td>`;
+      }).join('') +
+      `<td class="small">${emp.length?`<span style="color:var(--wait)">no ${emp.map(esc).join(', ')}</span>`:''}</td></tr>`;
+  }
+  return `<div class="gridwrap"><table class="grid">
+    <thead><tr><th></th>${pv.map(v=>`<th class="${v.isNew?'newcol':''}">${esc(v.name)}${v.isNew?' <span class="small muted">new</span>':''}</th>`).join('')}<th></th></tr></thead>
+    <tbody>${rows||`<tr><td colspan="9" class="small muted" style="padding:14px">No rows.</td></tr>`}</tbody></table></div>`;
+}
+function checkSummaryHTML(){
+  const st=stats();
+  if(!st.bad) return `<div class="note ok">All ${st.total} rows have a value for every Variable.</div>`;
+  return `<div class="note warn"><b>${st.bad} of ${st.total} rows are missing a value.</b>
+    You can fix them in the table above, or decide what happens to them.
+    <div class="radios" style="margin-top:7px;color:inherit">
+      <label><input type="radio" name="omw" ${S.onMissing==='skip'?'checked':''} onchange="S.onMissing='skip';render()"> Leave them out of the Batch</label>
+      <label><input type="radio" name="omw" ${S.onMissing==='run'?'checked':''} onchange="S.onMissing='run';render()"> Run them anyway — they will probably fail</label>
+    </div></div>`;
+}
+
+/* ─────────────────────────── variant B — composer ─────────────────────────── */
+function viewB(){
+  const src = `<div class="card" style="padding:14px;margin-bottom:12px">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <b class="small">Rows</b>
+      <button class="sm ${S.fixture==='paste'?'primary':''}" onclick="loadFixture('paste')">Paste a table</button>
+      <button class="sm ${S.fixture==='csv'?'primary':''}" onclick="loadFixture('csv')">Upload CSV</button>
+      <button class="sm ${S.fixture==='typed'?'primary':''}" onclick="loadFixture('typed')">Type by hand</button>
+      <button class="sm ${S.fixture==='reuse'?'primary':''}" onclick="loadFixture('reuse')">Reuse a past Batch</button>
+      <div style="flex:1"></div>
+      ${S.raw?`<span class="small muted">${esc(S.raw.label)} · ${rowCount()} rows · ${S.raw.headers.length} columns</span>`:''}
+    </div>
+    ${S.raw?'':`<div style="margin-top:12px;border:2px dashed var(--line);border-radius:9px;padding:26px;text-align:center;color:var(--mut)">
+      Drop a CSV here, or paste a table &mdash; the grid appears below and everything stays on this page.</div>`}
+  </div>`;
+
+  if(!S.raw) return `<h2 class="vtitle">Variant B — composer: one page, mapping in the column headers</h2>${src}`;
+
+  const si = secretColumnIdx();
+  let head = `<tr><th></th>`;
+  S.raw.headers.forEach((h,i)=>{
+    const owner = plainVars().find(v=>S.mapping[v.name]===i);
+    const isSecret = i===si;
+    const ign = !owner && !isSecret;
+    head += `<th class="${ign?'ignored':''}">
+      <div class="colname mono">${esc(h)}</div>
+      ${isSecret
+        ? `<span class="varpill secret">&#128274; ignored</span>`
+        : `<select onchange="mapCol(${i},this.value)">
+            <option value="">not used</option>
+            ${plainVars().map(v=>`<option value="${v.name}" ${owner&&owner.name===v.name?'selected':''}>&rarr; ${esc(v.name)}</option>`).join('')}
+          </select>`}
+      ${owner&&S.guessed[owner.name]?`<div class="small" style="color:var(--wait);margin-top:3px">guessed</div>`:''}
+    </th>`;
+  });
+  head += `<th></th></tr>`;
+
+  let body='';
+  for(let i=0;i<rowCount();i++){
+    const emp = rowEmpties(i);
+    body += `<tr class="${emp.length?'badrow':''}"><td class="rn">${i+1}</td>`;
+    S.raw.headers.forEach((h,c)=>{
+      const owner = plainVars().find(v=>S.mapping[v.name]===c);
+      const isSecret = c===si;
+      const val = S.raw.rows[i][c]||'';
+      if(isSecret){ body += `<td class="locked">&#128274; never sent</td>`; return; }
+      const bad = owner && !String(cellValue(i,owner.name)).trim();
+      body += `<td class="${owner?(bad?'empty':''):'ignored'}"><input value="${esc(owner?cellValue(i,owner.name):val)}"
+        onchange="${owner?`setEdit(${i},'${owner.name}',this.value)`:`setRaw(${i},${c},this.value)`}"></td>`;
+    });
+    body += `<td class="small">${emp.length?`<span style="color:var(--wait)">no ${emp.map(esc).join(', ')}</span>`:''}</td></tr>`;
+  }
+  // Variables with no column at all get their own appended column so they can still be filled.
+  const um = unmappedVars();
+  let extra = '';
+  if(um.length){
+    extra = `<div class="note warn" style="margin-top:10px"><b>Fill ${um.map(v=>'<span class="mono">'+esc(v.name)+'</span>').join(' and ')} for every row</b>
+      — no column maps to ${um.length===1?'it':'them'}.
+      <div class="acts">${um.map(v=>`<button class="sm" onclick="fillCol('${v.name}')">Same value for all rows: ${esc(v.name)}…</button>`).join('')}</div>
+      <div class="gridwrap" style="margin-top:8px;max-width:520px"><table class="grid"><thead><tr><th></th>${um.map(v=>`<th class="newcol">${esc(v.name)}</th>`).join('')}</tr></thead><tbody>
+      ${Array.from({length:rowCount()},(_,i)=>`<tr><td class="rn">${i+1}</td>${um.map(v=>{
+        const val=cellValue(i,v.name);
+        return `<td class="${String(val).trim()?'':'empty'}"><input value="${esc(val)}" onchange="setEdit(${i},'${v.name}',this.value)"></td>`;
+      }).join('')}</tr>`).join('')}
+      </tbody></table></div></div>`;
+  }
+
+  return `<h2 class="vtitle">Variant B — composer: one page, mapping in the column headers</h2>
+    ${src}
+    <div class="card">
+      <div style="padding:14px 14px 0">
+        ${si>=0?secretNoteHTML():''}
+        ${ignoredNoteHTML()}
+      </div>
+      <div style="padding:0 14px 14px">
+        <div class="gridwrap"><table class="grid"><thead>${head}</thead><tbody>${body}</tbody></table></div>
+        ${extra}
+      </div>
+      ${launchBarHTML()}
+    </div>`;
+}
+function mapCol(i, vname){
+  plainVars().forEach(v=>{ if(S.mapping[v.name]===i) S.mapping[v.name]=null; });
+  if(vname){ S.mapping[vname]=i; S.guessed[vname]=false; }
+  render();
+}
+function fillCol(vname){
+  const v = prompt('Value of '+vname+' for every row:', '');
+  if(v==null) return;
+  for(let i=0;i<rowCount();i++) S.edits[i+':'+vname]=v;
+  render();
+}
+
+/* ─────────────────────────── variant C — grid-first ─────────────────────────── */
+function viewC(){
+  if(!S.raw){ loadFixtureSilently('typed'); }
+  const pv = plainVars();
+  const reconcile = (S.fixture==='csv'||S.fixture==='reuse'||S.fixture==='paste') ? reconcileHTML() : '';
+
+  let body='';
+  for(let i=0;i<rowCount();i++){
+    const emp = rowEmpties(i);
+    body += `<tr class="${emp.length?'badrow':''}"><td class="rn">${i+1}</td>` +
+      pv.map(v=>{
+        const val=cellValue(i,v.name);
+        const bad=!String(val).trim();
+        return `<td class="${bad?'empty':''}"><input value="${esc(val)}" onchange="setEdit(${i},'${v.name}',this.value)"></td>`;
+      }).join('') +
+      secretVars().map(()=>`<td class="locked">&#128274; from vault</td>`).join('') +
+      `<td class="small" style="width:26px"><button class="sm" title="delete row" onclick="delRow(${i})">&times;</button></td></tr>`;
+  }
+
+  return `<h2 class="vtitle">Variant C — grid-first: the columns are the Variables; there is no mapping step</h2>
+  <div class="card">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 14px;border-bottom:1px solid var(--line)">
+      <b class="small">${rowCount()} rows</b>
+      <button class="sm" onclick="loadFixture('paste')">Paste</button>
+      <button class="sm" onclick="loadFixture('csv')">Import CSV…</button>
+      <button class="sm" onclick="loadFixture('reuse')">Copy rows from a past Batch…</button>
+      <button class="sm" onclick="addRow()">+ row</button>
+      <div style="flex:1"></div>
+      <span class="small muted">${S.raw?esc(S.raw.label):''}</span>
+    </div>
+    <div style="padding:12px 14px">
+      ${reconcile}
+      <div class="gridwrap"><table class="grid">
+        <thead><tr><th></th>
+          ${pv.map(v=>`<th class="${v.isNew?'newcol':''}">${esc(v.name)}${v.isNew?' <span class="small muted">new in v5</span>':''}</th>`).join('')}
+          ${secretVars().map(v=>`<th style="background:var(--human-bg)"><span class="varpill secret">&#128274; ${esc(v.name)}</span></th>`).join('')}
+          <th></th></tr></thead>
+        <tbody>${body}</tbody></table></div>
+      <div class="note secret" style="margin-top:10px">&#128274; The <b>${esc(secretVars().map(v=>v.name).join(', '))}</b>
+        column is locked. Its value comes from your vault at run time, the same one for every row, and it is never stored here.</div>
+    </div>
+    ${launchBarHTML()}
+  </div>`;
+}
+function reconcileHTML(){
+  const si=secretColumnIdx();
+  const ig=ignoredCols().filter(o=>o.i!==si);
+  const guessed=plainVars().filter(v=>S.guessed[v.name]);
+  const um=unmappedVars();
+  if(!ig.length && !guessed.length && !um.length && si<0) return '';
+  return `<div class="note info" style="margin-bottom:10px"><b>Imported ${rowCount()} rows from ${esc(S.raw.label)}.</b>
+    <ul style="margin:6px 0 0;padding-left:18px">
+      ${plainVars().filter(v=>S.mapping[v.name]!=null&&!S.guessed[v.name]).map(v=>`<li><span class="mono">${esc(v.name)}</span> matched by name.</li>`).join('')}
+      ${guessed.map(v=>`<li style="color:var(--wait)"><span class="mono">${esc(S.raw.headers[S.mapping[v.name]])}</span> &rarr;
+        <span class="mono">${esc(v.name)}</span>? Guessed from the name.
+        <button class="sm" onclick="S.guessed['${v.name}']=false;render()">Yes, use it</button>
+        <button class="sm" onclick="S.mapping['${v.name}']=null;S.guessed['${v.name}']=false;render()">No, leave empty</button></li>`).join('')}
+      ${si>=0?`<li style="color:#5b21b6"><span class="mono">${esc(S.raw.headers[si])}</span> is a secret Variable — the column was dropped, not stored.</li>`:''}
+      ${ig.map(o=>`<li class="muted"><span class="mono">${esc(o.h)}</span> matches no Variable — ignored.</li>`).join('')}
+      ${um.map(v=>`<li style="color:var(--bad)"><span class="mono">${esc(v.name)}</span> got no column — type it into the grid, or
+        <a href="#" onclick="event.preventDefault();fillCol('${v.name}')">give every row the same value</a>.</li>`).join('')}
+    </ul></div>`;
+}
+function loadFixtureSilently(k){
+  const cols = plainVars().map(v=>v.name);
+  S.raw={source:'typed',label:'typed by hand',headers:cols,rows:[0,1,2].map(()=>cols.map(()=>''))};
+  S.fixture='typed'; autoMap(); S.name='Portal lead export — '+today();
+}
+function addRow(){ S.raw.rows.push(S.raw.headers.map(()=> '')); render(); }
+function delRow(i){
+  S.raw.rows.splice(i,1);
+  const ne={}; Object.keys(S.edits).forEach(k=>{const[r,v]=k.split(':');const n=+r; if(n<i)ne[k]=S.edits[k]; else if(n>i)ne[(n-1)+':'+v]=S.edits[k];});
+  S.edits=ne; render();
+}
+
+/* ─────────────── an existing Batch, after the Variables changed ─────────────── */
+function existingBatchHTML(){
+  if(!S.varsChanged) return '';
+  const rows=[
+    {n:1,t:'roofing contractor',c:'Portland',s:'succeeded'},
+    {n:2,t:'hvac repair',c:'Eugene',s:'succeeded'},
+    {n:3,t:'roof inspection',c:'Bend',s:'running'},
+    {n:4,t:'gutter cleaning',c:'Salem',s:'queued'},
+    {n:5,t:'solar install',c:'Medford',s:'queued'},
+  ];
+  return `<div class="sect">
+    <h3>Meanwhile: a Batch that was already running when v5 was published</h3>
+    <div class="card">
+      <div style="padding:12px 14px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <b>Portal lead export — 11 Aug 2026</b>
+        <span class="small muted">5 rows · 2 succeeded · 1 running · 2 queued</span>
+      </div>
+      <div style="padding:12px 14px">
+        <div class="note drift"><b>This Batch's rows were built for v4.</b> Its remaining rows carry
+          <span class="mono">search_term</span> and <span class="mono">city</span>, and the Version they will execute now
+          also declares <span class="mono">industry</span>. <b>2 queued rows</b> have no value for it.
+          <div class="acts">
+            <input placeholder="industry for the remaining rows" value="${esc(S.driftFill)}" oninput="S.driftFill=this.value" style="width:230px">
+            <button class="sm warn" onclick="alert('Prototype: the 2 queued rows get industry = '+(S.driftFill||'(empty)'))">Fill the queued rows</button>
+            <button class="sm" onclick="alert('Prototype: the 2 queued rows run with industry empty.')">Run them as they are</button>
+            <button class="sm danger" onclick="alert('Prototype: the 2 queued rows become cancelled.')">Cancel the rest</button>
+          </div>
+        </div>
+        <div class="gridwrap"><table class="grid">
+          <thead><tr><th></th><th>search_term</th><th>city</th><th class="newcol">industry <span class="small muted">new in v5</span></th><th>status</th></tr></thead>
+          <tbody>${rows.map(r=>`<tr><td class="rn">${r.n}</td><td style="padding:7px 8px">${r.t}</td><td style="padding:7px 8px">${r.c}</td>
+            <td style="padding:7px 8px" class="${r.s==='queued'?'empty':''}">${r.s==='queued'?'<span class="small" style="color:var(--wait)">missing</span>':'<span class="small muted">n/a at v4</span>'}</td>
+            <td style="padding:7px 8px"><span class="chip ${r.s}">${r.s}</span></td></tr>`).join('')}</tbody>
+        </table></div>
+        <div style="margin-top:10px"><button class="sm" onclick="loadFixture('reuse')">Start a new Batch from these rows</button></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ─────────────────────────── launched + payload ─────────────────────────── */
+function launchedHTML(){
+  if(!S.launched) return '';
+  const p=S.launched;
+  return `<div class="sect"><div class="note ok"><b>Batch created.</b> “${esc(p.name)}” · ${p.rows.length} rows ·
+    <span class="mono">POST /api/workflows/wf_42/batches</span> → 201. The browser would now be on the batch progress table
+    (spec 9gea5p / apx4rs), row 1 running.</div></div>`;
+}
+function payloadHTML(){
+  if(!S.showPayload) return '';
+  const p=payload();
+  return `<div class="sect"><h3>What this screen would POST</h3>
+    <pre class="payload">POST /api/workflows/wf_42/batches
+${esc(JSON.stringify(p,null,2))}</pre>
+    <div class="small muted">Secret Variables carry no value here — a Run binds
+      <span class="mono">portal_password</span> from the vault (7o0nmx / spec 54i6da).</div></div>`;
+}
+
+/* ─────────────────────────── render ─────────────────────────── */
+function render(){
+  ['A','B','C'].forEach(v=>document.getElementById('v'+v).className = S.variant===v?'on':'');
+  ['paste','csv','typed','reuse'].forEach(f=>document.getElementById('f'+f).className = S.fixture===f?'on':'');
+  document.getElementById('tdrift').className = S.varsChanged?'onw':'';
+  document.getElementById('tpay').className = S.showPayload?'on':'';
+  const view = S.variant==='A'?viewA():S.variant==='B'?viewB():viewC();
+  document.getElementById('app').innerHTML = wfHeadHTML() + view + launchedHTML() + existingBatchHTML() + payloadHTML();
+}
+reset();
+</script>
+</body>
+</html>
