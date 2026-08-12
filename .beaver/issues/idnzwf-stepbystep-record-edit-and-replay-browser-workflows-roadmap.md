@@ -7,7 +7,7 @@ priority: high
 labels:
     - roadmap
 created: 2026-08-08T07:07:08Z
-updated: 2026-08-12T03:52:21Z
+updated: 2026-08-12T05:17:26Z
 ---
 
 ## Goal
@@ -22,11 +22,11 @@ Related but outside this DAG: issue `ymz3md` (establish stack, checks, and dev c
 
 <!-- In-scope questions that are too vague to be nodes. They become nodes as the roadmap advances. -->
 
-Five areas are settled and specced: `ufnuvx` (accounts), `d8ux2s` (recording, editing, storage), `54i6da` (Secrets and Auth State), `9gea5p` (execution, Workers, the live run view), `nno9gj` (creating Batches and Schedules). A sixth area opened after they were written: every one of those specs describes a deep surface and assumes a frame around it that none of them describes — the Workflows list, a Runs history, the shell, the auth screens, the empty and first-run states, and the visual language whose words ("status chip", "amber callout") they all use undefined. That area's decisions are now closed too: `dm4cff` drew the map (the sidebar's three destinations plus Settings, no dashboard, Runs history as one component, the Workflow page's tabs, the auth screens, the first-run path), and `7mfxzj` settled what those screens look like — Shell A, the attention band over the content — and named the visual language, arbitrating four collisions the earlier prototypes had left between them. **`smpcpi`, that area's spec, is the roadmap's only open node.** When it is published, every decision node is closed and only the Frontier remains.
+Every decision node under this roadmap is closed, and all six areas are specced: `ufnuvx` (accounts), `d8ux2s` (recording, editing, storage), `54i6da` (Secrets and Auth State), `9gea5p` (execution, Workers, the live run view), `nno9gj` (creating Batches and Schedules), and `pc0t8s` (the app shell, the lists, and the visual language — the frame the other five each assumed and none described, from `dm4cff`'s map and `7mfxzj`'s look). **Only the Frontier remains**, so the next `advance-plan` session's job is the Frontier itself: interview until its sharpest entry becomes nodes. Note that `pc0t8s` is the visual language's only durable record — no `docs/` file holds it — and that `ymz3md` still owns the stack, now carrying three recorded facts (shadcn/ui over Tailwind, TanStack Query with `mutations: {retry: false}`, and no date library).
 
 - Extracted data delivery *outside the app*: webhook, API, or push on completion. (The per-step schema settled in ds8zyn; the in-app half settled in apx4rs and spec 9gea5p — a Run's Output tab and `GET /api/runs/{id}/output?format=json|csv`, and the same across a Batch's rows.)
 - Saved reusable datasets (a list-of-rows entity that outlives one batch) — revisit when usage shows the reuse pattern; v1 batches own their rows (8iuuh8), and reuse is a copy: tf6796 settled "copy rows from a past Batch" as a toolbar action that fills the new Batch's grid.
-- Monorepo layout, local dev environment, deployment target and hosting. (The service list settled in px25yw: one docker compose stack — backend, Workers, Postgres, Redis, MinIO. Spec 9gea5p adds what a Worker image must carry: Xvfb, x11vnc, a minimal window manager. The *frontend* half narrowed in 7mfxzj: the user chose shadcn/ui over Tailwind, recorded on `ymz3md`, which still owns the framework version, the layout, and the four check commands.)
+- Monorepo layout, local dev environment, deployment target and hosting. (The service list settled in px25yw: one docker compose stack — backend, Workers, Postgres, Redis, MinIO. Spec 9gea5p adds what a Worker image must carry: Xvfb, x11vnc, a minimal window manager. The *frontend* half narrowed twice: 7mfxzj chose shadcn/ui over Tailwind, and `pc0t8s` added TanStack Query with two mandated defaults. Both are recorded on `ymz3md`, which still owns the framework version, the monorepo layout, and the four check commands — plus, now, a frontend test runner able to exercise a pure module with no DOM.)
 - Observability for the operator: worker health, pool saturation, instance metrics. (The primitives exist — worker heartbeats on Run rows, log-line events over Redis pub/sub — and spec 9gea5p builds no dashboard on them. How a Run's log lines read to its owner settled in apx4rs and 9gea5p: a Logs tab in the run detail's drawer, and per-step lines inside an expanded step.)
 - Chrome Web Store publication of the extension — deferred by n52g83, not rejected. It needs a developer account, review turnaround, permission justification for `debugger` and broad optional host access, and a decision between an unlisted and a public listing. Revisit when unpacked installation becomes the thing that hurts.
 
@@ -116,3 +116,13 @@ Five areas are settled and specced: `ufnuvx` (accounts), `d8ux2s` (recording, ed
 - `.badge` as a carrier of lifecycle state (7mfxzj) — badges are attributes only; every lifecycle state is a `.chip`. The two prototypes that gave `.badge` two different taxonomies are reconciled that way.
 - Separate `.banner` and `.driftbox` callout families (7mfxzj) — one callout component, tone × size. A page-width banner is the same component with actions on one line.
 - An amber `skipped` chip (7mfxzj) — skipped is neutral grey, whether it is a Batch row missing a value or an Occurrence skipped for overlap. Amber is reserved for "a human is needed".
+
+- Dark mode, and any theming beyond the one light palette (`pc0t8s`) — the semantic ramp is defined once; a second palette is a later decision.
+- Mobile layouts and any width below 880px (`pc0t8s`) — the 60px icon rail at ≤1024px is the floor. `8iuuh8` already excluded recording on mobile.
+- A command palette or keyboard-shortcut layer (`pc0t8s`).
+- Localization (`pc0t8s`) — copy is English; only times and numbers go through `Intl`.
+- Real-time push for the lists (`pc0t8s`) — only `/api/attention` polls and only the run detail streams; a list refreshes on navigation, on filter change, and on Load more.
+- Global search across Runs, Schedules, or Step content (`pc0t8s`) — the Workflows list's search box is a name filter, nothing more.
+- Bulk selection and bulk actions on any list, and saved list views or filter presets (`pc0t8s`).
+- Server-side rendering of list data (`pc0t8s`) — pages render the shell and fetch their own data, so one fetch wrapper owns the 401/403 redirects.
+- A live `/dev/language` route rendering the primitives (`pc0t8s`) — the language's durable record is the spec, not a screen.
