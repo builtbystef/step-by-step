@@ -48,6 +48,10 @@ _Avoid_: step run, step log
 A cron-based trigger owned by a Workflow that launches Runs of its latest published Version.
 _Avoid_: cron job, timer
 
+**Occurrence**:
+One moment at which a Schedule was due, whether or not a Run resulted. An Occurrence that produced no Run is a hole in the Schedule's history, and it carries the reason.
+_Avoid_: tick, firing, scheduled event
+
 **Artifact**:
 A file that a Run produces: a screenshot, a download, or a trace.
 _Avoid_: attachment, output file

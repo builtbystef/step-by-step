@@ -7,7 +7,7 @@ priority: high
 labels:
     - roadmap
 created: 2026-08-08T07:07:08Z
-updated: 2026-08-12T02:16:01Z
+updated: 2026-08-12T03:44:05Z
 ---
 
 ## Goal
@@ -21,6 +21,8 @@ Related but outside this DAG: issue `ymz3md` (establish stack, checks, and dev c
 ## Frontier
 
 <!-- In-scope questions that are too vague to be nodes. They become nodes as the roadmap advances. -->
+
+Every node of this roadmap is now closed, and each area has a published spec: `ufnuvx` (accounts), `d8ux2s` (recording, editing, storage), `54i6da` (Secrets and Auth State), `9gea5p` (execution, Workers, the live run view), `nno9gj` (creating Batches and Schedules). The next `advance-plan` session therefore has no ready node, and its job is this Frontier: interview until its sharpest entry becomes nodes.
 
 - Extracted data delivery *outside the app*: webhook, API, or push on completion. (The per-step schema settled in ds8zyn; the in-app half settled in apx4rs and spec 9gea5p — a Run's Output tab and `GET /api/runs/{id}/output?format=json|csv`, and the same across a Batch's rows.)
 - Saved reusable datasets (a list-of-rows entity that outlives one batch) — revisit when usage shows the reuse pattern; v1 batches own their rows (8iuuh8), and reuse is a copy: tf6796 settled "copy rows from a past Batch" as a toolbar action that fills the new Batch's grid.
@@ -95,3 +97,10 @@ Related but outside this DAG: issue `ymz3md` (establish stack, checks, and dev c
 - Silent prefill of a Schedule's values from the last manual Run (pjxuqx) — an explicit "fill from my last Run" button instead; silent prefill enshrines a throwaway or test Run's values in a job that then fires unattended forever.
 - Creating a Schedule with a Variable left empty (pjxuqx) — unlike a Batch row, which becomes a `skipped` row and stays visible (tf6796), an incomplete Schedule fails unattended on repeat, so it cannot be saved.
 - A per-Workflow Schedules surface separate from the global one (pjxuqx) — one all-Schedules table with rows expanding in place; the Workflow's Schedules tab is that same component, filtered.
+
+- A built-in column-alias dictionary for CSV import (spec `nno9gj`) — a near match is a suggestion shown inside the mapping strip and never applied silently, so there is no alias table to maintain.
+- Server-side CSV upload, storage, or parsing (spec `nno9gj`) — the file is parsed in the browser, which is what makes the loud client-side drop of a secret-named column true.
+- A global Batches index across Workflows (spec `nno9gj`) — the instance-wide question belongs to the all-Schedules table; Batches are listed per Workflow, behind the "copy rows from a past Batch" picker.
+- Recording fired Occurrences as their own rows (spec `nno9gj`) — the Run carrying the `schedule_id` is that record, and only non-firing Occurrences are persisted.
+- Overriding the skip-on-overlap rule from the UI (spec `nno9gj`) — "run it now instead" is refused while a Run of that Schedule is still non-terminal; two copies never act on one site at once.
+- Editing a Batch's name after creation, and reordering or inserting rows into an existing Batch (spec `nno9gj`).
