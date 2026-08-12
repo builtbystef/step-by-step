@@ -1,0 +1,986 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PROTOTYPE — the app shell, the list screens, the visual language (roadmap node 7mfxzj) — disposable</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    /* ─── surfaces & ink ─── identical in live-run-view, takeover-ux, batch-creation, schedule-creation */
+    --bg:#f5f6f8; --panel:#ffffff; --ink:#1a2130; --mut:#68738a; --line:#e3e7ee;
+
+    /* ─── the semantic ramp ─── one hue per meaning. See the LANGUAGE sheet for the rule. */
+    --accent:#2f6fed; --accent-bg:#e8effd;   /* the machine is acting / informational / interactive */
+    --wait:#b97a08;   --wait-bg:#fdf3e0;     /* a human is needed, or was */
+    --human:#7c3aed;  --human-bg:#f1eafd;    /* a secret, or a human-supplied value */
+    --ok:#178a50;     --ok-bg:#e2f5ea;
+    --bad:#c92f34;    --bad-bg:#fbe9e9;
+    --drift:#a8600b;  --drift-bg:#fdf0dd;    /* CANDIDATE FOR DELETION — 10° from --wait. See sheet. */
+
+    /* ─── type scale ─── */
+    --t-micro:11px; --t-small:12px; --t-body:14px; --t-title:16px; --t-page:20px;
+    /* ─── spacing scale ─── */
+    --s1:4px; --s2:6px; --s3:8px; --s4:12px; --s5:16px; --s6:24px;
+    /* ─── radius ─── */
+    --r-ctl:6px; --r-panel:8px; --r-card:10px; --r-pill:99px;
+    --shadow:0 1px 3px rgba(20,24,34,.08);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:var(--t-body)/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;background:#11151b;color:var(--ink)}
+  button{font:inherit;cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:var(--r-ctl);padding:6px 12px;color:inherit}
+  button:hover{border-color:#b9c2d0}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  button.warn{background:var(--wait);border-color:var(--wait);color:#fff}
+  button.danger{background:#fff;border-color:var(--bad);color:var(--bad)}
+  button.sm{padding:3px 9px;font-size:var(--t-small)}
+  button.ghost{border-color:transparent;background:transparent;color:var(--accent);padding:3px 4px}
+  button:disabled{opacity:.45;cursor:default}
+  button:disabled:hover{border-color:var(--line)}
+  input,select{font:inherit;border:1px solid var(--line);border-radius:var(--r-ctl);padding:5px 8px;background:#fff;color:inherit}
+  input:focus,select:focus{outline:2px solid var(--accent-bg);border-color:var(--accent)}
+  a{color:var(--accent);cursor:pointer;text-decoration:none}
+  table{border-collapse:collapse;width:100%}
+  code,.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:var(--t-small)}
+
+  /* ══════════════ harness (not part of the app) ══════════════ */
+  #harness{background:#20242c;color:#cbd2dd;padding:8px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;position:sticky;top:0;z-index:80}
+  #harness b{color:#fff}
+  #harness .grp{display:flex;gap:6px;align-items:center;padding:0 10px;border-left:1px solid #3a4150}
+  #harness .lbl{font-size:var(--t-micro);color:#8d97a8;text-transform:uppercase;letter-spacing:.5px}
+  #harness button{background:#2c323d;border-color:#454d5c;color:#dde3ec;padding:4px 10px;font-size:var(--t-small);border-radius:5px}
+  #harness button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  #harness button.onw{background:var(--wait);border-color:var(--wait);color:#fff}
+  #harness .tag{font-size:var(--t-micro);background:#c9542b;color:#fff;border-radius:4px;padding:2px 6px;font-weight:700;letter-spacing:.4px}
+
+  #stage{padding:18px;display:flex;justify-content:center}
+  #frame{background:var(--bg);border-radius:var(--r-card);overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.45);width:100%}
+  #widthread{position:fixed;right:14px;bottom:12px;background:#20242c;color:#8d97a8;font-size:var(--t-micro);
+             border:1px solid #3a4150;border-radius:5px;padding:3px 8px;z-index:70;font-family:ui-monospace,Menlo,monospace}
+
+  /* ══════════════ THE SHELL ══════════════ */
+  .app{display:flex;min-height:760px;background:var(--bg)}
+  .side{width:216px;flex:none;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column}
+  .app.narrow .side{width:60px}
+  .brand{display:flex;align-items:center;gap:var(--s3);padding:var(--s4) var(--s4) var(--s3);font-weight:700;font-size:var(--t-title)}
+  .brand .mark{width:24px;height:24px;flex:none;border-radius:7px;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:var(--t-small);font-weight:800}
+  .app.narrow .brand span.nm{display:none}
+  .nav{padding:var(--s2) var(--s3);display:flex;flex-direction:column;gap:2px}
+  .nav a{display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:var(--r-ctl);color:var(--ink);font-weight:500}
+  .nav a:hover{background:#f0f2f6}
+  .nav a.on{background:var(--accent-bg);color:var(--accent);font-weight:600}
+  .nav a .ic{width:18px;flex:none;text-align:center;opacity:.8}
+  .nav a .nm{flex:1;min-width:0}
+  .app.narrow .nav a .nm{display:none}
+  .app.narrow .nav a{justify-content:center;padding:8px 0}
+  .nav .sep{height:1px;background:var(--line);margin:var(--s3) 6px}
+  .side .spacer{flex:1}
+  .sidefoot{padding:var(--s3);border-top:1px solid var(--line);display:flex;flex-direction:column;gap:var(--s2)}
+  .usermenu{display:flex;align-items:center;gap:var(--s3);padding:6px;border-radius:var(--r-ctl);cursor:pointer}
+  .usermenu:hover{background:#f0f2f6}
+  .usermenu .av{width:26px;height:26px;flex:none;border-radius:var(--r-pill);background:#dfe4ec;display:grid;place-items:center;font-size:var(--t-small);font-weight:700;color:#4d586d}
+  .usermenu .who{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--t-small)}
+  .app.narrow .usermenu .who,.app.narrow .usermenu .cv{display:none}
+
+  .main{flex:1;min-width:0;display:flex;flex-direction:column}
+  .topbar{height:46px;flex:none;background:var(--panel);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:var(--s4);padding:0 var(--s5)}
+  .content{flex:1;min-width:0;padding:var(--s6);overflow:auto}
+  .content.tight{padding:var(--s5)}
+
+  /* ══════════════ PRIMITIVES — the language this node names ══════════════ */
+
+  /* 1 · status chip — the lifecycle state of a Run, an Occurrence, a Batch row */
+  .chip{display:inline-flex;align-items:center;gap:6px;border-radius:var(--r-pill);padding:2px 10px;font-size:var(--t-small);font-weight:600;white-space:nowrap}
+  .chip.queued,.chip.cancelled,.chip.cancelling,.chip.skipped,.chip.missed,.chip.paused{background:#eceff4;color:var(--mut)}
+  .chip.running{background:var(--accent-bg);color:var(--accent)}
+  .chip.waiting_for_human{background:var(--wait-bg);color:var(--wait)}
+  .chip.succeeded{background:var(--ok-bg);color:var(--ok)}
+  .chip.failed{background:var(--bad-bg);color:var(--bad)}
+  .chip .dot{width:6px;height:6px;border-radius:var(--r-pill);background:currentColor;flex:none}
+  .chip.running .dot{animation:pulse 1.1s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+  /* 2 · attribute badge — a property of a thing, never its lifecycle state */
+  .badge{display:inline-block;font-size:var(--t-micro);font-weight:600;border-radius:5px;padding:1px 6px;white-space:nowrap}
+  .badge.info{background:var(--accent-bg);color:var(--accent)}
+  .badge.attn{background:var(--wait-bg);color:var(--wait)}
+  .badge.secret{background:var(--human-bg);color:#5b21b6}
+  .badge.good{background:var(--ok-bg);color:var(--ok)}
+  .badge.bad{background:var(--bad-bg);color:var(--bad)}
+  .badge.neutral{background:#eceff4;color:var(--mut)}
+
+  /* 3 · callout — a bordered block of consequence, inline or at page width */
+  .note{border-radius:var(--r-panel);padding:9px 12px;font-size:12.5px;margin:var(--s4) 0;border:1px solid}
+  .note.info{background:var(--accent-bg);color:#1c4796;border-color:#c9d9fb}
+  .note.warn{background:var(--wait-bg);color:#7a5206;border-color:#f0dcb2}
+  .note.bad{background:var(--bad-bg);color:#8f2226;border-color:#f2cfd0}
+  .note.ok{background:var(--ok-bg);color:#0f6c3e;border-color:#c2e8d3}
+  .note.secret{background:var(--human-bg);color:#5b21b6;border-color:#ddcdfa}
+  .note.banner{font-size:13px;border-width:1.5px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:11px 14px;border-radius:var(--r-card)}
+  .note .acts{margin-top:7px;display:flex;gap:7px;flex-wrap:wrap}
+  .note.banner .acts{margin:0}
+  .note .spacer{flex:1}
+
+  /* 4 · attention band — the shell-level signal that a Run is waiting on a human */
+  .attn{background:var(--wait-bg);border:1.5px solid var(--wait);color:#7a5206;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px}
+  .attn .cd{font-family:ui-monospace,Menlo,monospace;font-weight:700;background:#fff;border:1px solid #e8cf9b;border-radius:5px;padding:1px 7px}
+  .attn .spacer{flex:1}
+  .attnA{margin:var(--s5) var(--s6) 0;padding:10px 14px;border-radius:var(--r-card)}
+  .attnB{margin:var(--s3);padding:9px 10px;border-radius:var(--r-panel);flex-direction:column;align-items:stretch;gap:6px}
+  .attnB .ttl{font-weight:700;display:flex;align-items:center;gap:6px}
+  .attnC{padding:4px 10px;border-radius:var(--r-pill);border-width:1px}
+
+  /* 5 · count badge — a number riding a nav item */
+  .cv{min-width:19px;height:19px;padding:0 5px;border-radius:var(--r-pill);background:#dfe4ec;color:#4d586d;
+      font-size:var(--t-micro);font-weight:700;display:grid;place-items:center;flex:none}
+  .cv.attn{background:var(--wait);color:#fff}
+  .cv.live{background:var(--accent);color:#fff}
+
+  /* 6 · connection pill — the extension's state, in the sidebar footer */
+  .conn{display:flex;align-items:center;gap:7px;font-size:var(--t-small);padding:6px 8px;border-radius:var(--r-ctl);border:1px solid var(--line);background:#fafbfc;cursor:pointer}
+  .conn .led{width:7px;height:7px;border-radius:var(--r-pill);flex:none}
+  .conn.up .led{background:var(--ok)} .conn.up{color:#2e6b4c}
+  .conn.down .led{background:#b3bcca} .conn.down{color:var(--mut)}
+  .conn.stale .led{background:var(--wait)} .conn.stale{color:#7a5206;background:var(--wait-bg);border-color:#f0dcb2}
+  .app.narrow .conn .txt{display:none}
+  .app.narrow .conn{justify-content:center}
+
+  /* 7 · panel + list rows */
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-card);box-shadow:var(--shadow)}
+  .phead{display:flex;align-items:center;gap:var(--s4);padding:var(--s4) var(--s5);border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .phead .spacer{flex:1}
+  .pagetitle{font-size:var(--t-page);font-weight:700;margin:0}
+  .rowlist{display:flex;flex-direction:column}
+  .lrow{display:flex;align-items:center;gap:var(--s4);padding:11px var(--s5);border-bottom:1px solid var(--line);cursor:pointer}
+  .lrow:last-child{border-bottom:none}
+  .lrow:hover{background:#f8fafc}
+  .lrow .nm{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lrow .meta{color:var(--mut);font-size:var(--t-small);display:flex;align-items:center;gap:var(--s2);white-space:nowrap}
+  .lrow .grow{flex:1;min-width:0}
+  .lrow .acts{display:flex;gap:6px;align-items:center;opacity:0}
+  .lrow:hover .acts{opacity:1}
+  .lrow.disabled .nm{color:var(--mut)}
+  .col-l{display:flex;flex-direction:column;gap:3px;min-width:0}
+
+  /* 8 · data table (Runs, Schedules) */
+  table.grid th{text-align:left;font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.5px;color:var(--mut);
+                font-weight:700;padding:8px var(--s4);border-bottom:1px solid var(--line);white-space:nowrap}
+  table.grid td{padding:9px var(--s4);border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle}
+  table.grid tr:last-child td{border-bottom:none}
+  table.grid tr.clickable{cursor:pointer}
+  table.grid tr.clickable:hover td{background:#f8fafc}
+  td.locked{background:var(--human-bg);color:#5b21b6;font-size:var(--t-small);text-align:center;white-space:nowrap}
+
+  /* 9 · expand-in-place row */
+  .xrow{border-bottom:1px solid var(--line)}
+  .xrow .xhead{display:flex;align-items:center;gap:var(--s4);padding:10px var(--s5);cursor:pointer}
+  .xrow .xhead:hover{background:#f8fafc}
+  .xrow .caret{color:var(--mut);width:12px;flex:none;transition:transform .12s}
+  .xrow.open .caret{transform:rotate(90deg)}
+  .xrow .xbody{padding:0 var(--s5) var(--s5) 34px;background:#fbfcfd;border-top:1px solid var(--line)}
+
+  /* 10 · hatched occurrence — a slot that will not fire */
+  .occbar{height:24px;border:1px solid var(--line);border-radius:5px;display:flex;align-items:center;padding:0 8px;font-size:var(--t-small);color:var(--mut)}
+  .occbar.fires{background:var(--accent-bg);border-color:#c9d9fb;color:#1c4796}
+  .occbar.hatched{background:repeating-linear-gradient(45deg,#f3f4f7,#f3f4f7 3px,#e4e7ee 3px,#e4e7ee 6px);border-color:#dfe3ea}
+  .occbar.hatchedw{background:repeating-linear-gradient(45deg,#fdf3e0,#fdf3e0 3px,#f7e3bd 3px,#f7e3bd 6px);border-color:#e8cf9b;color:#7a5206}
+
+  /* 11 · sticky action footer */
+  .launchbar{display:flex;gap:var(--s4);align-items:center;flex-wrap:wrap;padding:var(--s4) var(--s5);
+             border-top:1px solid var(--line);background:#fafbfc;position:sticky;bottom:0;border-radius:0 0 var(--r-card) var(--r-card)}
+  .launchbar .spacer{flex:1}
+
+  /* 12 · empty state */
+  .empty{text-align:center;padding:56px var(--s6);color:var(--mut)}
+  .empty .big{font-size:var(--t-title);font-weight:600;color:var(--ink);margin-bottom:var(--s2)}
+  .empty .sub{max-width:420px;margin:0 auto var(--s5)}
+
+  /* first-run numbered steps */
+  .steps{display:flex;flex-direction:column;gap:var(--s4)}
+  .fstep{display:flex;gap:var(--s4);padding:var(--s5);border:1px solid var(--line);border-radius:var(--r-card);background:var(--panel)}
+  .fstep.done{background:var(--ok-bg);border-color:#c2e8d3}
+  .fstep .num{width:26px;height:26px;flex:none;border-radius:var(--r-pill);background:var(--accent);color:#fff;
+               display:grid;place-items:center;font-weight:700;font-size:13px}
+  .fstep.done .num{background:var(--ok)}
+  .fstep .b{min-width:0;flex:1}
+  .fstep h3{margin:0 0 var(--s2);font-size:var(--t-title)}
+  .fstep ol{margin:var(--s3) 0 0;padding-left:18px;color:var(--mut);font-size:13px}
+  .fstep ol li{margin-bottom:3px}
+
+  .toolbar{display:flex;gap:var(--s3);align-items:center;flex-wrap:wrap}
+  .muted{color:var(--mut)} .small{font-size:var(--t-small)}
+  .sec{font-size:var(--t-micro);text-transform:uppercase;letter-spacing:.6px;color:var(--mut);font-weight:700;margin:var(--s6) 0 var(--s3)}
+  .sec:first-child{margin-top:0}
+
+  /* ══════════════ language sheet ══════════════ */
+  .sheet{background:var(--bg);padding:var(--s6);max-width:1080px;margin:0 auto}
+  .spec{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-card);margin-bottom:var(--s5);overflow:hidden}
+  .spec > .h{display:flex;align-items:baseline;gap:var(--s3);padding:var(--s4) var(--s5);border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .spec > .h .n{font-weight:700;font-size:var(--t-title)}
+  .spec > .h .cls{font-family:ui-monospace,Menlo,monospace;font-size:var(--t-small);color:var(--mut);background:#f1f3f7;border-radius:4px;padding:1px 6px}
+  .spec > .h .rule{flex-basis:100%;color:var(--mut);font-size:13px}
+  .spec > .demo{padding:var(--s5);display:flex;gap:var(--s4);flex-wrap:wrap;align-items:center}
+  .spec > .demo.col{flex-direction:column;align-items:stretch}
+  .prov{padding:var(--s3) var(--s5);border-top:1px solid var(--line);font-size:var(--t-small);color:var(--mut);background:#fbfcfd}
+  .prov b{color:var(--ink)}
+  .conflict{padding:var(--s4) var(--s5);border-top:1px solid #f0dcb2;background:var(--wait-bg);color:#7a5206;font-size:13px}
+  .conflict b{display:block;margin-bottom:3px}
+  .swatch{display:flex;flex-direction:column;gap:var(--s2);width:132px}
+  .swatch .box{height:46px;border-radius:var(--r-panel);border:1px solid rgba(0,0,0,.08)}
+  .swatch .nm2{font-size:var(--t-small);font-weight:600}
+  .swatch .hex{font-family:ui-monospace,Menlo,monospace;font-size:var(--t-micro);color:var(--mut)}
+  .scalerow{display:flex;align-items:baseline;gap:var(--s5);padding:var(--s2) 0;border-bottom:1px dashed var(--line)}
+  .scalerow .tok{font-family:ui-monospace,Menlo,monospace;font-size:var(--t-small);color:var(--mut);width:96px;flex:none}
+  .scalerow .use{color:var(--mut);font-size:var(--t-small);margin-left:auto;text-align:right}
+
+  #state{background:#14181f;color:#cdd6e4;font-family:ui-monospace,Menlo,monospace;font-size:var(--t-small);
+         padding:var(--s4) var(--s5);white-space:pre-wrap;display:none}
+  #state.on{display:block}
+</style>
+</head>
+<body>
+
+<div id="harness">
+  <span class="tag">PROTOTYPE</span> <b>App shell &amp; visual language</b>
+  <span class="grp"><span class="lbl">shell</span>
+    <button id="shA" onclick="setShell('A')">A · band over content</button>
+    <button id="shB" onclick="setShell('B')">B · band in sidebar</button>
+    <button id="shC" onclick="setShell('C')">C · slot in top bar</button>
+  </span>
+  <span class="grp"><span class="lbl">screen</span>
+    <button id="scwf"  onclick="setScreen('workflows')">Workflows</button>
+    <button id="scrun" onclick="setScreen('runs')">Runs</button>
+    <button id="scsch" onclick="setScreen('schedules')">Schedules</button>
+    <button id="scset" onclick="setScreen('settings')">Settings</button>
+    <button id="scaut" onclick="setScreen('auth')">Auth</button>
+    <button id="sclng" onclick="setScreen('language')">LANGUAGE</button>
+  </span>
+  <span class="grp"><span class="lbl">rows</span>
+    <button id="n0"  onclick="setRows(0)">0</button>
+    <button id="n3"  onclick="setRows(3)">3</button>
+    <button id="n40" onclick="setRows(40)">40</button>
+  </span>
+  <span class="grp"><span class="lbl">attention</span>
+    <button id="a0" onclick="setAttn(0)">none</button>
+    <button id="a1" onclick="setAttn(1)">1 waiting</button>
+    <button id="a3" onclick="setAttn(3)">3 waiting</button>
+  </span>
+  <span class="grp"><span class="lbl">extension</span>
+    <button id="e1" onclick="setExt('up')">connected</button>
+    <button id="e2" onclick="setExt('down')">not connected</button>
+    <button id="e3" onclick="setExt('stale')">out of date</button>
+  </span>
+  <span class="grp"><span class="lbl">width</span>
+    <button id="w1" onclick="setWidth(1440)">1440</button>
+    <button id="w2" onclick="setWidth(1280)">1280</button>
+    <button id="w3" onclick="setWidth(1024)">1024</button>
+    <button id="w4" onclick="setWidth(880)">880</button>
+  </span>
+  <span class="grp">
+    <button id="badm" onclick="toggleAdmin()">admin</button>
+    <button id="bst" onclick="toggleState()">show state</button>
+    <button onclick="reset()">reset</button>
+  </span>
+</div>
+
+<div id="state"></div>
+<div id="stage"><div id="frame"></div></div>
+<div id="widthread">—</div>
+
+<script>
+/* ══════════════════════════ fake world ══════════════════════════ */
+
+const NAMES = [
+ 'Invoice download — AcmeBank','LinkedIn lead scrape','Weekly supplier price check','Shopify order export',
+ 'Competitor pricing — 3 sites','HMRC VAT submission','Jira ticket triage export','Zendesk macro sweep',
+ 'Payroll portal timesheet pull','Amazon seller inventory','Google Ads spend snapshot','Council planning notices',
+ 'Tenant portal rent report','Insurance quote comparison','Freight tracking refresh','Domain expiry sweep',
+ 'Bank reconciliation export','Stock level replenishment','Course enrolment scrape','Grant deadline monitor',
+ 'CRM duplicate detector','Newsletter subscriber export','App Store review pull','Warehouse pick list',
+ 'Utility meter readings','Fleet mileage export','Compliance doc download','Tender portal watch',
+ 'Patient appointment sync','Hotel rate monitor','Flight fare tracker','Auction lot watcher',
+ 'Land registry title pull','Companies House filings','Trademark status check','Recruiter inbox sweep',
+ 'Charity donation export','Membership renewal chase','Sensor dashboard export','Expense receipt fetch'
+];
+const STATUSES = ['succeeded','succeeded','succeeded','failed','running','waiting_for_human','succeeded','cancelled','succeeded','failed'];
+const TRIGGERS = ['manual','schedule','batch','schedule','manual','schedule','batch','manual'];
+const AGOS = ['2m ago','14m ago','1h ago','2h ago','5h ago','yesterday','2d ago','4d ago','1w ago','3w ago'];
+
+function mkWorkflows(n){
+  const out=[];
+  for(let i=0;i<n;i++){
+    /* 'sync' | 'unpublished' | 'none' (never published) */
+    const pub = i%9===2 ? 'none' : (i%4===1 ? 'unpublished' : 'sync');
+    /* a Workflow with no published Version has never run, and can hold no Schedule —
+       both 9gea5p and nno9gj refuse it with 409 no_published_version */
+    const last = (pub==='none' || i%7===3) ? null : {status:STATUSES[i%STATUSES.length], ago:AGOS[i%AGOS.length]};
+    out.push({
+      id:'wf_'+String(i+1).padStart(3,'0'),
+      name:NAMES[i%NAMES.length] + (i>=NAMES.length?' ('+Math.floor(i/NAMES.length+1)+')':''),
+      last, pub,
+      sched: pub==='none' ? null : (i%5===0 ? {n:1,label:'weekdays 09:00'} : (i%11===4 ? {n:3,label:'3 schedules'} : null)),
+      ver: 4 + (i%5)
+    });
+  }
+  return out;
+}
+function mkRuns(n){
+  const out=[];
+  for(let i=0;i<n;i++){
+    let st = STATUSES[i%STATUSES.length];
+    if(i>2) st = st==='running'||st==='waiting_for_human' ? 'succeeded' : st;   // only the newest are live
+    const status = i===0&&attn>0 ? 'waiting_for_human' : (i===1 ? 'running' : st);
+    const live = status==='running' || status==='waiting_for_human';
+    out.push({
+      id:'run_'+String(9000-i),
+      wf:NAMES[(i*3)%NAMES.length],
+      status,
+      trigger:TRIGGERS[i%TRIGGERS.length],
+      started:AGOS[Math.min(9,Math.floor(i/2))],
+      dur: live ? '—' : (12+((i*37)%210))+'s',
+      steps: 4+((i*5)%14)
+    });
+  }
+  return out;
+}
+const SCHEDULES = [
+  {id:'s1',wf:'Weekly supplier price check',cron:'0 9 * * 1-5',human:'At 09:00, Monday to Friday',tz:'Europe/Belgrade',on:true,next:'tomorrow 09:00',last:{status:'succeeded',ago:'yesterday'}},
+  {id:'s2',wf:'Invoice download — AcmeBank',cron:'0 6 1 * *',human:'At 06:00 on the 1st of the month',tz:'Europe/Belgrade',on:true,next:'1 Sep, 06:00',last:{status:'failed',ago:'1 Aug'}},
+  {id:'s3',wf:'Domain expiry sweep',cron:'30 7 * * 1',human:'At 07:30 every Monday',tz:'UTC',on:false,next:'—',last:{status:'succeeded',ago:'2w ago'}},
+  {id:'s4',wf:'Competitor pricing — 3 sites',cron:'0 */4 * * *',human:'Every 4 hours',tz:'Europe/Belgrade',on:true,next:'in 42m',last:{status:'skipped',ago:'4h ago'}},
+  {id:'s5',wf:'Google Ads spend snapshot',cron:'0 8 * * *',human:'At 08:00 every day',tz:'Europe/Belgrade',on:true,next:'tomorrow 08:00',last:{status:'succeeded',ago:'6h ago'}},
+  {id:'s6',wf:'Council planning notices',cron:'15 5,17 * * *',human:'At 05:15 and 17:15 every day',tz:'Europe/London',on:true,next:'in 3h 20m',last:{status:'succeeded',ago:'8h ago'}}
+];
+
+/* ══════════════════════════ state ══════════════════════════ */
+
+let shell='A', view='workflows', rows=3, attn=1, ext='up', frameW=1280, admin=false, showState=false;
+let openRow=null, sortBy='activity', query='', runFilter={status:'',trigger:''}, authScreen='signin';
+let deadline = Date.now() + 18*60e3 + 42e3;
+
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ══════════════════════════ primitives as functions ══════════════════════════ */
+
+const CHIP_LABEL = {queued:'queued',running:'running',waiting_for_human:'needs you',succeeded:'succeeded',
+  failed:'failed',cancelled:'cancelled',cancelling:'cancelling',skipped:'skipped',missed:'missed',paused:'paused'};
+const chip = s => `<span class="chip ${s}">${s==='running'||s==='waiting_for_human'?'<span class="dot"></span>':''}${CHIP_LABEL[s]||s}</span>`;
+const badge = (tone,txt) => `<span class="badge ${tone}">${esc(txt)}</span>`;
+const note = (tone,html,opts={}) => `<div class="note ${tone}${opts.banner?' banner':''}">${html}</div>`;
+
+function countdown(){
+  const ms = Math.max(0, deadline - Date.now());
+  const m = Math.floor(ms/60000), s = Math.floor(ms%60000/1000);
+  return m+':'+String(s).padStart(2,'0');
+}
+
+/* ══════════════════════════ the shell ══════════════════════════ */
+
+function attentionText(){
+  if(attn===1) return `<b>Invoice download — AcmeBank</b> is waiting for you — a sign-in challenge.`;
+  return `<b>3 Runs</b> are waiting for you — the soonest is <b>Invoice download — AcmeBank</b>.`;
+}
+function attnBandA(){
+  if(!attn) return '';
+  return `<div class="attn attnA">⚠ ${attentionText()}
+    <span class="spacer"></span>
+    <span class="small">takeover deadline</span> <span class="cd">${countdown()}</span>
+    <button class="warn sm" onclick="goRun()">Take control</button></div>`;
+}
+function attnBandB(){
+  if(!attn) return '';
+  return `<div class="attn attnB">
+    <div class="ttl">⚠ ${attn===1?'A Run needs you':attn+' Runs need you'}</div>
+    <div class="small">Invoice download — AcmeBank</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="cd">${countdown()}</span>
+      <button class="warn sm" style="flex:1" onclick="goRun()">Take control</button>
+    </div></div>`;
+}
+function attnSlotC(){
+  if(!attn) return '';
+  return `<div class="attn attnC">⚠ ${attn===1?'1 Run needs you':attn+' Runs need you'}
+    <span class="cd">${countdown()}</span>
+    <a onclick="goRun()">Take control</a></div>`;
+}
+
+function sidebar(){
+  const nonTerminal = attn + (view==='runs'?2:2);
+  const conn = {
+    up:   `<div class="conn up"><span class="led"></span><span class="txt">Extension connected · v1.2</span></div>`,
+    down: `<div class="conn down"><span class="led"></span><span class="txt">Extension not connected</span></div>`,
+    stale:`<div class="conn stale"><span class="led"></span><span class="txt">Extension out of date</span></div>`
+  }[ext];
+  const item = (key,ic,nm,cnt) => `<a class="${view===key?'on':''}" onclick="setScreen('${key}')">
+      <span class="ic">${ic}</span><span class="nm">${nm}</span>${cnt||''}</a>`;
+  return `<div class="side">
+    <div class="brand"><span class="mark">S</span><span class="nm">stepbystep</span></div>
+    ${shell==='B'?attnBandB():''}
+    <div class="nav">
+      ${item('workflows','▤','Workflows')}
+      ${item('runs','▷','Runs', attn?`<span class="cv attn">${nonTerminal}</span>`:`<span class="cv live">2</span>`)}
+      ${item('schedules','◷','Schedules')}
+      <div class="sep"></div>
+      ${item('settings','⚙','Settings')}
+    </div>
+    <div class="spacer"></div>
+    <div class="sidefoot">
+      ${conn}
+      <div class="usermenu"><span class="av">SM</span><span class="who">stefan@example.com</span><span class="muted small">▾</span></div>
+    </div>
+  </div>`;
+}
+
+function topbar(){
+  const crumbs = {workflows:'Workflows',runs:'Runs',schedules:'Schedules',settings:'Settings'}[view]||'';
+  if(shell!=='C') return '';
+  return `<div class="topbar"><b>${crumbs}</b><span style="flex:1"></span>${attnSlotC()}</div>`;
+}
+
+function shellFrame(inner){
+  const narrow = frameW <= 1024;
+  return `<div class="app ${narrow?'narrow':''}">
+    ${sidebar()}
+    <div class="main">
+      ${topbar()}
+      ${shell==='A'?attnBandA():''}
+      <div class="content">${inner}</div>
+    </div>
+  </div>`;
+}
+
+/* ══════════════════════════ screens ══════════════════════════ */
+
+function pubChip(w){
+  if(w.pub==='none')        return badge('neutral','not published yet');
+  if(w.pub==='unpublished') return badge('attn','unpublished changes');
+  return badge('good','in sync with v'+w.ver);
+}
+
+function workflowsScreen(){
+  if(rows===0) return firstRun();
+  let list = mkWorkflows(rows);
+  if(query) list = list.filter(w=>w.name.toLowerCase().includes(query.toLowerCase()));
+  if(sortBy==='name') list = list.slice().sort((a,b)=>a.name.localeCompare(b.name));
+
+  const controls = rows>=40 ? `
+    <input id="q" placeholder="Search workflows" value="${esc(query)}" oninput="setQuery(this.value)" style="width:220px">
+    <select onchange="sortBy=this.value;render()">
+      <option value="activity" ${sortBy==='activity'?'selected':''}>Last activity</option>
+      <option value="name" ${sortBy==='name'?'selected':''}>Name</option>
+      <option value="created" ${sortBy==='created'?'selected':''}>Created</option>
+    </select>` : '';
+
+  const rowsHtml = list.map(w=>{
+    const canRun = w.pub!=='none';
+    return `<div class="lrow ${canRun?'':'disabled'}">
+      <div class="col-l grow">
+        <div class="nm">${esc(w.name)}</div>
+        <div class="meta">
+          ${w.last ? chip(w.last.status)+`<span>${w.last.ago}</span>` : `<span class="muted">never run</span>`}
+          ${w.sched?`<span>·</span><span>◷ ${w.sched.label}</span>`:''}
+        </div>
+      </div>
+      ${pubChip(w)}
+      <div class="acts">
+        <button class="sm" ${canRun?'':'disabled title="Publish a Version before this Workflow can run."'}>Run</button>
+        <button class="sm ghost">⋯</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `<div class="toolbar" style="margin-bottom:var(--s5)">
+      <h1 class="pagetitle">Workflows</h1><span style="flex:1"></span>${controls}
+      <button class="primary">New workflow</button>
+    </div>
+    ${ext!=='up'&&rows>0 ? note('warn',`The browser extension is not connected, so recording is unavailable. <a onclick="setScreen('settings')">Set it up in Settings</a>.`) : ''}
+    <div class="panel"><div class="rowlist">${rowsHtml||'<div class="empty">No workflow matches “'+esc(query)+'”.</div>'}</div></div>
+    ${rows>=40?`<div class="small muted" style="margin-top:var(--s4)">${list.length} workflows</div>`:''}`;
+}
+
+function firstRun(){
+  const connected = ext==='up';
+  return `<div class="toolbar" style="margin-bottom:var(--s5)">
+      <h1 class="pagetitle">Workflows</h1><span style="flex:1"></span>
+      <button class="primary">New workflow</button>
+    </div>
+    <div class="panel" style="padding:var(--s6);max-width:720px">
+      <div style="font-size:var(--t-page);font-weight:700;margin-bottom:var(--s2)">Set up stepbystep</div>
+      <div class="muted" style="margin-bottom:var(--s5)">Two steps, and the first one is only needed once per browser.</div>
+      <div class="steps">
+        <div class="fstep ${connected?'done':''}">
+          <div class="num">${connected?'✓':'1'}</div>
+          <div class="b">
+            <h3>Install the browser extension</h3>
+            ${connected
+              ? `<div class="small" style="color:#0f6c3e">Connected — version 1.2. You can record on any site you allow.</div>`
+              : `<div class="muted small">Recording happens in your own Chrome, so the extension has to be loaded by hand. It is not on the Chrome Web Store yet.</div>
+                 <ol>
+                   <li>Download <code>stepbystep-extension.zip</code> and unzip it</li>
+                   <li>Open <code>chrome://extensions</code> and turn on <b>Developer mode</b></li>
+                   <li>Click <b>Load unpacked</b> and choose the unzipped folder</li>
+                   <li>Open the extension's popup and enter this instance's address: <code>https://steps.example.com</code></li>
+                 </ol>
+                 <div style="display:flex;gap:8px;align-items:center;margin-top:var(--s4)">
+                   <button class="primary sm">Download extension</button>
+                   <div class="conn ${ext==='stale'?'stale':'down'}"><span class="led"></span><span class="txt">${ext==='stale'?'Out of date — v1.0, needs v1.2':'Waiting for the extension to connect…'}</span></div>
+                 </div>`}
+          </div>
+        </div>
+        <div class="fstep">
+          <div class="num">2</div>
+          <div class="b">
+            <h3>Create your first workflow</h3>
+            <div class="muted small">Name it here first, then record its steps in the editor. Naming does not need the extension.</div>
+            <div style="margin-top:var(--s4)"><button class="primary sm">New workflow</button></div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function runsScreen(){
+  if(rows===0) return `<h1 class="pagetitle" style="margin-bottom:var(--s5)">Runs</h1>
+    <div class="panel"><div class="empty">
+      <div class="big">Nothing has run yet</div>
+      <div class="sub">Runs appear here whether you start them by hand, on a schedule, or as a batch.</div>
+      <button class="primary" onclick="setScreen('workflows')">Go to Workflows</button>
+    </div></div>`;
+
+  let list = mkRuns(rows);
+  if(runFilter.status)  list = list.filter(r=>r.status===runFilter.status);
+  if(runFilter.trigger) list = list.filter(r=>r.trigger===runFilter.trigger);
+
+  const body = list.map(r=>`<tr class="clickable">
+      <td>${chip(r.status)}</td>
+      <td><b>${esc(r.wf)}</b></td>
+      <td class="muted">${r.trigger}</td>
+      <td class="muted">${r.started}</td>
+      <td class="muted">${r.dur}</td>
+      <td class="muted mono">${r.id}</td>
+      <td style="text-align:right">${r.status==='waiting_for_human'?'<button class="warn sm">Take control</button>':'<span class="muted">›</span>'}</td>
+    </tr>`).join('');
+
+  return `<div class="toolbar" style="margin-bottom:var(--s5)">
+      <h1 class="pagetitle">Runs</h1><span style="flex:1"></span>
+      <select onchange="runFilter.status=this.value;render()">
+        <option value="">Any status</option>
+        ${['running','waiting_for_human','succeeded','failed','cancelled'].map(s=>`<option value="${s}" ${runFilter.status===s?'selected':''}>${CHIP_LABEL[s]}</option>`).join('')}
+      </select>
+      <select onchange="runFilter.trigger=this.value;render()">
+        <option value="">Any trigger</option>
+        ${['manual','schedule','batch','test'].map(s=>`<option value="${s}" ${runFilter.trigger===s?'selected':''}>${s}</option>`).join('')}
+      </select>
+    </div>
+    <div class="panel" style="overflow:hidden">
+      <table class="grid">
+        <thead><tr><th style="width:120px">Status</th><th>Workflow</th><th style="width:90px">Trigger</th>
+        <th style="width:100px">Started</th><th style="width:80px">Duration</th><th style="width:100px">Run</th><th></th></tr></thead>
+        <tbody>${body||'<tr><td colspan="7" class="muted" style="padding:var(--s6);text-align:center">No Run matches these filters.</td></tr>'}</tbody>
+      </table>
+    </div>
+    ${rows>=40?`<div class="small muted" style="margin-top:var(--s4)">Showing ${list.length} · <a>Load more</a></div>`:''}`;
+}
+
+function schedulesScreen(){
+  if(rows===0) return `<h1 class="pagetitle" style="margin-bottom:var(--s5)">Schedules</h1>
+    <div class="panel"><div class="empty">
+      <div class="big">Nothing runs on a clock yet</div>
+      <div class="sub">A Schedule fires a published Workflow on a recurrence you choose, with a value set it owns.</div>
+      <button class="primary" onclick="setScreen('workflows')">Go to Workflows</button>
+    </div></div>`;
+
+  const list = rows>=40 ? SCHEDULES.concat(SCHEDULES.map(s=>({...s,id:s.id+'b'}))) : SCHEDULES.slice(0,3);
+  const body = list.map(s=>{
+    const open = openRow===s.id;
+    return `<div class="xrow ${open?'open':''}">
+      <div class="xhead" onclick="toggleRow('${s.id}')">
+        <span class="caret">▶</span>
+        <div class="col-l grow">
+          <div class="nm">${esc(s.wf)}</div>
+          <div class="meta">${esc(s.human)} · <span class="mono">${s.cron}</span> · ${s.tz}</div>
+        </div>
+        ${s.on?badge('good','on'):badge('neutral','paused')}
+        <div class="meta" style="width:130px;justify-content:flex-end">next ${s.next}</div>
+        <div style="width:150px;display:flex;justify-content:flex-end;gap:6px;align-items:center">
+          ${chip(s.last.status)}<span class="meta">${s.last.ago}</span>
+        </div>
+      </div>
+      ${open?`<div class="xbody">
+        <div class="sec">Next occurrences</div>
+        <div style="display:flex;flex-direction:column;gap:5px;max-width:520px">
+          <div class="occbar fires">Tomorrow, 09:00 — will fire</div>
+          <div class="occbar fires">Thu, 09:00 — will fire</div>
+          <div class="occbar hatchedw">Fri, 09:00 — skipped, the previous Run was still going</div>
+          <div class="occbar hatched">Sat, 09:00 — outside the recurrence</div>
+        </div>
+        <div class="sec">Values every Run uses</div>
+        <table class="grid" style="max-width:520px;border:1px solid var(--line);border-radius:var(--r-panel)">
+          <tr><td style="width:160px" class="muted">search_term</td><td>quarterly report</td></tr>
+          <tr><td class="muted">portal_password</td><td class="locked">🔒 from the vault — “AcmeBank login”</td></tr>
+        </table>
+        <div style="display:flex;gap:8px;margin:var(--s5) 0 var(--s3)">
+          <button class="sm">Edit</button><button class="sm">${s.on?'Pause':'Resume'}</button>
+          <button class="sm">Run it now</button><button class="sm danger">Delete</button>
+        </div>
+      </div>`:''}
+    </div>`;
+  }).join('');
+
+  return `<div class="toolbar" style="margin-bottom:var(--s5)">
+      <h1 class="pagetitle">Schedules</h1><span style="flex:1"></span>
+      <span class="small muted">${list.filter(s=>s.on).length} active</span>
+    </div>
+    <div class="panel">${body}</div>`;
+}
+
+function settingsScreen(){
+  const sections = ['Account','Secrets','Saved logins','Browser extension'].concat(admin?['— Admin —','Users','Open signup']:[]);
+  return `<h1 class="pagetitle" style="margin-bottom:var(--s5)">Settings</h1>
+  <div style="display:flex;gap:var(--s6);align-items:flex-start">
+    <div class="panel" style="width:210px;flex:none;padding:var(--s2)">
+      ${sections.map((s,i)=> s.startsWith('—')
+        ? `<div class="sec" style="margin:var(--s4) var(--s3) var(--s2)">Admin</div>`
+        : `<a class="nav" style="display:block;padding:7px 10px;border-radius:var(--r-ctl);${i===3?'background:var(--accent-bg);color:var(--accent);font-weight:600':'color:var(--ink)'}">${s}</a>`).join('')}
+    </div>
+    <div class="panel grow" style="flex:1;padding:var(--s5)">
+      <h2 style="margin:0 0 var(--s2);font-size:var(--t-title)">Browser extension</h2>
+      <div class="muted small" style="margin-bottom:var(--s5)">Recording runs in your own Chrome. The extension is loaded by hand — it is not on the Chrome Web Store.</div>
+      ${ext==='up'   ? note('ok',`<b>Connected</b> — version 1.2. Minimum supported: 1.2.`) : ''}
+      ${ext==='down' ? note('warn',`<b>Not connected.</b> Either the extension is not installed, or it has not been pointed at this instance yet — from here they look the same. Install it, then enter <code>https://steps.example.com</code> in its popup.
+        <div class="acts"><button class="sm primary">Download extension</button></div>`) : ''}
+      ${ext==='stale'? note('warn',`<b>Out of date</b> — you have 1.0, this instance needs 1.2. Recording is blocked until it is updated.
+        <div class="acts"><button class="sm primary">Download 1.2</button></div>`) : ''}
+      <div class="sec">Install</div>
+      <ol class="muted small" style="padding-left:18px;line-height:1.7">
+        <li>Download the zip and unzip it</li>
+        <li><code>chrome://extensions</code> → <b>Developer mode</b> on</li>
+        <li><b>Load unpacked</b> → choose the folder</li>
+        <li>Open the popup, enter this instance's address</li>
+      </ol>
+    </div>
+  </div>`;
+}
+
+/* auth screens live entirely outside the shell */
+function authScreens(){
+  const tabs = `<div style="display:flex;gap:6px;justify-content:center;margin-bottom:var(--s5)">
+    ${[['signin','Sign in'],['signup','Sign up (bootstrap)'],['closed','Sign up (closed)'],['mustchange','Set your password']]
+      .map(([k,l])=>`<button class="sm ${authScreen===k?'primary':''}" onclick="authScreen='${k}';render()">${l}</button>`).join('')}</div>`;
+
+  const card = {
+    signin:`<h2 style="margin:0 0 var(--s5);font-size:var(--t-page)">Sign in</h2>
+      <label class="small muted">Email</label><input style="width:100%;margin:4px 0 var(--s4)" value="stefan@example.com">
+      <label class="small muted">Password</label><input type="password" style="width:100%;margin:4px 0 var(--s5)" value="xxxxxxxx">
+      <button class="primary" style="width:100%">Sign in</button>
+      <div class="small muted" style="margin-top:var(--s4);text-align:center">Forgot it? An Instance Admin can set a temporary password for you.</div>`,
+    signup:`<h2 style="margin:0 0 var(--s3);font-size:var(--t-page)">Create the first account</h2>
+      ${note('info',`This instance has no users yet. <b>This account becomes the Instance Admin</b> — it can create other users and open or close signup.`)}
+      <label class="small muted">Email</label><input style="width:100%;margin:4px 0 var(--s4)">
+      <label class="small muted">Password</label><input type="password" style="width:100%;margin:4px 0 var(--s5)">
+      <button class="primary" style="width:100%">Create account</button>`,
+    closed:`<h2 style="margin:0 0 var(--s3);font-size:var(--t-page)">Sign-up is unavailable</h2>
+      <div class="muted">This instance does not offer self-serve sign-up. Ask an Instance Admin to create an account for you —
+        they can set a temporary password, and you will choose your own the first time you sign in.</div>
+      <div style="margin-top:var(--s5)"><a onclick="authScreen='signin';render()">← Back to sign in</a></div>
+      <div class="small muted" style="margin-top:var(--s5);padding-top:var(--s4);border-top:1px solid var(--line)">
+        This is what <code>/signup</code> renders once the instance has its first account, unless an Instance Admin turns
+        open signup on. It is a plain page with this sentence — never a 404.</div>`,
+    mustchange:`<h2 style="margin:0 0 var(--s3);font-size:var(--t-page)">Set your password</h2>
+      ${note('warn',`You signed in with a temporary password. Choose a new one to continue — nothing else is reachable until you do.`)}
+      <label class="small muted">New password</label><input type="password" style="width:100%;margin:4px 0 var(--s4)">
+      <label class="small muted">Confirm</label><input type="password" style="width:100%;margin:4px 0 var(--s5)">
+      <button class="primary" style="width:100%">Set password and continue</button>`
+  }[authScreen];
+
+  return `<div style="min-height:760px;background:var(--bg);display:flex;flex-direction:column;justify-content:center;padding:var(--s6)">
+    ${tabs}
+    <div class="panel" style="width:400px;margin:0 auto;padding:var(--s6)">
+      <div style="display:flex;align-items:center;gap:var(--s3);margin-bottom:var(--s6)">
+        <span class="mark" style="width:26px;height:26px;border-radius:7px;background:var(--accent);color:#fff;display:grid;place-items:center;font-weight:800;font-size:13px">S</span>
+        <b style="font-size:var(--t-title)">stepbystep</b>
+      </div>
+      ${card}
+    </div>
+    <div class="small muted" style="text-align:center;margin-top:var(--s5)">No sidebar, no attention band — these three screens sit outside the shell.</div>
+  </div>`;
+}
+
+/* ══════════════════════════ the language sheet ══════════════════════════ */
+
+function spec({n,cls,rule,demo,prov,conflict,col}){
+  return `<div class="spec">
+    <div class="h"><span class="n">${n}</span>${cls?`<span class="cls">${esc(cls)}</span>`:''}<span class="rule">${rule}</span></div>
+    <div class="demo ${col?'col':''}">${demo}</div>
+    ${prov?`<div class="prov">${prov}</div>`:''}
+    ${conflict?`<div class="conflict"><b>⚠ Conflict this node has to settle</b>${conflict}</div>`:''}
+  </div>`;
+}
+
+function languageSheet(){
+  const sw = (nm,hex,tok) => `<div class="swatch"><div class="box" style="background:${hex}"></div>
+    <div class="nm2">${nm}</div><div class="hex">${tok} · ${hex}</div></div>`;
+
+  const typeScale = [
+    ['--t-page','20px/700','Page title — one per screen'],
+    ['--t-title','16px/600','Panel and card titles'],
+    ['--t-body','14px/1.45','Everything by default'],
+    ['13px','13px','Table cells, callout text — the half-step down'],
+    ['--t-small','12px','Meta lines, secondary controls'],
+    ['--t-micro','11px','Badges, column headers, section labels']
+  ].map(([tok,size,use])=>`<div class="scalerow"><span class="tok">${tok}</span>
+      <span style="font-size:${size.split('/')[0]};font-weight:${size.split('/')[1]||400}">The quick brown fox</span>
+      <span class="use">${use}</span></div>`).join('');
+
+  return `<div class="sheet">
+    <div style="margin-bottom:var(--s6)">
+      <h1 class="pagetitle">The visual language</h1>
+      <div class="muted" style="max-width:760px;margin-top:var(--s2)">Five published specs use words like “status chip” and “amber callout” with nothing behind them.
+      This sheet gives each one a name, a rule, and a rendering — and flags where the six existing prototypes actually disagree.
+      Provenance lines say which prototype each came from.</div>
+    </div>
+
+    <div class="sec">Foundations</div>
+
+    ${spec({n:'Colour — surfaces and ink',cls:'--bg --panel --ink --mut --line',
+      rule:'Four values. Every surface in the app is one of these; nothing invents a grey.',
+      demo:[sw('page','#f5f6f8','--bg'),sw('panel','#ffffff','--panel'),sw('ink','#1a2130','--ink'),sw('muted','#68738a','--mut'),sw('line','#e3e7ee','--line')].join(''),
+      prov:`Byte-identical in <b>live-run-view</b>, <b>takeover-ux</b>, <b>batch-creation</b>, <b>schedule-creation</b>. <b>workflow-editor</b> calls them <code>--text/--muted/--border</code> over <code>#f6f7f9</code> — the same intent, different names.`,
+      conflict:`<code>workflow-editor</code> is the outlier on names and on a slightly warmer page grey. Adopting the four-prototype set means that prototype gets re-skinned when <code>d8ux2s</code> is implemented — it is a find-and-replace, no layout changes.`})}
+
+    ${spec({n:'Colour — the semantic ramp',cls:'--accent --wait --human --ok --bad',
+      rule:'One hue, one meaning, everywhere. If a new state needs a colour, it must map onto one of these meanings or the meaning is wrong.',
+      demo:[sw('accent / acting','#2f6fed','--accent'),sw('needs a human','#b97a08','--wait'),sw('secret','#7c3aed','--human'),sw('succeeded','#178a50','--ok'),sw('failed','#c92f34','--bad'),sw('drift','#a8600b','--drift')].join('')
+        + `<div style="flex-basis:100%;margin-top:var(--s4);font-size:13px;line-height:1.7">
+           <b>blue</b> — the machine is acting, or this is informational &nbsp;·&nbsp;
+           <b>amber</b> — a human is needed, or was &nbsp;·&nbsp;
+           <b>purple</b> — a secret or a human-supplied value &nbsp;·&nbsp;
+           <b>green</b> — it worked &nbsp;·&nbsp; <b>red</b> — it did not</div>`,
+      prov:`The five semantic tokens are identical across the four later prototypes. <b>live-run-view</b> named the blue <code>--auto</code> (“the machine is driving”); it is also the app's interactive accent, so this sheet renames it <code>--accent</code>.`,
+      conflict:`<code>--drift</code> (#a8600b) sits <b>10° of hue from --wait</b> (#b97a08) and is indistinguishable in a badge. Proposal: <b>delete --drift</b>. Selector drift <i>is</i> “a human should look at this”, so it is amber, distinguished by its words and icon, not by a hue nobody can name.`})}
+
+    ${spec({n:'Type scale',cls:'--t-micro … --t-page',rule:'Six sizes. System font throughout; monospace only for machine strings — selectors, cron, ids, timestamps.',demo:typeScale,col:true,
+      prov:`Base <code>14px/1.45 system-ui</code> in all four later prototypes; <b>workflow-editor</b> sets a 15px root. Observed titles ranged 15–17px with no rule — this fixes 16px.`})}
+
+    ${spec({n:'Spacing and radius',cls:'--s1…--s6, --r-ctl/--r-panel/--r-card/--r-pill',
+      rule:'Spacing is 4·6·8·12·16·24. Radius is 6 controls, 8 callouts, 10 cards, 999 pills. Nothing between.',
+      demo:['4','6','8','12','16','24'].map(v=>`<div style="text-align:center"><div style="width:${v}px;height:34px;background:var(--accent);border-radius:2px;margin:0 auto 5px"></div><span class="hex">${v}</span></div>`).join('')
+        + `<div style="width:1px;height:44px;background:var(--line);margin:0 var(--s4)"></div>`
+        + [['6','control'],['8','callout'],['10','card'],['999','pill']].map(([r,l])=>`<div style="text-align:center"><div style="width:52px;height:34px;border:1px solid var(--line);background:#fff;border-radius:${r}px;margin-bottom:5px"></div><span class="hex">${l}</span></div>`).join(''),
+      prov:`Observed radii across the six prototypes: 4, 5, 6, 7, 8, 9, 10, 99 — invented per file. This is the first time they are a scale.`})}
+
+    <div class="sec">Primitives the specs already name</div>
+
+    ${spec({n:'1 · Status chip',cls:'.chip.<status>',
+      rule:'The lifecycle state of one thing — a Run, an Occurrence, a Batch row. Pill, 12px/600. A live state carries a dot; the running dot pulses.',
+      demo:['queued','running','waiting_for_human','succeeded','failed','cancelled','skipped','missed','paused'].map(chip).join(''),
+      prov:`Identical <code>.chip</code> in <b>live-run-view</b>, <b>takeover-ux</b>, <b>batch-creation</b>, <b>schedule-creation</b>. The pulsing dot is new here — “running” and “queued” otherwise read the same at a glance in a 40-row table.`,
+      conflict:`<b>skipped</b> is neutral grey in batch-creation and live-run-view but <b>amber</b> in schedule-creation. Proposal: grey. Amber is reserved for “a human is needed”, and no skip needs one — a Batch row skipped for a missing value and an Occurrence skipped for overlap are both simply “did not run”, and both stay re-runnable.`})}
+
+    ${spec({n:'2 · Attribute badge',cls:'.badge.<tone>',
+      rule:'A property of a thing, never its lifecycle state. Rectangular, 11px/600 — deliberately not a pill, so it never reads as a status.',
+      demo:[badge('info','optional'),badge('neutral','disabled'),badge('attn','fragile selector'),badge('attn','selector drift'),
+            badge('secret','from the vault'),badge('good','in sync with v4'),badge('attn','unpublished changes'),badge('bad','no published version'),badge('neutral','timeout 30s')].join(''),
+      prov:`<b>workflow-editor</b> used <code>.badge</code> for selector health (optional / disabled / fragile). <b>live-run-view</b> used the same class name for step outcomes (drift / human / bad / skip / ok).`,
+      conflict:`Two taxonomies under one class name — the collision this sheet exists to catch. Proposal: <code>.badge</code> is <b>attributes only</b>, toned by the semantic ramp; every lifecycle state moves to <code>.chip</code>. Under that rule live-run-view's <code>.badge.ok</code> and <code>.badge.skip</code> were chips wearing the wrong shape.`})}
+
+    ${spec({n:'3 · Callout',cls:'.note.<tone> / .note.banner',
+      rule:'A bordered block of consequence. Same component at two sizes: inline inside a panel, or <code>.banner</code> at page width with actions on the same line.',
+      demo:[note('info','The extension parses the CSV in your browser. Nothing is uploaded.'),
+            note('warn','Two columns match secret Variables. Their values were dropped here, before anything was sent.'),
+            note('bad','This Workflow has no published Version, so it cannot run.'),
+            note('secret','<b>portal_password</b> is filled from the vault entry “AcmeBank login”.'),
+            note('ok','Published as Version 5. Schedules and Batches will use it from their next Run.','')].join('')
+        + note('bad','<b>Run failed</b> — step 7 timed out waiting for the results table.<span class="spacer"></span><button class="sm">View trace</button><button class="sm primary">Run again</button>',{banner:true}),
+      col:true,
+      prov:`<code>.note.{info,warn,bad,ok,secret,drift}</code> is identical in <b>batch-creation</b> and <b>schedule-creation</b>. <b>live-run-view</b> has a separate <code>.banner.{ok,bad,gray}</code> at page width plus a third thing, <code>.driftbox</code>.`,
+      conflict:`Three families for one idea. Proposal: one component, tone × size. <code>.driftbox</code> becomes <code>.note.warn</code>; <code>.banner.gray</code> becomes <code>.note.info</code>. That also kills the last user of <code>--drift</code>.`})}
+
+    ${spec({n:'4 · Attention band',cls:'.attn',
+      rule:'The shell-level signal that a Run is waiting on a human. Amber, always carries the live countdown, always one click from taking control. The only chrome that can appear on every screen.',
+      demo:`<div style="flex-basis:100%"><div class="attn attnA" style="margin:0">⚠ <b>Invoice download — AcmeBank</b> is waiting for you — a sign-in challenge.
+        <span class="spacer"></span><span class="small">takeover deadline</span><span class="cd">${countdown()}</span><button class="warn sm">Take control</button></div></div>`,
+      prov:`<b>New in this node.</b> No prototype drew app chrome, and <code>dm4cff</code> invented this band because v1 SSE is per-Run — nothing else can tell a user a Run is waiting. It is fed by <code>GET /api/attention</code>, polled ~10s.`,
+      conflict:`Its placement is the axis the three shell variants argue about. Switch <b>shell A / B / C</b> in the harness with <b>attention</b> set to 1 or 3.`})}
+
+    ${spec({n:'5 · Count badge',cls:'.cv',
+      rule:'A number riding a nav item. Amber when it means “a human is needed”, blue when it merely means “work is in flight”, grey otherwise.',
+      demo:`<span class="cv">7</span><span class="cv live">2</span><span class="cv attn">3</span>
+        <span class="muted small">— grey: a total · blue: Runs in flight · amber: Runs waiting on you</span>`,
+      prov:`<b>New in this node</b>, from <code>dm4cff</code>'s “count badge on the Runs nav item for non-terminal Runs”.`})}
+
+    ${spec({n:'6 · Connection pill',cls:'.conn.{up,down,stale}',
+      rule:'The extension\'s state, in the sidebar footer, on every screen. Exactly three states — and “not installed” and “installed but not pointed here” must render as one, because the app genuinely cannot tell them apart.',
+      demo:`<div class="conn up"><span class="led"></span><span class="txt">Extension connected · v1.2</span></div>
+        <div class="conn down"><span class="led"></span><span class="txt">Extension not connected</span></div>
+        <div class="conn stale"><span class="led"></span><span class="txt">Extension out of date</span></div>`,
+      prov:`<b>New in this node</b>, from <code>dm4cff</code>. Version data comes from <code>GET /api/extension/version</code>, which <code>d8ux2s</code> already requires.`})}
+
+    ${spec({n:'7 · Locked cell',cls:'td.locked',
+      rule:'A grid cell whose value the user may not type — it comes from the vault. Purple, centred, padlocked, and it names the entry it resolves to.',
+      demo:`<table class="grid" style="max-width:520px;border:1px solid var(--line);border-radius:var(--r-panel)">
+        <thead><tr><th>search_term</th><th>city</th><th>portal_password</th></tr></thead>
+        <tbody><tr><td>quarterly report</td><td>Belgrade</td><td class="locked">🔒 from the vault</td></tr>
+        <tr><td>annual report</td><td>Novi Sad</td><td class="locked">🔒 from the vault</td></tr></tbody></table>`,
+      prov:`Identical <code>td.locked</code> in <b>batch-creation</b> and <b>schedule-creation</b> — the one primitive two prototypes invented separately and got byte-identical.`})}
+
+    ${spec({n:'8 · Hatched occurrence',cls:'.occbar.hatched / .hatchedw',
+      rule:'A time slot that will not produce a Run. Diagonal hatching means “nothing happens here”. Amber hatching means something was prevented; grey hatching means nothing was ever due.',
+      demo:`<div style="flex-basis:100%;display:flex;flex-direction:column;gap:5px;max-width:560px">
+        <div class="occbar fires">Tomorrow, 09:00 — will fire</div>
+        <div class="occbar hatchedw">Fri, 09:00 — skipped, the previous Run was still going</div>
+        <div class="occbar hatched">Sat, 09:00 — outside the recurrence</div></div>`,
+      prov:`<b>schedule-creation</b> drew both. The same 45° / 3px hatch appears in <b>live-run-view</b> and <b>takeover-ux</b> on the timeline's waiting segment — where it means the same thing: elapsed time that is not the machine working.`})}
+
+    ${spec({n:'9 · Expand-in-place row',cls:'.xrow',
+      rule:'A list row that opens beneath itself. Used where the work is scanning many rows for the few needing attention — Schedules, Batch rows. Never where the detail is a full screen: a Run row navigates.',
+      demo:`<div style="flex-basis:100%" class="panel">
+        <div class="xrow open"><div class="xhead"><span class="caret">▶</span>
+          <div class="col-l grow"><div class="nm">Weekly supplier price check</div><div class="meta">At 09:00, Monday to Friday</div></div>
+          ${badge('good','on')}${chip('succeeded')}</div>
+          <div class="xbody" style="padding-top:var(--s4)"><span class="muted small">…the row's detail, in place. The list keeps its scroll position.</span></div></div>
+        <div class="xrow"><div class="xhead"><span class="caret">▶</span>
+          <div class="col-l grow"><div class="nm">Domain expiry sweep</div><div class="meta">At 07:30 every Monday</div></div>
+          ${badge('neutral','paused')}${chip('succeeded')}</div></div></div>`,
+      prov:`<b>schedule-creation</b> (all-Schedules table) and <b>batch-creation</b> (batch progress). <code>dm4cff</code> ruled it out for the Runs list, and this is the rule behind that ruling.`})}
+
+    ${spec({n:'10 · Sticky action footer',cls:'.launchbar',
+      rule:'The commit bar of a creation page. Sticks to the bottom of its panel, holds the count being committed on the left and the primary action on the right, and never scrolls away.',
+      demo:`<div style="flex-basis:100%" class="panel" style="overflow:hidden">
+        <div style="padding:var(--s5);color:var(--mut)">…the Batch's grid scrolls above this…</div>
+        <div class="launchbar"><b>38 rows</b> <span class="muted small">· 2 skipped, missing a value</span>
+          <span class="spacer"></span><button>Cancel</button><button class="primary">Create and run</button></div></div>`,
+      prov:`<b>schedule-creation</b>; <b>batch-creation</b> has the same bar with a different name. One name from here.`})}
+
+    ${spec({n:'11 · Empty state',cls:'.empty',
+      rule:'Centred, one bold sentence naming what is absent, one grey sentence saying what fills it, one button that goes there. Never a bare “No data”.',
+      demo:`<div style="flex-basis:100%" class="panel"><div class="empty">
+        <div class="big">Nothing runs on a clock yet</div>
+        <div class="sub">A Schedule fires a published Workflow on a recurrence you choose, with a value set it owns.</div>
+        <button class="primary">Go to Workflows</button></div></div>`,
+      prov:`<b>New in this node.</b> No prototype drew one — each rendered a populated surface only. <code>dm4cff</code> lists five empty states that need it.`})}
+
+    <div class="sec">How this lands in shadcn/ui + Tailwind</div>
+    <div class="spec">
+      <div class="h"><span class="n">Where the language comes from, and where it has to be built</span>
+        <span class="rule">The stack is shadcn/ui over Tailwind. That decides <i>how</i> these primitives are expressed, not <i>what</i> they are —
+        but it does split them into three groups, and the third group is the one worth knowing about before implementation starts.</span></div>
+      <div class="demo col">
+        <div>
+          <div style="font-weight:700;margin-bottom:var(--s2);color:var(--ok)">Free — use the shadcn component as-is, restyled by the theme</div>
+          <div class="small muted" style="line-height:1.9">
+            <b>Status chip</b> → <code>Badge</code> with variants · <b>Attribute badge</b> → <code>Badge</code>, a second variant set ·
+            <b>Callout</b> → <code>Alert</code> (<code>AlertTitle</code>/<code>AlertDescription</code>) · <b>Data table</b> → <code>Table</code> ·
+            <b>Expand-in-place row</b> → <code>Collapsible</code> inside a table row · <b>Empty state</b> → a plain <code>Card</code> ·
+            <b>Sidebar</b> → <code>Sidebar</code>, which already ships the icon-collapse behaviour this prototype hand-rolls at 1024px ·
+            <b>Count badge</b> → <code>SidebarMenuBadge</code> · every dialog, select, input, dropdown.
+          </div>
+        </div>
+        <div style="margin-top:var(--s5)">
+          <div style="font-weight:700;margin-bottom:var(--s2);color:var(--accent)">Theme — the tokens become CSS variables in <code>globals.css</code></div>
+          <div class="small muted" style="line-height:1.9">
+            The surfaces and ink map onto shadcn's own names: <code>--bg</code>→<code>--background</code>,
+            <code>--panel</code>→<code>--card</code>, <code>--ink</code>→<code>--foreground</code>,
+            <code>--mut</code>→<code>--muted-foreground</code>, <code>--line</code>→<code>--border</code>,
+            <code>--accent</code>→<code>--primary</code>. <b>The semantic ramp has no shadcn equivalent</b> — shadcn ships only
+            <code>--destructive</code>. <code>--wait</code>, <code>--human</code> and <code>--ok</code> are additions to the theme,
+            and the rule that governs them (one hue, one meaning) is this node's, not the library's.
+            The spacing and radius scales are Tailwind's defaults already: 4·6·8·12·16·24 is <code>1/1.5/2/3/4/6</code>.
+          </div>
+        </div>
+        <div style="margin-top:var(--s5)">
+          <div style="font-weight:700;margin-bottom:var(--s2);color:var(--wait)">Built here — shadcn has nothing for these</div>
+          <div class="small muted" style="line-height:1.9">
+            <b>Attention band</b> — an <code>Alert</code> is the shell, but the polling, the live countdown and the
+            appears-on-every-screen placement are ours · <b>Locked cell</b> — a table cell with vault semantics ·
+            <b>Hatched occurrence</b> — a CSS gradient, no component · <b>Connection pill</b> — three states with one
+            deliberately-merged failure case · <b>Sticky action footer</b> — layout, not a component ·
+            <b>The unpublished-Version sentence</b> — one string reused across four surfaces.
+          </div>
+        </div>
+        ${note('info','This does not settle the stack. The framework, the monorepo layout and the dev commands are still <code>ymz3md</code>\'s job — this section only records that shadcn/Tailwind is the intended target, and which primitives it does and does not answer.')}
+      </div>
+      <div class="prov"><b>User decision, this session.</b> The node listed component-library choice as out of bounds; the user made the call anyway, so it is recorded rather than re-litigated.</div>
+    </div>
+
+    <div class="sec">One sentence used in three places</div>
+    <div class="spec"><div class="h"><span class="n">The unpublished-Version sentence</span>
+      <span class="rule"><code>dm4cff</code> requires the same words in the list row, the Workflow header, and both creation pages. Here they are, once:</span></div>
+      <div class="demo col">
+        ${note('bad','This Workflow has no published Version yet. <b>Publish</b> it from the editor before it can run, be scheduled, or take a batch.')}
+        <div style="display:flex;gap:var(--s4);align-items:center;flex-wrap:wrap">
+          <button disabled title="Publish a Version before this Workflow can run.">Run</button>
+          <span class="muted small">— the disabled control carries the same sentence as its tooltip. One string, four surfaces.</span>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ══════════════════════════ render ══════════════════════════ */
+
+function render(){
+  const f = document.getElementById('frame');
+  f.style.maxWidth = frameW+'px';
+
+  let inner;
+  if(view==='language')      inner = `<div style="background:var(--bg)">${languageSheet()}</div>`;
+  else if(view==='auth')     inner = authScreens();
+  else {
+    const body = {workflows:workflowsScreen,runs:runsScreen,schedules:schedulesScreen,settings:settingsScreen}[view]();
+    inner = shellFrame(body);
+  }
+  f.innerHTML = inner;
+
+  document.getElementById('widthread').textContent = frameW+'px  ·  sidebar '+(frameW<=1024?'collapsed to icons':'labelled');
+
+  // harness button states
+  const on=(id,c)=>{const e=document.getElementById(id); if(e) e.className = c?'on':'';};
+  on('shA',shell==='A'); on('shB',shell==='B'); on('shC',shell==='C');
+  ['workflows:scwf','runs:scrun','schedules:scsch','settings:scset','auth:scaut','language:sclng']
+    .forEach(p=>{const [k,id]=p.split(':'); on(id, view===k);});
+  on('n0',rows===0); on('n3',rows===3); on('n40',rows===40);
+  ['1440:w1','1280:w2','1024:w3','880:w4'].forEach(p=>{const [k,id]=p.split(':'); on(id, frameW===+k);});
+  document.getElementById('a0').className = attn===0?'on':'';
+  document.getElementById('a1').className = attn===1?'onw':'';
+  document.getElementById('a3').className = attn===3?'onw':'';
+  document.getElementById('e1').className = ext==='up'?'on':'';
+  document.getElementById('e2').className = ext==='down'?'on':'';
+  document.getElementById('e3').className = ext==='stale'?'onw':'';
+  document.getElementById('badm').className = admin?'on':'';
+  document.getElementById('bst').className = showState?'on':'';
+
+  const st = document.getElementById('state');
+  st.className = showState?'on':'';
+  if(showState) st.textContent = JSON.stringify({
+    shell, view: view, rows, attnWaiting:attn, extension:ext, frameW,
+    sidebar: frameW<=1024?'icons':'labelled', admin,
+    attentionBand: attn ? {placement:{A:'over content',B:'in sidebar',C:'top-bar slot'}[shell], countdown:countdown()} : null,
+    sortBy, query, runFilter, openRow
+  }, null, 2);
+}
+
+/* ══════════════════════════ harness plumbing ══════════════════════════ */
+
+function setShell(v){ shell=v; render(); }
+function setScreen(s){ view=s; openRow=null; render(); }
+function setRows(n){ rows=n; openRow=null; render(); }
+function setAttn(n){ attn=n; if(n) deadline = Date.now()+18*60e3+42e3; render(); }
+function setExt(e){ ext=e; render(); }
+function setWidth(w){ frameW=w; render(); }
+function toggleAdmin(){ admin=!admin; render(); }
+function toggleState(){ showState=!showState; render(); }
+function toggleRow(id){ openRow = openRow===id?null:id; render(); }
+function setQuery(v){ query=v; render(); const e=document.getElementById('q'); if(e){e.focus();e.selectionStart=e.value.length;} }
+function goRun(){ setScreen('runs'); }
+function reset(){
+  shell='A'; view='workflows'; rows=3; attn=1; ext='up'; frameW=1280; admin=false; showState=false;
+  openRow=null; sortBy='activity'; query=''; runFilter={status:'',trigger:''}; authScreen='signin';
+  deadline = Date.now()+18*60e3+42e3;
+  render();
+}
+
+setInterval(()=>{ if(attn && view!=='language') render(); }, 1000);
+render();
+</script>
+</body>
+</html>
