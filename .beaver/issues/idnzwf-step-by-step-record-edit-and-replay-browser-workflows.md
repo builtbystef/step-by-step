@@ -1,13 +1,13 @@
 ---
 id: idnzwf
-title: 'stepbystep: record, edit, and replay browser workflows — roadmap'
+title: 'Step by Step: record, edit, and replay browser workflows — roadmap'
 state: in-progress
 assignee: builtbystef
 priority: high
 labels:
     - roadmap
 created: 2026-08-08T07:07:08Z
-updated: 2026-08-12T05:17:26Z
+updated: 2026-08-12T05:41:27Z
 ---
 
 ## Goal

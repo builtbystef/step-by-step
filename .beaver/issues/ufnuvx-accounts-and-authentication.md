@@ -13,7 +13,7 @@ updated: 2026-08-11T00:59:37Z
 
 ## Problem Statement
 
-A self-hosted stepbystep instance serves several people — an org hosts one instance for its staff, or an individual hosts their own. Every Workflow, Run, Batch, Secret, and Auth State belongs to exactly one user, so the instance needs accounts, sign-in, and isolation between users — without depending on any external identity provider or email service, because a self-hosted deployment guarantees neither. Someone must be able to administer users, recover from lockouts with nothing but shell access, and remove a person and every trace of their data.
+A self-hosted Step by Step instance serves several people — an org hosts one instance for its staff, or an individual hosts their own. Every Workflow, Run, Batch, Secret, and Auth State belongs to exactly one user, so the instance needs accounts, sign-in, and isolation between users — without depending on any external identity provider or email service, because a self-hosted deployment guarantees neither. Someone must be able to administer users, recover from lockouts with nothing but shell access, and remove a person and every trace of their data.
 
 ## Solution
 
