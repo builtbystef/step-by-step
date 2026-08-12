@@ -7,7 +7,7 @@ priority: high
 labels:
     - roadmap
 created: 2026-08-08T07:07:08Z
-updated: 2026-08-12T03:44:05Z
+updated: 2026-08-12T03:52:21Z
 ---
 
 ## Goal
@@ -22,7 +22,7 @@ Related but outside this DAG: issue `ymz3md` (establish stack, checks, and dev c
 
 <!-- In-scope questions that are too vague to be nodes. They become nodes as the roadmap advances. -->
 
-Every node of this roadmap is now closed, and each area has a published spec: `ufnuvx` (accounts), `d8ux2s` (recording, editing, storage), `54i6da` (Secrets and Auth State), `9gea5p` (execution, Workers, the live run view), `nno9gj` (creating Batches and Schedules). The next `advance-plan` session therefore has no ready node, and its job is this Frontier: interview until its sharpest entry becomes nodes.
+Five areas are settled and specced: `ufnuvx` (accounts), `d8ux2s` (recording, editing, storage), `54i6da` (Secrets and Auth State), `9gea5p` (execution, Workers, the live run view), `nno9gj` (creating Batches and Schedules). A sixth area opened after they were written: every one of those specs describes a deep surface and assumes a frame around it that none of them describes — the Workflows list, a Runs history, the shell, the auth screens, the empty and first-run states, and the visual language whose words ("status chip", "amber callout") they all use undefined. That gap is nodes `dm4cff` and `7mfxzj`, and it is the roadmap's open work.
 
 - Extracted data delivery *outside the app*: webhook, API, or push on completion. (The per-step schema settled in ds8zyn; the in-app half settled in apx4rs and spec 9gea5p — a Run's Output tab and `GET /api/runs/{id}/output?format=json|csv`, and the same across a Batch's rows.)
 - Saved reusable datasets (a list-of-rows entity that outlives one batch) — revisit when usage shows the reuse pattern; v1 batches own their rows (8iuuh8), and reuse is a copy: tf6796 settled "copy rows from a past Batch" as a toolbar action that fills the new Batch's grid.
