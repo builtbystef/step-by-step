@@ -1,0 +1,908 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PROTOTYPE — creating and reading a Schedule (roadmap node pjxuqx) — disposable</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --bg:#f5f6f8; --panel:#ffffff; --ink:#1a2130; --mut:#68738a; --line:#e3e7ee;
+    --auto:#2f6fed; --auto-bg:#e8effd;
+    --wait:#b97a08; --wait-bg:#fdf3e0;
+    --human:#7c3aed; --human-bg:#f1eafd;
+    --ok:#178a50; --ok-bg:#e2f5ea;
+    --bad:#c92f34; --bad-bg:#fbe9e9;
+    --drift:#a8600b; --drift-bg:#fdf0dd;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.45 system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+  button{font:inherit;cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:7px;padding:6px 12px}
+  button:hover{border-color:#b9c2d0}
+  button.primary{background:var(--auto);border-color:var(--auto);color:#fff}
+  button.warn{background:var(--wait);border-color:var(--wait);color:#fff}
+  button.danger{background:#fff;border-color:var(--bad);color:var(--bad)}
+  button.sm{padding:3px 9px;font-size:12px}
+  button.ghost{border-color:transparent;background:transparent;color:var(--auto);padding:3px 4px}
+  button:disabled{opacity:.45;cursor:default}
+  input,select{font:inherit;border:1px solid var(--line);border-radius:6px;padding:5px 8px;background:#fff;color:inherit}
+  input:focus,select:focus{outline:2px solid var(--auto-bg);border-color:var(--auto)}
+  a{color:var(--auto);cursor:pointer}
+
+  #harness{background:#20242c;color:#cbd2dd;padding:8px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;position:sticky;top:0;z-index:50}
+  #harness b{color:#fff}
+  #harness .grp{display:flex;gap:6px;align-items:center;padding:0 10px;border-left:1px solid #3a4150}
+  #harness .lbl{font-size:11px;color:#8d97a8;text-transform:uppercase;letter-spacing:.5px}
+  #harness button{background:#2c323d;border-color:#454d5c;color:#dde3ec;padding:4px 10px;font-size:12px}
+  #harness button.on{background:var(--auto);border-color:var(--auto);color:#fff}
+  #harness button.onw{background:var(--drift);border-color:var(--drift);color:#fff}
+  #harness .tag{font-size:11px;background:#c9542b;color:#fff;border-radius:4px;padding:2px 6px;font-weight:700;letter-spacing:.4px}
+  #harness .clock{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#fff;background:#161a20;border:1px solid #3a4150;border-radius:5px;padding:3px 8px}
+
+  #app{max-width:1180px;margin:18px auto 90px;padding:0 16px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px}
+  .pad{padding:16px}
+  .muted{color:var(--mut)} .small{font-size:12px} .tiny{font-size:11px}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .spacer{flex:1}
+  h2.vtitle{font-size:13px;letter-spacing:.6px;text-transform:uppercase;color:var(--mut);margin:0 0 10px}
+  h3.sec{font-size:12px;letter-spacing:.5px;text-transform:uppercase;color:var(--mut);margin:0 0 8px;font-weight:700}
+  .sect{margin-top:26px}
+
+  .wfhead{display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:12px 16px;margin-bottom:14px}
+  .wfhead h1{font-size:16px;margin:0}
+  .varpill{display:inline-flex;align-items:center;gap:5px;background:#eef1f6;border-radius:5px;padding:1px 7px;font-size:12px;color:#41506b;font-weight:600}
+  .varpill.secret{background:var(--human-bg);color:#5b21b6}
+
+  .tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);padding:0 16px}
+  .tabs .t{padding:9px 13px;font-size:13px;color:var(--mut);border-bottom:2px solid transparent}
+  .tabs .t.on{color:var(--ink);font-weight:600;border-bottom-color:var(--auto)}
+
+  .note{border-radius:8px;padding:9px 12px;font-size:12.5px;margin:10px 0}
+  .note.info{background:var(--auto-bg);color:#1c4796;border:1px solid #c9d9fb}
+  .note.warn{background:var(--wait-bg);color:#7a5206;border:1px solid #f0dcb2}
+  .note.bad{background:var(--bad-bg);color:#8f2226;border:1px solid #f2cfd0}
+  .note.ok{background:var(--ok-bg);color:#0f6c3e;border:1px solid #c2e8d3}
+  .note.secret{background:var(--human-bg);color:#5b21b6;border:1px solid #ddcdfa}
+  .note.drift{background:var(--drift-bg);color:var(--drift);border:1px solid #e8d3ab}
+  .note b{font-weight:700}
+  .note .acts{margin-top:7px;display:flex;gap:7px;flex-wrap:wrap}
+
+  /* preset tiles (variant A) */
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+  .tile{border:1px solid var(--line);border-radius:9px;padding:13px;cursor:pointer;background:#fff}
+  .tile:hover{border-color:var(--auto);background:var(--auto-bg)}
+  .tile b{display:block;margin-bottom:3px}
+  .tile.on{border-color:var(--auto);background:var(--auto-bg);box-shadow:0 0 0 1px var(--auto) inset}
+  .tile .ex{font-size:11.5px;color:var(--mut)}
+  .tile.on .ex{color:#2a5cbf}
+
+  /* sentence builder (variant B) */
+  .sentence{font-size:19px;line-height:2.1;display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+  .sentence select,.sentence input{font-size:16px;padding:4px 7px;border-color:#c6cede;background:#fbfcfe}
+  .sentence select{cursor:pointer}
+  .sentence .txt{color:var(--mut)}
+
+  /* cron field (variant C) */
+  .cronfield{font-family:ui-monospace,Menlo,monospace;font-size:20px;letter-spacing:2px;padding:10px 12px;width:280px}
+  .cronfield.bad{border-color:var(--bad);background:#fff8f8}
+  .cronlegend{display:flex;gap:0;width:280px;font-size:10px;color:var(--mut);text-align:center;margin-top:3px}
+  .cronlegend span{flex:1}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chipbtn{border:1px solid var(--line);background:#fff;border-radius:99px;padding:3px 11px;font-size:12px;cursor:pointer}
+  .chipbtn:hover{border-color:var(--auto);color:var(--auto)}
+  .chipbtn.on{background:var(--auto);border-color:var(--auto);color:#fff}
+
+  .reads{font-size:17px;font-weight:600;margin:2px 0 2px}
+  .reads.none{font-size:14px;font-weight:400;color:var(--wait)}
+
+  /* occurrence list & strip */
+  table.occ{border-collapse:collapse;font-size:13px;width:100%;max-width:560px}
+  table.occ td{padding:4px 10px 4px 0;border-bottom:1px solid #f0f2f6;white-space:nowrap}
+  table.occ td.rel{color:var(--mut);font-size:12px}
+  table.occ td.alt{color:var(--mut);font-size:12px}
+  table.occ tr.first td{font-weight:600}
+
+  .strip{display:flex;gap:3px;align-items:flex-end;padding:10px 0 4px;overflow-x:auto}
+  .mk{flex:none;width:26px;text-align:center}
+  .mk .bar{height:26px;border-radius:4px;border:1px solid transparent}
+  .mk .lb{font-size:9.5px;color:var(--mut);margin-top:3px;white-space:nowrap}
+  .mk.succeeded .bar{background:var(--ok-bg);border-color:#a8dcc0}
+  .mk.failed .bar{background:var(--bad-bg);border-color:#eeb9ba}
+  .mk.running .bar{background:var(--auto-bg);border-color:#b6cffa}
+  .mk.skipped .bar{background:repeating-linear-gradient(45deg,#fdf3e0,#fdf3e0 3px,#f7e3bd 3px,#f7e3bd 6px);border-color:#e8cf9b}
+  .mk.missed .bar{background:repeating-linear-gradient(45deg,#f3f4f7,#f3f4f7 3px,#e4e7ee 3px,#e4e7ee 6px);border-color:#dfe3ea}
+  .mk.future .bar{background:#fff;border:1px dashed #c4ccda}
+  .nowdiv{flex:none;width:2px;background:var(--auto);height:36px;margin:0 5px;position:relative}
+  .nowdiv::after{content:"now";position:absolute;top:-13px;left:50%;transform:translateX(-50%);font-size:9.5px;color:var(--auto);font-weight:700}
+
+  .chip{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:2px 10px;font-size:12px;font-weight:600}
+  .chip::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+  .chip.queued{background:#eceff4;color:var(--mut)}
+  .chip.running{background:var(--auto-bg);color:var(--auto)}
+  .chip.succeeded{background:var(--ok-bg);color:var(--ok)}
+  .chip.failed{background:var(--bad-bg);color:var(--bad)}
+  .chip.skipped{background:var(--wait-bg);color:var(--wait)}
+  .chip.missed{background:#eceff4;color:var(--mut)}
+  .chip.paused{background:#eceff4;color:var(--mut)}
+
+  /* schedule cards (at-rest 1) */
+  .schcard{margin-bottom:14px}
+  .schcard.off{background:#fbfcfd}
+  .schcard .hd{display:flex;gap:12px;align-items:flex-start;padding:14px 16px 10px}
+  .schcard .hd h4{margin:0;font-size:16px}
+  .schcard.off .hd h4{color:var(--mut)}
+  .schcard .bd{padding:0 16px 14px}
+  .kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin:8px 0 2px}
+  .kv .k{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);margin-bottom:2px}
+  .kv .v{font-size:14px}
+  .kv .v .sub{font-size:11.5px;color:var(--mut)}
+
+  /* toggle */
+  .sw{width:38px;height:21px;border-radius:99px;background:#ccd3de;position:relative;cursor:pointer;border:none;padding:0;flex:none}
+  .sw.on{background:var(--ok)}
+  .sw::after{content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:#fff;transition:left .12s}
+  .sw.on::after{left:19px}
+
+  /* table (at-rest 2) */
+  table.sch{border-collapse:collapse;width:100%;font-size:13px;background:#fff}
+  table.sch th{background:#fafbfc;border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--mut)}
+  table.sch td{border-bottom:1px solid #f0f2f6;padding:8px 10px;vertical-align:middle}
+  table.sch tr.r:hover td{background:#fafbfd;cursor:pointer}
+  table.sch tr.open td{background:var(--auto-bg)}
+  table.sch tr.off td{color:var(--mut)}
+  table.sch td.exp{background:#fbfcfd;padding:0}
+  .expwrap{padding:14px 16px;border-left:3px solid var(--auto)}
+  .warncell{color:var(--wait);font-weight:600}
+
+  /* values grid */
+  table.grid{border-collapse:collapse;font-size:13px}
+  table.grid th{background:#fafbfc;border:1px solid var(--line);padding:6px 9px;text-align:left;font-weight:600;white-space:nowrap}
+  table.grid td{border:1px solid var(--line);padding:3px 5px}
+  table.grid td input{width:100%;min-width:150px;border-color:transparent;background:transparent}
+  table.grid td.locked{background:var(--human-bg);color:#5b21b6;font-size:12px;text-align:center;white-space:nowrap;padding:6px 9px}
+  table.grid td.empty input{background:var(--wait-bg)}
+
+  .frm{display:grid;grid-template-columns:170px 1fr;gap:8px 12px;align-items:center;max-width:560px}
+  .frm .lb{font-size:13px;font-weight:600}
+  .frm .lb .t{display:block;font-weight:400;font-size:11px;color:var(--mut)}
+
+  pre.payload{background:#20242c;color:#cbd2dd;padding:12px 14px;border-radius:9px;font-size:12px;overflow:auto;max-height:420px;margin:0}
+  pre.payload .k{color:#8fb8ff} pre.payload .s{color:#b8e3a0} pre.payload .c{color:#7c8798}
+  .footbar{display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:12px 16px;border-top:1px solid var(--line);background:#fafbfc;border-radius:0 0 10px 10px}
+  details.raises{margin-top:26px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+  details.raises summary{cursor:pointer;font-weight:600;font-size:13px}
+  details.raises li{font-size:12.5px;margin:6px 0}
+</style>
+</head>
+<body>
+
+<div id="harness">
+  <span class="tag">PROTOTYPE</span> <b>Schedules</b>
+  <span class="grp"><span class="lbl">create</span>
+    <button id="vA" onclick="setVariant('A')">A · Presets</button>
+    <button id="vB" onclick="setVariant('B')">B · Sentence</button>
+    <button id="vC" onclick="setVariant('C')">C · Cron</button>
+  </span>
+  <span class="grp"><span class="lbl">at rest</span>
+    <button id="r1" onclick="setRest(1)">1 · Workflow panel</button>
+    <button id="r2" onclick="setRest(2)">2 · All schedules</button>
+  </span>
+  <span class="grp"><span class="lbl">clock</span>
+    <span class="clock" id="clockread">—</span>
+    <button id="play" onclick="togglePlay()">▶</button>
+    <button onclick="jump(3600e3)">+1h</button>
+    <button onclick="jump(86400e3)">+1d</button>
+    <button onclick="jumpNext()">→ next fire</button>
+  </span>
+  <span class="grp"><span class="lbl">scenario</span>
+    <button id="sOverlap" onclick="toggleScn('overlap')">overlap skip</button>
+    <button id="sDown" onclick="toggleScn('down')">instance was down</button>
+    <button id="sTz" onclick="toggleScn('tz')">viewer in New York</button>
+    <button id="sOff" onclick="toggleScn('off')">pause a schedule</button>
+  </span>
+  <span class="grp">
+    <button id="tpay" onclick="togglePayload()">show state</button>
+    <button onclick="reset()">reset</button>
+  </span>
+</div>
+
+<div id="app"></div>
+
+<script>
+/* ══════════════════════════ fake world ══════════════════════════ */
+
+const INSTANCE_TZ = 'Europe/Belgrade';        // the instance default (spec 9gea5p)
+const TZ_LIST = ['Europe/Belgrade','UTC','Europe/London','America/New_York','America/Los_Angeles','Asia/Tokyo','Australia/Sydney'];
+
+const WF = {
+  id:'wf_31', name:'Competitor price sweep',
+  vars:[
+    {name:'search_term', secret:false, def:'espresso machine'},
+    {name:'city',        secret:false, def:'Belgrade'},
+    {name:'portal_password', secret:true},
+  ],
+};
+// what the user last typed when they ran it by hand (variant C prefill)
+const LAST_MANUAL = {values:{search_term:'burr grinder', city:'Novi Sad'}, at:'Aug 10, 14:22'};
+
+const T0 = Date.UTC(2026,7,11,7,12);          // Tue 2026-08-11 09:12 Europe/Belgrade
+
+let now      = T0;
+let variant  = 'A';
+let rest     = 1;
+let playing  = false, timer = null;
+let showPay  = false;
+let scn      = {overlap:false, down:false, tz:false, off:false};
+let openRow  = null;
+
+const draft = {
+  A:{preset:'daily', time:'09:00', dow:1, dom:1, everyMin:15, everyHour:4, cron:'0 9 * * *', tz:INSTANCE_TZ, advanced:false},
+  B:{freq:'day', time:'09:00', dow:1, dom:1, n:4, tz:INSTANCE_TZ, raw:false, cron:'0 9 * * *'},
+  C:{cron:'0 9 * * *', tz:INSTANCE_TZ},
+};
+let valuesB = {search_term:'', city:''};                 // variant B: typed on the Schedule
+let valuesC = {...LAST_MANUAL.values};                   // variant C: prefilled from last manual Run
+let valuesCTouched = false;
+
+const SCHEDULES = [
+  {id:'sch_1', wf:'Competitor price sweep', wfId:'wf_31', cron:'0 9 * * *',        tz:'Europe/Belgrade',  enabled:true,  values:{search_term:'espresso machine', city:'Belgrade'}},
+  {id:'sch_2', wf:'Supplier invoice download', wfId:'wf_44', cron:'0 */4 * * 1-5', tz:'Europe/Belgrade',  enabled:true,  values:{account:'main'}},
+  {id:'sch_3', wf:'Weekly stock report', wfId:'wf_52', cron:'30 7 * * 1',          tz:'America/New_York', enabled:true,  values:{region:'us-east'}},
+];
+
+/* ══════════════════════════ time in a timezone ══════════════════════════ */
+
+const _fmtCache = {};
+function partsFmt(tz){
+  return _fmtCache[tz] || (_fmtCache[tz] = new Intl.DateTimeFormat('en-GB',{
+    timeZone:tz, hourCycle:'h23',
+    year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',weekday:'short'
+  }));
+}
+const DOW_IDX = {Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6};
+function localParts(tz, ts){
+  const p = {};
+  for(const {type,value} of partsFmt(tz).formatToParts(ts)) p[type] = value;
+  return {year:+p.year, month:+p.month, day:+p.day, hour:+p.hour, minute:+p.minute, dow:DOW_IDX[p.weekday]};
+}
+function tzOffset(tz, ts){
+  const p = localParts(tz, ts);
+  return Date.UTC(p.year,p.month-1,p.day,p.hour,p.minute) - (ts - ts%60000);
+}
+// wall-clock in tz → instant
+function zonedToUtc(tz,y,m,d,h,mi){
+  const guess = Date.UTC(y,m-1,d,h,mi);
+  let ts = guess - tzOffset(tz, guess);
+  ts = guess - tzOffset(tz, ts);
+  return ts;
+}
+const pad = n => String(n).padStart(2,'0');
+function fmtDT(ts, tz, opts={}){
+  const p = localParts(tz, ts);
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const day = `${DOW[p.dow]} ${MON[p.month-1]} ${p.day}`;
+  const time = `${pad(p.hour)}:${pad(p.minute)}`;
+  if(opts.timeOnly) return time;
+  if(opts.dayOnly)  return day;
+  return `${day}, ${time}`;
+}
+function relTime(ts, ref){
+  const d = Math.round((ts - ref)/60000), a = Math.abs(d);
+  const s = a<1 ? 'now' : a<60 ? `${a} min` : a<60*36 ? `${Math.round(a/60)} h` : `${Math.round(a/1440)} d`;
+  if(s==='now') return 'now';
+  return d>0 ? `in ${s}` : `${s} ago`;
+}
+const viewerTz = () => scn.tz ? 'America/New_York' : INSTANCE_TZ;
+const tzDiffers = tz => viewerTz() !== tz;
+const tzShort = tz => tz.split('/').pop().replace(/_/g,' ');
+
+/* ══════════════════════════ cron ══════════════════════════ */
+
+function parseField(spec, lo, hi, name){
+  const out = {raw:spec, restricted:true, step:null, wildStep:false, vals:[]};
+  if(spec === '*'){ out.restricted = false; for(let i=lo;i<=hi;i++) out.vals.push(i); return out; }
+  const set = new Set();
+  for(const part of spec.split(',')){
+    const [range, stepS] = part.split('/');
+    const step = stepS === undefined ? 1 : parseInt(stepS,10);
+    if(stepS !== undefined && (!Number.isInteger(step) || step < 1)) throw new Error(`"${part}" — the step after "/" must be a whole number`);
+    let a,b;
+    if(range === '*'){ a=lo; b=hi; if(stepS!==undefined){ out.step=step; out.wildStep=true; } }
+    else if(range.includes('-')){ const m = range.split('-'); a=+m[0]; b=+m[1]; }
+    else { a = +range; b = stepS !== undefined ? hi : a; }
+    if(!Number.isInteger(a) || !Number.isInteger(b)) throw new Error(`"${part}" is not a number the ${name} field understands`);
+    if(a<lo || b>hi || a>b) throw new Error(`${name} must be ${lo}–${hi}; got "${part}"`);
+    for(let v=a; v<=b; v+=step) set.add(v);
+  }
+  out.vals = [...set].sort((x,y)=>x-y);
+  return out;
+}
+function parseCron(s){
+  const f = String(s).trim().split(/\s+/).filter(Boolean);
+  if(f.length !== 5) return {ok:false, err:`A cron expression has 5 fields — minute hour day-of-month month day-of-week. This has ${f.length}.`};
+  try{
+    const minute = parseField(f[0],0,59,'minute');
+    const hour   = parseField(f[1],0,23,'hour');
+    const dom    = parseField(f[2],1,31,'day of month');
+    const month  = parseField(f[3],1,12,'month');
+    const dow    = parseField(f[4],0,7,'day of week');
+    dow.vals = [...new Set(dow.vals.map(v => v===7?0:v))].sort((a,b)=>a-b);
+    return {ok:true, fields:{minute,hour,dom,month,dow}};
+  }catch(e){ return {ok:false, err:e.message}; }
+}
+function dayMatches(F, p){
+  if(F.month.restricted && !F.month.vals.includes(p.month)) return false;
+  const domR = F.dom.restricted, dowR = F.dow.restricted;
+  const domOk = F.dom.vals.includes(p.day), dowOk = F.dow.vals.includes(p.dow);
+  if(domR && dowR) return domOk || dowOk;   // standard cron OR
+  if(domR) return domOk;
+  if(dowR) return dowOk;
+  return true;
+}
+function occurrencesBetween(cron, tz, from, to, limit=400){
+  const p = parseCron(cron); if(!p.ok) return [];
+  const F = p.fields, out = [];
+  const s = localParts(tz, from - 36*3600e3);
+  let y=s.year, m=s.month, d=s.day;
+  for(let i=0;i<1500 && out.length<limit;i++){
+    const probe = zonedToUtc(tz,y,m,d,12,0);
+    const lp = localParts(tz, probe);
+    if(dayMatches(F, lp)){
+      outer: for(const h of F.hour.vals) for(const mi of F.minute.vals){
+        const ts = zonedToUtc(tz, lp.year, lp.month, lp.day, h, mi);
+        if(ts>=from && ts<=to) out.push(ts);
+        if(out.length>=limit) break outer;
+      }
+    }
+    const nx = new Date(Date.UTC(y,m-1,d)); nx.setUTCDate(nx.getUTCDate()+1);
+    y=nx.getUTCFullYear(); m=nx.getUTCMonth()+1; d=nx.getUTCDate();
+    if(zonedToUtc(tz,y,m,d,0,0) > to) break;
+  }
+  return [...new Set(out)].sort((a,b)=>a-b);
+}
+function nextOccurrences(cron, tz, from, n){
+  for(const days of [2,9,40,400,1200]){
+    const o = occurrencesBetween(cron, tz, from+60000, from + days*86400e3, n+2);
+    if(o.length >= n || days===1200) return o.slice(0,n);
+  }
+  return [];
+}
+function prevOccurrences(cron, tz, until, n){
+  for(const days of [2,9,40,400]){
+    const o = occurrencesBetween(cron, tz, until - days*86400e3, until, 600);
+    if(o.length >= n || days===400) return o.slice(-n);
+  }
+  return [];
+}
+
+const DOWN = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+function listWords(a){ return a.length===1 ? a[0] : a.slice(0,-1).join(', ') + ' and ' + a[a.length-1]; }
+
+function cronToWords(cron){
+  const p = parseCron(cron); if(!p.ok) return null;
+  const {minute:M, hour:H, dom:D, month:MO, dow:W} = p.fields;
+
+  // the time phrase is one of two kinds: a frequency ("every 15 minutes") or a clock time ("at 09:00")
+  let time = null, kind = 'freq';
+  if(!M.restricted && !H.restricted) time = 'every minute';
+  else if(M.wildStep && M.step && !H.restricted) time = `every ${M.step} minutes`;
+  else if(M.vals.length===1 && !H.restricted) time = `every hour, at :${pad(M.vals[0])}`;
+  else if(M.vals.length===1 && H.wildStep && H.step) time = `every ${H.step} hours, at :${pad(M.vals[0])}`;
+  else if(M.vals.length===1 && H.vals.length<=4){ time = `at ${listWords(H.vals.map(h=>`${pad(h)}:${pad(M.vals[0])}`))}`; kind = 'at'; }
+  if(time === null) return null;
+
+  const dowSet = W.vals.join(',');
+  const dowNames = plural => listWords(W.vals.map(v => DOWN[v] + (plural?'s':'')));
+  let day, qual;                       // "every weekday" for "at" phrasing, "on weekdays" for frequency phrasing
+  if(!D.restricted && !W.restricted){ day = 'every day'; qual = ''; }
+  else if(W.restricted && !D.restricted){
+    if(dowSet === '1,2,3,4,5'){ day = 'every weekday'; qual = 'on weekdays'; }
+    else if(dowSet === '0,6'){ day = 'every Saturday and Sunday'; qual = 'at the weekend'; }
+    else { day = 'every ' + dowNames(false); qual = 'on ' + dowNames(true); }
+  }
+  else if(D.restricted && !W.restricted){
+    if(D.vals.length>3) return null;
+    day = qual = `on day ${listWords(D.vals.map(String))} of the month`;
+  }
+  else {
+    if(D.vals.length>3) return null;
+    day = qual = `on day ${listWords(D.vals.map(String))} of the month, and on ` + dowNames(true);
+  }
+
+  let months = '';
+  if(MO.restricted){
+    const MN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    if(MO.vals.length>4) return null;
+    months = `, in ${listWords(MO.vals.map(v=>MN[v-1]))}`;
+  }
+  const s = kind === 'at' ? `${day} ${time}${months}`
+                          : `${time}${qual?', '+qual:''}${months}`;
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/* ══════════════════════════ scripted history ══════════════════════════ */
+// Every past occurrence gets an outcome, derived so it stays true as the clock moves.
+
+const DOWN_FROM = T0 - 26*3600e3, DOWN_TO = T0 - 20*3600e3;   // "instance was down" window
+function outcomeFor(sch, ts, idxFromEnd){
+  if(scn.down && sch.id==='sch_1' && ts>=DOWN_FROM && ts<=DOWN_TO)
+    return {status:'missed', why:'The instance was not running. Missed occurrences are never run late.'};
+  if(scn.overlap && sch.id==='sch_1' && idxFromEnd===0)
+    return {status:'skipped', why:'The previous Run (#417, started yesterday 09:00) was still running.', blocker:'run_417'};
+  if(!sch.enabled && ts > (sch.disabledAt||Infinity)) return null;
+  if(idxFromEnd===2) return {status:'failed', why:'Step 4 "click Export" — no selector matched.', run:'run_'+(410+idxFromEnd)};
+  return {status:'succeeded', run:'run_'+(415-idxFromEnd), ms: 62000 + (idxFromEnd*7919)%48000};
+}
+function history(sch, n=6){
+  const occ = prevOccurrences(sch.cron, sch.tz, now, n);
+  return occ.map((ts,i)=>({ts, ...(outcomeFor(sch, ts, occ.length-1-i) || {status:'missed', why:'The Schedule was paused.'})}));
+}
+function schState(sch){
+  const h = history(sch, 8);
+  const lastRun = [...h].reverse().find(e=>e.status==='succeeded'||e.status==='failed'||e.status==='running');
+  const last = h[h.length-1];
+  const nexts = nextOccurrences(sch.cron, sch.tz, now, 5);
+  const skip = last && (last.status==='skipped'||last.status==='missed') ? last : null;
+  const running = scn.overlap && sch.id==='sch_1';
+  return {h, lastRun, nextDue: sch.enabled ? nexts[0] : null, nexts, skip, running};
+}
+
+/* ══════════════════════════ harness plumbing ══════════════════════════ */
+
+function setVariant(v){ variant=v; render(); }
+function setRest(r){ rest=r; openRow=null; render(); }
+function toggleScn(k){ scn[k]=!scn[k]; if(k==='off') SCHEDULES[0].enabled = !scn.off; render(); }
+function togglePayload(){ showPay=!showPay; render(); }
+function jump(ms){ now += ms; render(); }
+function jumpNext(){
+  const cands = SCHEDULES.filter(s=>s.enabled).map(s=>nextOccurrences(s.cron,s.tz,now,1)[0]).filter(Boolean);
+  if(cands.length) now = Math.min(...cands)+60000;
+  render();
+}
+function togglePlay(){
+  playing = !playing;
+  if(playing) timer = setInterval(()=>{ now += 600e3; render(); }, 700);
+  else clearInterval(timer);
+  render();
+}
+function reset(){
+  now=T0; variant='A'; rest=1; showPay=false; openRow=null;
+  scn={overlap:false,down:false,tz:false,off:false};
+  SCHEDULES[0].enabled=true;
+  Object.assign(draft.A,{preset:'daily',time:'09:00',dow:1,dom:1,cron:'0 9 * * *',tz:INSTANCE_TZ,advanced:false});
+  Object.assign(draft.B,{freq:'day',time:'09:00',dow:1,dom:1,n:4,tz:INSTANCE_TZ,raw:false,cron:'0 9 * * *'});
+  draft.C.cron='0 9 * * *'; draft.C.tz=INSTANCE_TZ;
+  valuesB={search_term:'',city:''}; valuesC={...LAST_MANUAL.values}; valuesCTouched=false;
+  if(playing) togglePlay();
+  render();
+}
+
+/* ══════════════════════════ shared pieces ══════════════════════════ */
+
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function tzSelect(id, val, onch){
+  return `<select id="${id}" onchange="${onch}">` + TZ_LIST.map(t=>
+    `<option value="${t}" ${t===val?'selected':''}>${t}${t===INSTANCE_TZ?' — instance default':''}</option>`).join('') + `</select>`;
+}
+function tzNote(tz){
+  const v = viewerTz();
+  if(v === tz) return '';
+  return `<div class="note info" style="margin:8px 0 0">Times below are in <b>${tz}</b>, the Schedule's timezone.
+    Your browser is in <b>${v}</b> — ${tzShort(v)} time is shown in grey beside each one.</div>`;
+}
+function occTable(cron, tz, n=5, from=now){
+  const occ = nextOccurrences(cron, tz, from, n);
+  if(!occ.length) return `<div class="note bad">Valid, but nothing falls due in the next three years — check the day-of-month and month fields.</div>`;
+  const alt = tzDiffers(tz);
+  return `<table class="occ">` + occ.map((ts,i)=>`
+    <tr class="${i===0?'first':''}">
+      <td>${i===0?'Next &nbsp;':'&nbsp;'}</td>
+      <td>${fmtDT(ts,tz)}</td>
+      <td class="rel">${relTime(ts, now)}</td>
+      ${alt?`<td class="alt">· ${fmtDT(ts, viewerTz())} ${tzShort(viewerTz())}</td>`:''}
+    </tr>`).join('') + `</table>`;
+}
+function strip(sch){
+  const st = schState(sch);
+  const past = st.h.slice(-6);
+  const fut  = st.nexts.slice(0,4);
+  const mk = (cls,label,title)=>`<div class="mk ${cls}" title="${esc(title)}"><div class="bar"></div><div class="lb">${label}</div></div>`;
+  // daily-or-rarer schedules label their ticks by date; intraday ones by clock time
+  const all = [...past.map(e=>e.ts), ...fut];
+  const gap = all.length>1 ? (all[all.length-1]-all[0])/(all.length-1) : 0;
+  const tick = ts => gap >= 20*3600e3 ? (p=>`${p.day}/${p.month}`)(localParts(sch.tz,ts)) : fmtDT(ts,sch.tz,{timeOnly:true});
+  let html = '<div class="strip">';
+  for(const e of past) html += mk(e.status, tick(e.ts), `${fmtDT(e.ts,sch.tz)} — ${e.status}${e.why?': '+e.why:''}`);
+  if(st.running) html += mk('running','▶','Run #418 is still going');
+  html += '<div class="nowdiv"></div>';
+  for(const ts of sch.enabled?fut:[]) html += mk('future', tick(ts), fmtDT(ts,sch.tz)+' — due');
+  html += '</div>';
+  html += `<div class="tiny muted">last ${past.length} occurrences${sch.enabled?` · next ${fut.length}`:' · paused, nothing ahead'} — hover for detail</div>`;
+  return html;
+}
+function skipBanner(sch, st){
+  if(!st.skip) return '';
+  const s = st.skip;
+  if(s.status==='skipped') return `<div class="note warn"><b>${fmtDT(s.ts,sch.tz)} did not run — skipped.</b> ${esc(s.why)}
+    Two Runs of one Workflow never act on a site at the same time.
+    <div class="acts"><button class="sm" onclick="alert('→ Run #417')">Open the Run that blocked it</button><button class="sm" onclick="alert('→ new Run')">Run it now instead</button></div></div>`;
+  return `<div class="note"><b>${fmtDT(s.ts,sch.tz)} did not run.</b> ${esc(s.why)}</div>`;
+}
+function valuesSummary(sch){
+  const v = sch.values || {};
+  const parts = Object.entries(v).map(([k,val])=>`<span class="varpill">${esc(k)} = ${esc(val)}</span>`);
+  parts.push(`<span class="varpill secret">portal_password · from vault</span>`);
+  return parts.join(' ');
+}
+
+/* ══════════════════════════ variant A — presets ══════════════════════════ */
+
+const PRESETS = [
+  {id:'hourly',  t:'Every hour',        ex:'at the top of the hour',   cron:d=>`0 * * * *`},
+  {id:'minutes', t:'Every few minutes', ex:'pick the gap',             cron:d=>`*/${d.everyMin} * * * *`},
+  {id:'daily',   t:'Every day',         ex:'pick a time',              cron:d=>{const[h,m]=d.time.split(':');return `${+m} ${+h} * * *`}},
+  {id:'weekdays',t:'Every weekday',     ex:'Mon–Fri, pick a time',     cron:d=>{const[h,m]=d.time.split(':');return `${+m} ${+h} * * 1-5`}},
+  {id:'weekly',  t:'Every week',        ex:'pick a day and a time',    cron:d=>{const[h,m]=d.time.split(':');return `${+m} ${+h} * * ${d.dow}`}},
+  {id:'monthly', t:'Every month',       ex:'pick a date and a time',   cron:d=>{const[h,m]=d.time.split(':');return `${+m} ${+h} ${d.dom} * *`}},
+  {id:'custom',  t:'Custom…',           ex:'write cron yourself',      cron:d=>d.cron},
+];
+function aCron(){ const d=draft.A; const p=PRESETS.find(p=>p.id===d.preset); return p.cron(d); }
+function setPreset(id){ draft.A.preset=id; if(id!=='custom') draft.A.cron=aCron(); render(); }
+function aSet(k,v){ draft.A[k]=v; if(draft.A.preset!=='custom') draft.A.cron=aCron(); render(); }
+
+function renderA(){
+  const d = draft.A, cron = aCron(), w = cronToWords(cron), p = parseCron(cron);
+  let params = '';
+  if(d.preset==='minutes') params = `<label class="small muted">every <select onchange="aSet('everyMin',+this.value)">${[5,10,15,20,30].map(n=>`<option ${n===d.everyMin?'selected':''}>${n}</option>`).join('')}</select> minutes</label>`;
+  if(['daily','weekdays','weekly','monthly'].includes(d.preset))
+    params += `<label class="small muted">at <input type="time" value="${d.time}" onchange="aSet('time',this.value)"></label>`;
+  if(d.preset==='weekly')
+    params += `<label class="small muted">on <select onchange="aSet('dow',+this.value)">${DOWN.map((n,i)=>`<option value="${i}" ${i===d.dow?'selected':''}>${n}</option>`).join('')}</select></label>`;
+  if(d.preset==='monthly')
+    params += `<label class="small muted">on day <select onchange="aSet('dom',+this.value)">${Array.from({length:28},(_,i)=>i+1).map(n=>`<option ${n===d.dom?'selected':''}>${n}</option>`).join('')}</select></label>`;
+  if(d.preset==='custom')
+    params = `<label class="small muted">cron <input id="acron" class="mono" style="width:190px" value="${esc(d.cron)}" oninput="draft.A.cron=this.value;render()"></label>`;
+
+  return `
+  <div class="card pad">
+    <h2 class="vtitle">A · Preset-first — the recurrence is chosen from a shortlist; cron is the last tile</h2>
+    <div class="tiles">${PRESETS.map(p2=>`
+      <div class="tile ${d.preset===p2.id?'on':''}" onclick="setPreset('${p2.id}')">
+        <b>${p2.t}</b><span class="ex">${p2.ex}</span>
+      </div>`).join('')}
+    </div>
+    <div class="row" style="margin-top:12px">${params}</div>
+
+    <div class="sect" style="margin-top:18px">
+      <h3 class="sec">Timezone</h3>
+      <div class="row">${tzSelect('atz', d.tz, "draft.A.tz=this.value;render()")}
+        ${d.tz!==viewerTz()?`<span class="small muted">your browser is in ${viewerTz()}</span>`:`<span class="small muted">matches your browser</span>`}</div>
+      ${tzNote(d.tz)}
+    </div>
+
+    <div class="sect">
+      <h3 class="sec">This reads as</h3>
+      ${p.ok ? (w ? `<div class="reads">${w}, ${tzShort(d.tz)} time.</div>`
+                  : `<div class="reads none">No plain-language reading for <span class="mono">${esc(cron)}</span> — the occurrences below are the only honest answer.</div>`)
+             : `<div class="note bad">${esc(p.err)}</div>`}
+      ${p.ok?occTable(cron, d.tz, 5):''}
+      ${d.preset!=='custom'?`<div class="tiny muted" style="margin-top:8px">Stored as <span class="mono">${esc(cron)}</span> · <a onclick="setPreset('custom')">edit as cron</a></div>`:''}
+    </div>
+
+    <div class="sect">
+      <h3 class="sec">Variable values <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">— answer A: the Workflow's declared defaults</span></h3>
+      <div class="note info">A scheduled Run has nobody to type values, so it uses each Variable's <b>default</b>, declared once in the workflow editor.
+        Every Schedule and every unattended Run of this Workflow uses the same values.</div>
+      <div class="frm">
+        ${WF.vars.filter(v=>!v.secret).map(v=>`<div class="lb">${v.name}<span class="t">default, from the Workflow</span></div>
+          <div><input value="${esc(v.def)}" disabled style="max-width:280px"></div>`).join('')}
+        <div class="lb">portal_password<span class="t">secret</span></div>
+        <div><span class="varpill secret">from your vault, by name</span></div>
+      </div>
+      <div class="small" style="margin-top:8px"><a onclick="alert('→ workflow editor, Variables')">Edit the defaults in the workflow →</a></div>
+    </div>
+    ${footer(cron, d.tz, WF.vars.filter(v=>!v.secret).reduce((o,v)=>(o[v.name]=v.def,o),{}), p.ok)}
+  </div>`;
+}
+
+/* ══════════════════════════ variant B — sentence builder ══════════════════════════ */
+
+function bCron(){
+  const d = draft.B, [h,m] = d.time.split(':');
+  if(d.freq==='minutes') return `*/${d.n} * * * *`;
+  if(d.freq==='hours')   return `${+m} */${d.n} * * *`;
+  if(d.freq==='day')     return `${+m} ${+h} * * *`;
+  if(d.freq==='weekday') return `${+m} ${+h} * * 1-5`;
+  if(d.freq==='week')    return `${+m} ${+h} * * ${d.dow}`;
+  if(d.freq==='month')   return `${+m} ${+h} ${d.dom} * *`;
+  return d.cron;
+}
+function bSet(k,v){ draft.B[k]=v; render(); }
+function renderB(){
+  const d = draft.B, cron = d.raw ? d.cron : bCron(), p = parseCron(cron), w = cronToWords(cron);
+  const timeBit = ['day','weekday','week','month'].includes(d.freq);
+  const missing = WF.vars.filter(v=>!v.secret && !String(valuesB[v.name]||'').trim());
+
+  const sentence = d.raw
+    ? `<div class="row"><span class="txt small muted">cron</span>
+         <input id="bcron" class="mono cronfield" style="font-size:16px;width:230px" value="${esc(d.cron)}" oninput="draft.B.cron=this.value;render()">
+         <button class="sm" onclick="draft.B.raw=false;render()">back to the sentence</button></div>`
+    : `<div class="sentence">
+        <span class="txt">Run</span> <b>${WF.name}</b>
+        <select onchange="bSet('freq',this.value)">
+          ${[['minutes','every few minutes'],['hours','every few hours'],['day','every day'],['weekday','every weekday'],['week','every week'],['month','every month']]
+            .map(([v,t])=>`<option value="${v}" ${v===d.freq?'selected':''}>${t}</option>`).join('')}
+        </select>
+        ${(d.freq==='minutes'||d.freq==='hours') ? `<span class="txt">— every</span>
+          <select onchange="bSet('n',+this.value)">${(d.freq==='minutes'?[5,10,15,20,30]:[2,3,4,6,8,12]).map(n=>`<option ${n===d.n?'selected':''}>${n}</option>`).join('')}</select>
+          <span class="txt">${d.freq==='minutes'?'minutes':'hours'}</span>` : ''}
+        ${d.freq==='week' ? `<span class="txt">on</span><select onchange="bSet('dow',+this.value)">${DOWN.map((n,i)=>`<option value="${i}" ${i===d.dow?'selected':''}>${n}</option>`).join('')}</select>` : ''}
+        ${d.freq==='month' ? `<span class="txt">on day</span><select onchange="bSet('dom',+this.value)">${Array.from({length:28},(_,i)=>i+1).map(n=>`<option ${n===d.dom?'selected':''}>${n}</option>`).join('')}</select>` : ''}
+        ${timeBit ? `<span class="txt">at</span><input type="time" value="${d.time}" onchange="bSet('time',this.value)">` : ''}
+        ${d.freq==='hours' ? `<span class="txt">at minute</span><input type="time" value="${d.time}" onchange="bSet('time',this.value)" style="width:110px">` : ''}
+        <span class="txt">in</span> ${tzSelect('btz', d.tz, "bSet('tz',this.value)")}<span class="txt">.</span>
+      </div>`;
+
+  return `
+  <div class="card pad">
+    <h2 class="vtitle">B · Sentence builder — the recurrence is a sentence with dropdowns; cron is generated, and shown</h2>
+    ${sentence}
+    ${tzNote(d.tz)}
+    <div class="row" style="margin-top:12px">
+      <span class="mono small muted">≡ ${esc(cron)}</span>
+      ${d.raw?'':`<a class="small" onclick="draft.B.cron='${esc(cron)}';draft.B.raw=true;render()">write cron instead</a>`}
+    </div>
+
+    <div class="sect">
+      <h3 class="sec">Next occurrences</h3>
+      ${p.ok ? (w?`<div class="reads">${w}, ${tzShort(d.tz)} time.</div>`:`<div class="reads none">No plain-language reading — read the occurrences.</div>`) + occTable(cron,d.tz,5)
+             : `<div class="note bad">${esc(p.err)}</div>`}
+    </div>
+
+    <div class="sect">
+      <h3 class="sec">Variable values <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">— answer B: a value set owned by this Schedule</span></h3>
+      <div class="note info">The Schedule carries its own values, typed here — the same grid as Batch creation, one row.
+        Two Schedules of one Workflow can differ (a Belgrade sweep at 09:00 and a Novi Sad sweep at 18:00).</div>
+      <table class="grid"><tr>
+        ${WF.vars.map(v=>`<th>${v.name}${v.secret?' <span class="varpill secret">secret</span>':''}</th>`).join('')}
+      </tr><tr>
+        ${WF.vars.map(v=> v.secret
+          ? `<td class="locked">from vault</td>`
+          : `<td class="${String(valuesB[v.name]||'').trim()?'':'empty'}"><input id="bv_${v.name}" value="${esc(valuesB[v.name]||'')}" placeholder="required" oninput="valuesB['${v.name}']=this.value;render()"></td>`).join('')}
+      </tr></table>
+      ${missing.length?`<div class="note warn">${missing.length===1?'One Variable has no value':'Some Variables have no value'} — <b>${missing.map(v=>v.name).join(', ')}</b>.
+        A Schedule with a missing value would fail at 3 a.m. with nobody watching, so it cannot be saved until it is filled.</div>`:''}
+    </div>
+    ${footer(cron, d.tz, valuesB, p.ok && !missing.length)}
+  </div>`;
+}
+
+/* ══════════════════════════ variant C — cron-first ══════════════════════════ */
+
+const CRON_CHIPS = [
+  ['0 * * * *','hourly'], ['*/15 * * * *','every 15 min'], ['0 9 * * *','daily 09:00'],
+  ['0 9 * * 1-5','weekdays 09:00'], ['30 7 * * 1','Mondays 07:30'], ['0 3 1 * *','1st of month 03:00'],
+];
+function renderC(){
+  const d = draft.C, p = parseCron(d.cron), w = p.ok?cronToWords(d.cron):null;
+  const filled = Object.entries(valuesC).filter(([k,v])=>String(v).trim());
+  return `
+  <div class="card pad">
+    <h2 class="vtitle">C · Cron-first — the expression is the control; words and occurrences are the read-back</h2>
+    <div class="chips" style="margin-bottom:12px">
+      ${CRON_CHIPS.map(([c,t])=>`<button class="chipbtn ${c===d.cron?'on':''}" onclick="draft.C.cron='${c}';render()">${t}</button>`).join('')}
+    </div>
+    <div class="row" style="align-items:flex-start">
+      <div>
+        <input id="ccron" class="cronfield mono ${p.ok?'':'bad'}" value="${esc(d.cron)}" oninput="draft.C.cron=this.value;render()">
+        <div class="cronlegend"><span>min</span><span>hour</span><span>dom</span><span>mon</span><span>dow</span></div>
+      </div>
+      <div style="padding-top:6px">${tzSelect('ctz', d.tz, "draft.C.tz=this.value;render()")}</div>
+    </div>
+    ${p.ok
+      ? (w ? `<div class="reads" style="margin-top:14px">${w}, ${tzShort(d.tz)} time.</div>`
+           : `<div class="reads none" style="margin-top:14px">This expression is valid, but has no short reading in words. Trust the occurrences below.</div>`)
+      : `<div class="note bad" style="margin-top:14px"><b>Not a valid cron expression.</b> ${esc(p.err)}</div>`}
+    ${tzNote(d.tz)}
+    <div class="sect">
+      <h3 class="sec">Next occurrences</h3>
+      ${p.ok?occTable(d.cron,d.tz,6):'<div class="small muted">— fix the expression to see them —</div>'}
+    </div>
+
+    <div class="sect">
+      <h3 class="sec">Variable values <span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">— answer C: prefilled from your last manual Run, then edited</span></h3>
+      <div class="note info">Values were copied from the last time you ran this Workflow by hand (<b>${LAST_MANUAL.at}</b>) and are now owned by the Schedule.
+        ${valuesCTouched?'<b>Edited.</b>':'Change anything you like.'}</div>
+      <div class="frm">
+        ${WF.vars.filter(v=>!v.secret).map(v=>`<div class="lb">${v.name}</div>
+          <div><input id="cv_${v.name}" value="${esc(valuesC[v.name]||'')}" oninput="valuesC['${v.name}']=this.value;valuesCTouched=true;render()" style="max-width:280px"></div>`).join('')}
+        <div class="lb">portal_password<span class="t">secret</span></div>
+        <div><span class="varpill secret">from your vault, by name</span></div>
+      </div>
+      <div class="small" style="margin-top:8px"><a onclick="valuesC={...LAST_MANUAL.values};valuesCTouched=false;render()">reset to the last Run's values</a></div>
+    </div>
+    ${footer(d.cron, d.tz, valuesC, p.ok && filled.length===WF.vars.filter(v=>!v.secret).length)}
+  </div>`;
+}
+
+/* ══════════════════════════ footer / payload ══════════════════════════ */
+
+function footer(cron, tz, values, ok){
+  const cronOk = parseCron(cron).ok;
+  const nx = cronOk ? nextOccurrences(cron,tz,now,1)[0] : null;
+  return `<div class="footbar" style="margin:20px -16px -16px">
+    <div class="small">${nx?`First run <b>${fmtDT(nx,tz)}</b> ${tzShort(tz)} · ${relTime(nx,now)}`
+                          :'<span class="muted">no valid recurrence yet</span>'}${
+      cronOk && !ok ? ' <span class="muted">— fill every Variable to save</span>' : ''}</div>
+    <div class="spacer"></div>
+    <label class="small muted row" style="gap:6px"><input type="checkbox" checked> enabled straight away</label>
+    <button class="sm" onclick="togglePayload()">${showPay?'hide':'show'} what gets POSTed</button>
+    <button class="primary" ${ok?'':'disabled'} onclick="alert('POST /api/workflows/${WF.id}/schedules')">Create Schedule</button>
+  </div>`;
+}
+function payload(){
+  const cron = variant==='A'?aCron():variant==='B'?(draft.B.raw?draft.B.cron:bCron()):draft.C.cron;
+  const tz   = draft[variant].tz;
+  const vals = variant==='A' ? WF.vars.filter(v=>!v.secret).reduce((o,v)=>(o[v.name]=v.def,o),{}) : variant==='B'?valuesB:valuesC;
+  const sch  = SCHEDULES[0], st = schState(sch);
+  const body = variant==='A'
+    ? {cron, timezone:tz, enabled:true}
+    : {cron, timezone:tz, enabled:true, variables:vals};
+  const rowState = {
+    id:sch.id, workflow_id:sch.wfId, cron:sch.cron, timezone:sch.tz, enabled:sch.enabled,
+    last_fired_at: st.lastRun?new Date(st.lastRun.ts).toISOString():null,
+    next_due_at: st.nextDue?new Date(st.nextDue).toISOString():null,
+    last_skip_reason: st.skip ? (st.skip.status==='skipped'?'overlap':'instance_down / missed  ← spec 9gea5p has one slot; the UI needs to tell these apart') : null,
+  };
+  return `<div class="sect"><h3 class="sec">State</h3>
+    <div class="row" style="align-items:flex-start;gap:14px">
+      <div style="flex:1;min-width:320px">
+        <div class="tiny muted" style="margin-bottom:4px">POST /api/workflows/${WF.id}/schedules — variant ${variant}</div>
+        <pre class="payload">${esc(JSON.stringify(body,null,2))}</pre>
+        ${variant==='A'?'<div class="tiny muted" style="margin-top:5px">Variant A adds no field to the schedules row — the values live on the Workflow\'s Variables.</div>'
+                       :'<div class="tiny muted" style="margin-top:5px">Variants B and C add a <span class="mono">variables</span> JSONB column to <span class="mono">schedules</span> (non-secret values only, as with Batch rows).</div>'}
+      </div>
+      <div style="flex:1;min-width:320px">
+        <div class="tiny muted" style="margin-bottom:4px">schedules row — sch_1, as the clock stands</div>
+        <pre class="payload">${esc(JSON.stringify(rowState,null,2))}</pre>
+      </div>
+    </div></div>`;
+}
+
+/* ══════════════════════════ at rest — 1: panel on the Workflow ══════════════════════════ */
+
+function restPanel(){
+  const mine = SCHEDULES.filter(s=>s.wfId==='wf_31' || s.id==='sch_2');
+  return `
+  <div class="card" style="margin-bottom:14px">
+    <div class="wfhead" style="margin:0;border-bottom:1px solid var(--line)">
+      <h1>${WF.name}</h1>
+      <span class="chip succeeded">v7 published</span>
+      <div class="spacer"></div>
+      ${WF.vars.map(v=>`<span class="varpill ${v.secret?'secret':''}">${v.name}</span>`).join(' ')}
+    </div>
+    <div class="tabs"><span class="t">Steps</span><span class="t">Runs</span><span class="t on">Schedules</span><span class="t">Batches</span></div>
+    <div class="pad">
+      <div class="row"><h3 class="sec" style="margin:0">2 Schedules</h3><div class="spacer"></div><button class="sm primary">New Schedule</button></div>
+    </div>
+  </div>
+  ${mine.map(schCard).join('')}`;
+}
+function schCard(sch){
+  const st = schState(sch), w = cronToWords(sch.cron) || sch.cron;
+  const alt = tzDiffers(sch.tz);
+  return `
+  <div class="card schcard ${sch.enabled?'':'off'}">
+    <div class="hd">
+      <button class="sw ${sch.enabled?'on':''}" onclick="SCHEDULES.find(s=>s.id==='${sch.id}').enabled=!${sch.enabled};render()"></button>
+      <div style="flex:1">
+        <h4>${w}</h4>
+        <div class="small muted">${sch.wf} · ${sch.tz}${alt?` · ${fmtDT(st.nexts[0]||now, viewerTz(),{timeOnly:true})} your time`:''} · <span class="mono">${sch.cron}</span></div>
+      </div>
+      ${sch.enabled?'':'<span class="chip paused">paused</span>'}
+      ${st.running?'<span class="chip running">a Run is going now</span>':''}
+      <button class="sm">Edit</button><button class="sm danger">Delete</button>
+    </div>
+    <div class="bd">
+      ${skipBanner(sch, st)}
+      <div class="kv">
+        <div><div class="k">Next due</div><div class="v">${sch.enabled&&st.nextDue?`${fmtDT(st.nextDue,sch.tz)} <span class="sub">${relTime(st.nextDue,now)}${alt?` · ${fmtDT(st.nextDue,viewerTz(),{timeOnly:true})} ${tzShort(viewerTz())}`:''}</span>`:'<span class="muted">— paused, nothing scheduled —</span>'}</div></div>
+        <div><div class="k">Last fired</div><div class="v">${st.lastRun?`${fmtDT(st.lastRun.ts,sch.tz)} <span class="sub"><span class="chip ${st.lastRun.status}">${st.lastRun.status}</span></span>`:'<span class="muted">never</span>'}</div></div>
+        <div><div class="k">Runs it has produced</div><div class="v">${st.h.filter(e=>e.status==='succeeded'||e.status==='failed').length} <span class="sub">in the last ${st.h.length} occurrences</span></div></div>
+        <div><div class="k">Values</div><div class="v small">${valuesSummary(sch)}</div></div>
+      </div>
+      ${strip(sch)}
+      <div class="sect" style="margin-top:12px">
+        <h3 class="sec">Occurrences</h3>
+        <table class="occ">
+          ${st.h.slice(-4).map(e=>`<tr>
+            <td class="muted">${fmtDT(e.ts,sch.tz)}</td>
+            <td><span class="chip ${e.status}">${e.status}</span></td>
+            <td class="rel">${e.status==='succeeded'||e.status==='failed'?`<a>#${(e.run||'run_0').split('_')[1]}</a> ${e.ms?Math.round(e.ms/1000)+'s':''}`:''}</td>
+            <td class="alt">${e.why?esc(e.why):''}</td></tr>`).join('')}
+          ${sch.enabled?st.nexts.slice(0,2).map(ts=>`<tr><td>${fmtDT(ts,sch.tz)}</td><td class="muted small">due</td><td class="rel">${relTime(ts,now)}</td><td></td></tr>`).join(''):''}
+        </table>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ══════════════════════════ at rest — 2: all schedules table ══════════════════════════ */
+
+function restTable(){
+  return `
+  <div class="card" style="overflow:hidden">
+    <div class="pad row" style="padding-bottom:10px">
+      <h3 class="sec" style="margin:0">All Schedules</h3>
+      <span class="small muted">across every Workflow · instance timezone ${INSTANCE_TZ}${tzDiffers(INSTANCE_TZ)?` · you are in ${viewerTz()}`:''}</span>
+      <div class="spacer"></div><button class="sm primary">New Schedule</button>
+    </div>
+    <table class="sch">
+      <tr><th style="width:52px">On</th><th>Workflow</th><th>Recurrence</th><th>Next due</th><th>Last run</th><th>Note</th></tr>
+      ${SCHEDULES.map(sch=>{
+        const st = schState(sch), open = openRow===sch.id, w = cronToWords(sch.cron)||sch.cron;
+        return `
+        <tr class="r ${open?'open':''} ${sch.enabled?'':'off'}" onclick="openRow = openRow==='${sch.id}'?null:'${sch.id}'; render()">
+          <td><button class="sw ${sch.enabled?'on':''}" onclick="event.stopPropagation();SCHEDULES.find(s=>s.id==='${sch.id}').enabled=!${sch.enabled};render()"></button></td>
+          <td><b>${sch.wf}</b></td>
+          <td>${w}<div class="tiny muted mono">${sch.cron} · ${sch.tz}</div></td>
+          <td>${sch.enabled&&st.nextDue?`${fmtDT(st.nextDue,sch.tz)}<div class="tiny muted">${relTime(st.nextDue,now)}${tzDiffers(sch.tz)?` · ${fmtDT(st.nextDue,viewerTz(),{timeOnly:true})} ${tzShort(viewerTz())}`:''}</div>`:'<span class="muted">paused</span>'}</td>
+          <td>${st.lastRun?`<span class="chip ${st.lastRun.status}">${st.lastRun.status}</span><div class="tiny muted">${fmtDT(st.lastRun.ts,sch.tz)}</div>`:'<span class="muted">never</span>'}</td>
+          <td class="${st.skip?'warncell':'muted'}">${st.skip?(st.skip.status==='skipped'?'1 occurrence skipped':'1 occurrence missed'):'—'}</td>
+        </tr>
+        ${open?`<tr><td class="exp" colspan="6"><div class="expwrap">
+          ${skipBanner(sch, st)}
+          ${strip(sch)}
+          <div class="row" style="align-items:flex-start;gap:26px;margin-top:12px">
+            <div><h3 class="sec">Next occurrences</h3>${sch.enabled?occTable(sch.cron,sch.tz,4):'<div class="small muted">paused — nothing ahead</div>'}</div>
+            <div><h3 class="sec">Recent</h3><table class="occ">
+              ${st.h.slice(-4).reverse().map(e=>`<tr><td class="muted">${fmtDT(e.ts,sch.tz)}</td><td><span class="chip ${e.status}">${e.status}</span></td><td class="rel">${e.why?esc(e.why):(e.ms?Math.round(e.ms/1000)+'s':'')}</td></tr>`).join('')}
+            </table></div>
+          </div>
+          <div class="sect" style="margin-top:14px"><h3 class="sec">Values every Run uses</h3><div class="small">${valuesSummary(sch)}</div></div>
+          <div class="row" style="margin-top:14px"><button class="sm">Edit</button><button class="sm">Run now</button><button class="sm danger">Delete</button></div>
+        </div></td></tr>`:''}`;
+      }).join('')}
+    </table>
+  </div>`;
+}
+
+/* ══════════════════════════ render ══════════════════════════ */
+
+function render(){
+  // keep the caret where it was across the re-render
+  const ae = document.activeElement, keepId = ae && ae.id, keepPos = ae && ae.selectionStart;
+
+  document.getElementById('clockread').textContent =
+    fmtDT(now, INSTANCE_TZ) + '  ' + tzShort(INSTANCE_TZ) + (tzDiffers(INSTANCE_TZ) ? '   |   ' + fmtDT(now, viewerTz()) + '  ' + tzShort(viewerTz()) : '');
+  for(const [id,on] of [['vA',variant==='A'],['vB',variant==='B'],['vC',variant==='C'],['r1',rest===1],['r2',rest===2],['tpay',showPay]])
+    document.getElementById(id).className = on?'on':'';
+  for(const [id,k] of [['sOverlap','overlap'],['sDown','down'],['sTz','tz'],['sOff','off']])
+    document.getElementById(id).className = scn[k]?'onw':'';
+  document.getElementById('play').textContent = playing?'❚❚':'▶';
+
+  document.getElementById('app').innerHTML = `
+    ${variant==='A'?renderA():variant==='B'?renderB():renderC()}
+    ${showPay?payload():''}
+    <div class="sect"><h2 class="vtitle">${rest===1?'1 · A Schedules panel on the Workflow':'2 · One table of every Schedule, rows expand in place'}</h2>
+      ${rest===1?restPanel():restTable()}</div>
+    <details class="raises">
+      <summary>What this prototype puts in front of you</summary>
+      <ul>
+        <li><b>Recurrence entry</b> — A hides cron behind a tile, B generates it from a sentence and shows it, C makes it the control. All three read back in words plus real next occurrences.</li>
+        <li><b>Variable values for an unattended Run</b> — A: defaults on the Workflow's Variables (one place, every Schedule the same). B: a value set owned by the Schedule, typed in a one-row Batch grid. C: the same, prefilled from your last manual Run. B and C add a <span class="mono">variables</span> column to <span class="mono">schedules</span>; A adds a <span class="mono">default</span> to the Variable model instead. Secrets bind to the vault by name in all three.</li>
+        <li><b>Skip vs. missed</b> — turn on "overlap skip" and "instance was down". Spec 9gea5p gives <span class="mono">last_skip_reason</span> one slot, but the surface has to tell two different stories: <i>your other Run was still going</i> and <i>the instance was off</i>. Also: only the most recent skip survives in one column.</li>
+        <li><b>Timezone</b> — turn on "viewer in New York": the Schedule keeps its own timezone, and viewer-local time trails it in grey.</li>
+        <li><b>Occurrence strip</b> — past outcomes and future dues on one line, so a hole is visible rather than inferred.</li>
+      </ul>
+    </details>`;
+
+  if(keepId){ const el = document.getElementById(keepId); if(el){ el.focus(); try{ el.setSelectionRange(keepPos,keepPos); }catch(e){} } }
+}
+render();
+</script>
+</body>
+</html>
