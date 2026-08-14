@@ -1,3 +1,17 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Test output
+coverage/
+
+# Tool caches
+.cache/
+.vite/
+
 # Environment and secrets
 .env
 .env.*
@@ -7,5 +21,17 @@
 secrets.*
 .secrets/
 
-# OS
+# Logs & OS noise
+*.log
 .DS_Store
+
+# Next.js
+.next/
+next-env.d.ts
+
+# Python
+__pycache__/
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/

@@ -38,22 +38,22 @@ LOOP_AGENT_CMD='someagent run --auto --prompt-file {PROMPT_FILE}'
 
 The loop script comes in two flavors with identical behavior: the same usage, knobs, report protocol, status values, and exit codes. Select by what is installed, and by what the user prefers to read:
 
-| Script | Start | Needs |
-| --- | --- | --- |
-| `loop.sh` | `bash loop.sh <run-dir>` | Bash + GNU `timeout` (macOS: `brew install coreutils`) |
-| `loop.py` | `python3 loop.py <run-dir>` | Python 3.8+, stdlib only |
+| Script    | Start                       | Needs                                                  |
+| --------- | --------------------------- | ------------------------------------------------------ |
+| `loop.sh` | `bash loop.sh <run-dir>`    | Bash + GNU `timeout` (macOS: `brew install coreutils`) |
+| `loop.py` | `python3 loop.py <run-dir>` | Python 3.8+, stdlib only                               |
 
 The Python flavor controls timeouts natively. It does not need GNU `timeout`.
 
 ## Knobs
 
-| Env | Default | Meaning |
-| --- | --- | --- |
-| `LOOP_VERIFY_CMD` | off | An independent check suite that runs after each `closed`. A failure reclassifies the iteration as failed. Set it to the project's test or lint command, whenever one exists |
-| `LOOP_TIMEOUT` | `3600` | Seconds for each iteration (and for each verify run). An overrun kills the session, and the iteration counts as failed |
-| `LOOP_MAX_RUNTIME` | off | A wall-clock limit for the full run, in seconds — the limit for overnight runs |
-| `LOOP_SPLICE_CAP` | `5` | The maximum number of discovered blockers added to the queue in one run |
-| `LOOP_STALL_LIMIT` | `3` | The number of iterations in a row without a closure, before the run stops |
+| Env                | Default | Meaning                                                                                                                                                                     |
+| ------------------ | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `LOOP_VERIFY_CMD`  | off     | An independent check suite that runs after each `closed`. A failure reclassifies the iteration as failed. Set it to the project's test or lint command, whenever one exists |
+| `LOOP_TIMEOUT`     | `3600`  | Seconds for each iteration (and for each verify run). An overrun kills the session, and the iteration counts as failed                                                      |
+| `LOOP_MAX_RUNTIME` | off     | A wall-clock limit for the full run, in seconds — the limit for overnight runs                                                                                              |
+| `LOOP_SPLICE_CAP`  | `5`     | The maximum number of discovered blockers added to the queue in one run                                                                                                     |
+| `LOOP_STALL_LIMIT` | `3`     | The number of iterations in a row without a closure, before the run stops                                                                                                   |
 
 ## Cost ceiling
 

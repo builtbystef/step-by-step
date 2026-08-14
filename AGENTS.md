@@ -1,17 +1,19 @@
-The purpose and the domain of this project are not decided yet. The first planning session that settles them writes them here, and seeds `docs/GLOSSARY.md`.
+Step by Step records what a user does in the browser as an editable Workflow, and replays it — on demand, on a schedule, or over a list of inputs. The README carries the product summary; `docs/GLOSSARY.md` carries the vocabulary. Use both.
 
 ## Checks
 
-There are no checks yet: this repository has no code and no chosen stack, so `format`, `lint`, `typecheck`, and `test` have no commands.
+One command vocabulary covers both languages. Root pnpm scripts fan out through Vite+ (`vp`) to every workspace package — TypeScript via `vp check`/`vp test`, Python via each package's `check`/`test` scripts (ruff, ty, pytest through `uv run`). One failing package fails the command.
 
-- Format: _not set up_
-- Lint: _not set up_
-- Typecheck: _not set up_
-- Test: _not set up_
+- Format: `pnpm check` (fix with `pnpm check:fix`)
+- Lint: `pnpm check` (fix with `pnpm check:fix`)
+- Typecheck: `pnpm check`
+- Test: `pnpm test`
 
-Run the app locally: _not set up_
+`pnpm check` deliberately runs format + lint + typecheck as one pass; there are no separate per-check commands. `pnpm build` regenerates the OpenAPI schema and the typed client from it — run it after changing an endpoint, and commit the regenerated files (CI fails on drift). `pnpm run ci` is check + test + build (bare `pnpm ci` is pnpm's clean-install).
 
-Beaver issue `ymz3md` covers establishing all four. The session that lands the stack does that work, and replaces this section with the real commands. From then on: while you work, run the check that your change touches; before you end a session that changed code, run all of the checks, and each one must pass.
+Run the app locally: `pnpm dev` (FastAPI on :8000, Next.js on :3000). One-time setup after cloning: `pnpm install`, `uv sync`, then `vp config` to activate the pre-commit hook.
+
+While you work, run the check that your change touches; before you end a session that changed code, run all of the checks, and each one must pass.
 
 ## Project docs & tracker
 

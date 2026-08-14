@@ -1,0 +1,55 @@
+[project]
+name = "step-by-step"
+version = "0.0.0"
+requires-python = ">=3.14"
+
+[tool.uv.workspace]
+# Python projects register here explicitly (TS projects are covered by the
+# globs in pnpm-workspace.yaml and never appear in this list).
+members = ["apps/api"]
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+# Shared Python toolchain — every workspace member gets these via `uv run`.
+dev = ["ruff>=0.16.2", "ty", "pytest>=8"]
+
+[tool.ty.rules]
+# Full strict (ymz3md): every rule ty ships at default level "warn" is
+# promoted to "error". Default-"ignore" rules stay off. Revisit on ty upgrades:
+# `ty explain rule` lists newly added warn-level rules.
+ambiguous-protocol-member = "error"
+deprecated = "error"
+experimental-syntax = "error"
+ignore-comment-unknown-rule = "error"
+ineffective-final = "error"
+invalid-enum-member-annotation = "error"
+invalid-ignore-comment = "error"
+invalid-legacy-positional-parameter = "error"
+invalid-named-tuple-override = "error"
+mismatched-type-name = "error"
+possibly-missing-implicit-call = "error"
+possibly-missing-submodule = "error"
+pydantic-discarded-extra-argument = "error"
+redundant-cast = "error"
+redundant-final-classvar = "error"
+subclass-of-dataclass-with-order = "error"
+undefined-reveal = "error"
+unresolved-global = "error"
+unsupported-base = "error"
+unused-awaitable = "error"
+unused-ignore-comment = "error"
+unused-type-ignore-comment = "error"
+useless-overload-body = "error"
+
+[tool.ruff]
+line-length = 88
+extend-exclude = ["**/node_modules"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["apps/api/tests"]

@@ -23,7 +23,7 @@ If the `docs/` folder or `docs/TRACKER.md` is missing, stop. Ask the user to inv
    - Prefactor slices come first: slices that make the change easy come before slices that make the change.
    - Give each slice its blocking edges. Add only the issues that truly gate it.
    - If the user must approve a slice's result before its dependents unblock, add a body line that says: closure waits for user review. The session that implements the slice then applies `needs-review`, and does not close. (The semantics are in the tracker doc's label list.) The default is no gate.
-   - **Wide refactors are the exception** to vertical slices. One mechanical change with a blast radius across the codebase (a column rename, a retype of a shared symbol) gets the **expand–contract** sequence: an *expand* slice adds the new form parallel to the old form; *migrate* slices move the call sites in batches (one batch for each package or folder), each blocked by the expand slice; a *contract* slice deletes the old form, blocked by each migrate slice.
+   - **Wide refactors are the exception** to vertical slices. One mechanical change with a blast radius across the codebase (a column rename, a retype of a shared symbol) gets the **expand–contract** sequence: an _expand_ slice adds the new form parallel to the old form; _migrate_ slices move the call sites in batches (one batch for each package or folder), each blocked by the expand slice; a _contract_ slice deletes the old form, blocked by each migrate slice.
 
    This step is complete when each spec requirement lands in the acceptance criteria of exactly one slice.
 
