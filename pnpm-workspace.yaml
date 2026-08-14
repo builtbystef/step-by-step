@@ -6,7 +6,7 @@ packages:
 catalogMode: prefer
 
 catalog:
-  "@types/node": ^24
+  "@types/node": ^26
   typescript: ^7.0.2
   # Bump these two together. A split pair fails at startup. Dependabot misses
   # the coupling through the npm: alias, so update both by hand.
