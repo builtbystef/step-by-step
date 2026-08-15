@@ -1,0 +1,40 @@
+---
+id: 69nls1
+title: 'Occurrences: the Schedule history that records its holes'
+state: todo
+priority: high
+depends_on:
+    - fpzupm
+parent: nno9gj
+created: 2026-08-14T19:51:44Z
+updated: 2026-08-14T19:51:44Z
+---
+
+## What to build
+
+A Schedule's failures are silences; this slice makes every silence a row. The `schedule_occurrences` table: `schedule_id`, `occurrence_at`, `reason` (`overlap` | `missed` | `missing_values`), `blocking_run_id` (nullable, set for `overlap`), `created_at`, unique on `(schedule_id, occurrence_at)`. It records **only Occurrences that produced no Run** — a fired Occurrence is already recorded as the Run carrying that `schedule_id`, and a second record could only disagree. Rows are cascade-deleted with their Schedule, and the tick prunes each Schedule to its most recent 500 rows.
+
+The scheduler tick's firing steps are reworked for each due, enabled Schedule of a non-disabled user:
+
+1. **Missing values first**: if the latest published Version declares a non-secret Variable absent from the Schedule's values, record `missing_values` and advance — no Run, and `next_due_at` keeps moving so the holes accumulate visibly rather than the Schedule going silent.
+2. **Lateness**: enumerate every Occurrence from `next_due_at` up to now; each more than the 120-second grace window late is recorded `missed` and never run. At most 500 rows are written per Schedule per tick; a longer outage records the 500 most recent and moves on. Only an Occurrence within the grace window may fire.
+3. **Overlap**: a still-non-terminal Run of this Schedule → record `overlap` with `blocking_run_id`, create nothing.
+4. **Fire**: a Run of the latest published Version, `trigger = schedule`, `schedule_id` set, `variables` copied; enqueue.
+5. Advance `next_due_at` to the first Occurrence strictly after the one handled, computed by croniter in the Schedule's IANA timezone.
+
+`last_skip_reason` is dropped from the table and from every read — this table replaces it. **Paused Schedules record nothing**: disabling sets `next_due_at` to null, enabling recomputes it from now, and a disabled user's Schedules behave the same way. The grace window (120 s) and the prune depth (500) are named constants in one place.
+
+## Acceptance criteria
+
+The tick is invoked directly as a function with an injected now; effects are asserted over HTTP. Cron `0 9 * * *` in `Europe/Belgrade` unless stated.
+
+- [ ] Tick at 09:00:45 with `next_due_at` = 09:00 → one Run created (`trigger = schedule`, `variables` equal to the Schedule's), zero Occurrence rows, `next_due_at` = tomorrow 09:00 local time.
+- [ ] Tick at 09:04:00 with `next_due_at` = 09:00 → no Run; one row, reason `missed`; `next_due_at` = tomorrow 09:00.
+- [ ] `0 * * * *` with `next_due_at` six hours in the past → six rows, all `missed`, zero Runs, `next_due_at` the next future hour.
+- [ ] The previous Run still `running` at the next Occurrence → no Run; one row, reason `overlap`, `blocking_run_id` = that Run.
+- [ ] A `needs_values` Schedule at its Occurrence → one row, reason `missing_values`, no Run, `next_due_at` advanced; supplying the value → the following tick fires.
+- [ ] Across the October DST change, 09:00 `Europe/Belgrade` fires at 07:00Z and then at 08:00Z.
+- [ ] Disable a Schedule, pass three Occurrences, enable → zero Occurrence rows written, `next_due_at` in the future. A disabled user's enabled Schedule behaves the same.
+- [ ] A Schedule accumulating more than 500 rows is pruned to its most recent 500.
+- [ ] `last_skip_reason` is gone from the schema and from every response that carried it.
+- [ ] Deleting a Schedule deletes its Occurrence rows.

@@ -7,7 +7,7 @@ priority: high
 labels:
     - roadmap
 created: 2026-08-08T07:07:08Z
-updated: 2026-08-12T05:41:27Z
+updated: 2026-08-15T04:14:42Z
 ---
 
 ## Goal
@@ -34,7 +34,7 @@ Every decision node under this roadmap is closed, and all six areas are specced:
 
 <!-- Items excluded on purpose. The list only grows. One line for each item, with the node's ref when it was one. An item never moves back in. -->
 
-- Teams, sharing, and org roles — accounts are personal; multi-tenant means isolated users (8iuuh8).
+- ~~Teams, sharing, and org roles — accounts are personal; multi-tenant means isolated users (8iuuh8).~~ Reversed by ADR 0005 (2026-08-15): the tenant is the Organization, with owner/admin/member roles and Invitations. Billing and entitlements stay out of scope.
 - Hosted/paid SaaS offering — self-hosted open source now; hosted is a possible future (8iuuh8).
 - Loop, conditional, and assertion step types inside a workflow (8iuuh8).
 - Reusing a step's extracted output as a later step's input; computed/derived variables (8iuuh8).
@@ -55,19 +55,19 @@ Every decision node under this roadmap is closed, and all six areas are specced:
 - Pure master-detail (IDE-style) and pure narrative-sentence editor layouts (3iwv5i) — the editor is the hybrid: an inline card list whose card summaries are the narrative sentences.
 - Full-screen focus-page and modal takeover surfaces (4tjwpw) — the takeover surface is the browser pane embedded in the run detail; entering takeover never navigates away. Auto hand-back on a met success predicate (with a short grace countdown and a "stay in control" escape) is the confirmed behavior; heuristic pauses, having no predicate, stay manual.
 - Cloud KMS integration for Secret/Auth State encryption (7o0nmx; ADR 0003) — v1 is an env-supplied 32-byte master key with app-level envelope encryption; losing the key means stored values are unrecoverable by design.
-- Per-workflow secret values (7o0nmx) — Secrets live in a user-level vault and workflows bind by name; one rotation point.
+- Per-workflow secret values (7o0nmx) — Secrets live in the Organization's vault (ADR 0005; Personal Overrides per member) and workflows bind by name; one rotation point.
 - Per-domain locks or freshness stamps for Auth State write-back (7o0nmx) — concurrent same-user same-domain runs are last-write-wins; worst case is one extra login/takeover on the next run.
 - Suppressing screenshots on secret-referencing steps (7o0nmx) — password fields mask themselves and that is accepted; trace capture is bracketed around those steps instead, and log lines are redacted.
 - Silent Auth State export from the extension (7o0nmx) — capture is an explicit per-domain opt-in prompt at recording save.
 - A closable/reopenable debugger infobar during recording (zm0rfq) — dismissing the bar detaches `chrome.debugger`, ending role/name capture, and Chrome offers no reopen. The recording UX presents the bar as the fixed, visible cost of an active recording.
 
-- OAuth/OIDC sign-in for v1 (imtsfx) — email/password only; no external identity dependency in a self-hosted stack. OIDC is a clean later addition.
-- Email-based self-serve password reset (imtsfx) — admin-set temp passwords with forced change on first login; SMTP reset can layer on later.
-- Soft delete / deletion grace period (imtsfx) — account deletion is a hard cascade behind a type-the-email confirmation.
-- Admin demotion in the UI and audit logging of admin actions (spec ufnuvx) — delete or the promote-admin CLI cover v1's needs.
+- OAuth/OIDC/SSO sign-in for v1 (imtsfx, revised by ADR 0005) — sign-in is an emailed Sign-in Code; OIDC is a clean later addition.
+- Passwords in any form (ADR 0005) — no password sign-in, storage, reset, or recovery CLI exists; every sign-in proves the email address.
+- Soft delete / deletion grace period (imtsfx) — account and Organization deletion are hard cascades behind type-to-confirm.
+- Billing, plans, entitlements, seat limits; audit logging of membership actions; custom roles or multiple owners (spec ufnuvx).
 - CDP response-body capture (spec u8q8p3) — no v1 step type consumes network bodies: extract reads the DOM, download uses chrome.downloads. Nothing network-level is retained, so no filtering policy is needed.
 - Replaying a Workflow to position the page for a Re-pick (spec u8q8p3) — the user navigates to the page themselves; re-pick stays free of Worker machinery.
-- Revealing a stored Auth State blob in the UI, and any audit log of reveals or vault changes (spec 54i6da) — a session blob has nothing a human can read usefully; Secret reveal is password-gated instead.
+- Revealing a stored Auth State blob in the UI, any audit log of reveals or vault changes, and any re-authentication gate before Secret reveal (spec 54i6da, revised under ADR 0005) — a session blob has nothing a human can read usefully; Secret reveal is deliberately ungated, since the account password a sudo gate would re-enter no longer exists and any member can exfiltrate a value through a Run regardless.
 - Expiry, TTL, refresh-ahead, or health-checking of stored Auth State (spec 54i6da) — a site's real session lifetime is invisible to us, so a stale record simply fails to authenticate and a login Step or takeover recovers.
 - Automatic capture of a domain a Run signs into, outside takeover consent (spec 54i6da) — new records come only from the recording-save opt-in or an explicit "keep this login?" at hand-back.
 - Per-Worker credentials and TLS on the Worker↔backend internal endpoints (spec 54i6da) — a shared compose token plus a non-terminal-Run check; a fixed compose pool has no provisioning step to hang per-Worker credentials on, and Workers are never internet-facing.
@@ -126,3 +126,15 @@ Every decision node under this roadmap is closed, and all six areas are specced:
 - Bulk selection and bulk actions on any list, and saved list views or filter presets (`pc0t8s`).
 - Server-side rendering of list data (`pc0t8s`) — pages render the shell and fetch their own data, so one fetch wrapper owns the 401/403 redirects.
 - A live `/dev/language` route rendering the primitives (`pc0t8s`) — the language's durable record is the spec, not a screen.
+
+## Notes
+
+**claude** — 2026-08-14T05:34:47Z
+
+STACK LANDED (2026-08-14): ymz3md is done, so the body's "ymz3md still owns the stack / framework version / monorepo layout / check commands" is now stale — all of it is settled and built. The grill session's full decision record and the scaffold outcome are notes on ymz3md; the durable records are docs/ARCHITECTURE.md (layout, seams, strictness, test tiers) and AGENTS.md (the check commands: pnpm check / pnpm test). Highlights: monorepo scaffolded from the user's alloy template — apps/web (Next 16), apps/api (FastAPI, Python 3.14, SQLAlchemy 2 + Alembic scaffold, no tables yet), packages/api-client (generated, CI contract job) — with apps/worker and apps/extension decided but landing with their first slices. The frontend facts recorded on ymz3md (shadcn/ui over Tailwind, TanStack Query with mutations retry:false, no date library) remain binding on the slices that install them; none are installed yet.
+
+With all six areas specced and the stack landed, the next sessions break the specs into buildable sub-issues (TRACKER.md: build a spec's sub-issues, never the spec).
+
+**claude** — 2026-08-15T04:14:42Z
+
+Direction change 2026-08-15, recorded as ADR 0005 (supersedes ADR 0001): the product is shaped as a SaaS without billing — Organization tenancy (auto-org at signup, owner/admin/member roles, Invitations), passwordless Sign-in Code auth via a mailer seam (Resend/SMTP/console), no Instance Admin, SIGNUP_MODE env var. The accounts spec ufnuvx is rewritten; qf0lu8 and 8wxso0 are cancelled; t7jki2/3nxs4k/x06w5q/jrp1pq/o99b7t/lac27w/shurgk/hat4cf are repurposed; ycn8xm (mailer seam) is new; the vault spec 54i6da is labeled needs-review for org re-scoping with Personal Overrides.

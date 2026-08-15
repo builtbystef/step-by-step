@@ -8,7 +8,7 @@ depends_on:
     - dm4cff
     - 7mfxzj
 created: 2026-08-12T05:15:43Z
-updated: 2026-08-12T05:15:43Z
+updated: 2026-08-15T04:13:45Z
 ---
 
 # The app shell, the lists, and the visual language
@@ -19,7 +19,7 @@ Five published specs describe deep surfaces — the editor (`d8ux2s`), the vault
 
 1. **There is nowhere to land.** After sign-in no screen exists, no list renders the Workflows a user owns, and the run detail `9gea5p` specifies is reached from a Runs list that nothing draws.
 2. **A user cannot learn that a Run is waiting for them** unless they already have that Run open — SSE is per-Run and per-Batch only (`9gea5p`), and `8iuuh8` ruled out notifications. Meanwhile the takeover deadline is real: 30 minutes by default, and passing it fails the Run with `takeover_timeout`. An unattended pause silently burns its budget.
-3. **The auth screens have no home**, and `must_change_password` returns 403 from every authenticated endpoint except `/auth/me`, change-password, and logout. A shell rendered naively over that state is a wall of errors with dead nav.
+3. **The sign-in screen has no home**, and a shell rendered naively over an expired session or a Membership that ended mid-tab is a wall of errors with dead nav.
 4. **Nothing renders a Workflow.** No published spec defines a list, create, rename, delete, or duplicate route for Workflows — `d8ux2s` specifies Draft and Version *behavior* and lists only the recording-session routes.
 5. **The vocabulary is undefined.** All five specs use words like "status chip", "amber callout", "locked column" and "hatched occurrence" with nothing behind them. Without a definition the first implementation session invents one by accident and every later session inherits it.
 
@@ -27,7 +27,7 @@ Five published specs describe deep surfaces — the editor (`d8ux2s`), the vault
 
 The frame, and nothing else. A persistent left sidebar with exactly three primary destinations — Workflows, Runs, Schedules — plus Settings beneath a separator. No dashboard: sign-in lands on Workflows, and the promise that a waiting Run is visible everywhere is kept by the shell itself, through an amber attention band across the content column and a count badge on the Runs nav item, both fed by one small polled endpoint.
 
-Runs history and Schedules are each **one** component: the global screen and the Workflow's tab are the same file with an optional `workflowId` prop. A Workflow has a detail page with four tabs — Editor, Runs, Schedules, Batches. Three auth screens sit fully outside the shell, and a pure resolver decides, from the current identity and path, whether to render or where to redirect — so `must_change_password` is a single redirect rather than a wall of 403s. An instance with no Workflows and no extension shows a two-step first-run panel, because `n52g83` made installation unpacked and manual.
+Runs history and Schedules are each **one** component: the global screen and the Workflow's tab are the same file with an optional `workflowId` prop. A Workflow has a detail page with four tabs — Editor, Runs, Schedules, Batches. The two-step sign-in screen (email → Sign-in Code) sits fully outside the shell, and a pure resolver decides, from the current identity and path, whether to render or where to redirect — so an expired session is a single redirect rather than a wall of 401s. An instance with no Workflows and no extension shows a two-step first-run panel, because `n52g83` made installation unpacked and manual.
 
 Underneath it all, a named visual language: five semantic hues with one meaning each, a six-size type scale, and eleven primitives with rules, most of them mapped onto shadcn/ui components and the rest built here because the library has no equivalent.
 
@@ -42,32 +42,30 @@ Underneath it all, a named visual language: five semantic hues with one meaning 
 7. As a user, I want to create, rename, duplicate, and delete a Workflow from its list row, so that housekeeping does not require opening the editor.
 8. As a user whose Workflow has never been published, I want every Run, Batch, and Schedule action to be disabled behind the same one sentence, so that the reason is unambiguous wherever I meet it.
 9. As a new user of a fresh instance, I want the Workflows screen to walk me through installing and connecting the extension, so that the manual install is a guided step rather than a dead end.
-10. As a user signed in with a temporary password, I want one screen that asks for a new one, so that I am not handed a shell whose every link 403s.
-11. As a visitor to an instance with signup closed, I want a plain page saying so and what to do, so that I am not shown a 404 for a route that exists.
-12. As an Instance Admin, I want user management inside Settings, so that on a single-user instance it is one section of one screen rather than a destination competing for attention.
+10. As a member of several Organizations, I want a switcher in the shell that re-scopes every list, so that where I am working is always explicit.
+11. As a visitor to an invite-only instance, I want the sign-in screen to say plainly that new accounts join by Invitation, so that I am not left guessing after a refused code.
+12. As an org owner or admin, I want members and Invitations inside Settings, so that on a one-person Organization they are one section of one screen rather than a destination competing for attention.
 13. As an implementer of a later spec, I want the status chip, the callout, and the other named primitives to exist already, so that I inherit the vocabulary instead of inventing a second one.
 
 ## Implementation Decisions
 
 ### The shell
 
-A persistent left sidebar, 216px wide, over a content column. Top to bottom: the wordmark; the nav — Workflows, Runs, Schedules — a separator, then Settings; a spacer; and a footer holding the extension connection pill and the user menu (display name, email, Sign out).
+A persistent left sidebar, 216px wide, over a content column. Top to bottom: the wordmark; the nav — Workflows, Runs, Schedules — a separator, then Settings; a spacer; and a footer holding the extension connection pill and the user menu (display name, email, the Organization switcher, Sign out). The switcher names the active Organization and lists the user's others; switching re-scopes every list, and the choice persists across reloads. A user with one Organization sees its name without a menu.
 
 - **The attention band spans the content column**, directly under the top of the main area and above the page title. This is variant A of `7mfxzj`, chosen over the band inside the sidebar (it can name only one Run and costs sidebar height) and a pill in a persistent top bar (the quietest of the three, which is wrong for the one signal whose reason to exist is a deadline that fails the Run).
 - **There is no top bar.** The page title is the first thing in the content column.
 - **At ≤1024px the sidebar collapses to a 60px icon rail**, keeping the count badge visible. Labels return above 1024px. 880px is the narrowest width this spec supports.
 - **The count badge on the Runs nav item** shows `running_count + queued_count + waiting_count`, hidden at zero, amber when `waiting_count > 0` and blue otherwise.
-- **The Admin sections live inside Settings**, not beside the work. On a single-user instance they are then one section of one screen, and still one click from anywhere.
+- **The Organization sections live inside Settings**, not beside the work. On a one-person Organization they are then one section of one screen, and still one click from anywhere.
 
 ### Routes and guards
 
-Three routes sit outside the shell. Every other route renders inside it.
+One route sits outside the shell. Every other route renders inside it.
 
 ```
 OUTSIDE THE SHELL — no sidebar, no attention band
-  /signin                       the unauthenticated landing
-  /signup                       bootstrap | open | closed
-  /set-password                 forced change on a temp password
+  /signin                       the unauthenticated landing: email, then the Sign-in Code
 
 INSIDE THE SHELL
   /workflows                          the list, or the first-run panel
@@ -82,42 +80,40 @@ INSIDE THE SHELL
   /schedules                          <SchedulesList />
   /settings                           → redirects to /settings/account
   /settings/account                   ufnuvx
+  /settings/organization              general: rename; owner: transfer, delete (ufnuvx)
+  /settings/organization/members      every role sees; owner/admin manage (ufnuvx)
+  /settings/organization/invitations  owner and admin only (ufnuvx)
   /settings/secrets                   54i6da
   /settings/logins                    54i6da — Saved logins
   /settings/extension                 install, connect, versions
-  /settings/admin/users               admin only (ufnuvx)
-  /settings/admin/signup              admin only (ufnuvx)
 ```
 
 Batch progress is a flat `/batches/[id]` rather than a segment under its Workflow, because a Run's `batch_row` backlink (`9gea5p`) carries only the batch id. Refusing a global Batches *index* (`nno9gj`) does not refuse a batch detail route.
 
-**The gate is one pure function**, called by the shell layout with the resolved identity and the current path, and by the three outside-the-shell pages with the same inputs:
+**The gate is one pure function**, called by the shell layout with the resolved identity, the active-Organization role, and the current path, and by the sign-in page with the same inputs:
 
 ```ts
 type Me = {
   id: string; email: string; display_name: string;
-  is_admin: boolean; must_change_password: boolean;
+  orgs: { id: string; name: string; role: 'owner' | 'admin' | 'member' }[];
 } | null;                         // null = no session
 
 type Gate = { kind: 'render' } | { kind: 'redirect'; to: string };
 
-function resolveGate(me: Me, pathname: string): Gate;
+function resolveGate(me: Me, activeOrgRole: 'owner' | 'admin' | 'member' | null, pathname: string): Gate;
 ```
 
 Its rules, in order:
 
 | Condition | Result |
 | --- | --- |
-| `me === null` and path is `/signin` or `/signup` | render |
+| `me === null` and path is `/signin` | render |
 | `me === null` | redirect `/signin?next=<pathname+search>` |
-| `me.must_change_password` and path is `/set-password` | render |
-| `me.must_change_password` | redirect `/set-password` |
-| path is `/set-password` (flag clear) | redirect `/workflows` |
-| path is `/signin` or `/signup` | redirect `/workflows` |
-| path starts `/settings/admin` and `!me.is_admin` | redirect `/settings/account` |
+| path is `/signin` | redirect `/workflows` |
+| path is `/settings/organization/invitations` and role is `member` | redirect `/settings/account` |
 | otherwise | render |
 
-The shell layout resolves `GET /api/auth/me` once before rendering any child, so a signed-out or must-change user never sees a nav item they cannot use. **One global fetch wrapper** wraps every `/api/*` call and turns a `401` into the `/signin?next=…` redirect and a `403 code=must_change_password` into the `/set-password` redirect, so a tab left open across a session expiry or an admin password reset recovers instead of rendering errors.
+(The owner-only controls inside `/settings/organization` hide by role rather than gating the route — the general section still renders rename-as-read-only facts for a member.) The shell layout resolves `GET /api/auth/me` once before rendering any child, so a signed-out user never sees a nav item they cannot use. **One global fetch wrapper** wraps every `/api/*` call: it stamps the active Organization's `X-Organization` header, turns a `401` into the `/signin?next=…` redirect, and turns a `403 code=not_a_member` into clearing the active-Organization choice and re-resolving — so a tab left open across a session expiry or a removal from the Organization recovers instead of rendering errors.
 
 `next` is honored only when it starts with a single `/` and does not name an auth route; anything else falls back to `/workflows`. Signing out clears the identity and navigates to `/signin` with no `next`.
 
@@ -139,10 +135,10 @@ GET /api/attention → 200
 
 - **Polling**: a TanStack Query with `refetchInterval: 10_000` gated on `document.visibilityState === 'visible'` and `refetchOnWindowFocus`, so the poll stops on a hidden tab and catches up the moment the tab returns. It is never mounted outside the shell. Its key, `['attention']`, is **invalidated** rather than re-polled after any action that can change it — starting a Run, cancelling one, handing back control — and when a run detail's SSE stream reports a transition into or out of `waiting_for_human`. Those same actions invalidate the Runs list key, so the two never disagree.
 - **The countdown is client-side**, computed from `deadline_at`, so the 10 s poll never makes the timer coarse. When a countdown reaches zero the band reads "the deadline has passed" and the next poll clears it — the reaper (`9gea5p`) is what actually flips the Run to `takeover_timeout`, and the client never asserts an outcome it did not observe.
-- **Cost is independent of Run history.** The query touches only non-terminal Runs of the calling user, behind a partial index:
+- **Cost is independent of Run history.** The query touches only non-terminal Runs of the active Organization (the `X-Organization` header, like every org-scoped route), behind a partial index:
 
 ```sql
-CREATE INDEX runs_attention ON runs (user_id, deadline_at)
+CREATE INDEX runs_attention ON runs (org_id, deadline_at)
   WHERE status IN ('queued', 'running', 'waiting_for_human');
 ```
 
@@ -236,28 +232,20 @@ The Batches tab lists the Workflow's Batches over `GET /api/batches?workflow_id=
 
 ### Settings
 
-A left section nav beside one panel. Sections: **Account** (`ufnuvx` — display name, voluntary password change, sign out everywhere, the type-the-email delete), **Secrets** (`54i6da`), **Saved logins** (`54i6da`), **Browser extension**, and — rendered only for an Instance Admin, under an "Admin" group label — **Users** and **Open signup** (`ufnuvx`). Sign out itself is in the sidebar user menu, not here.
+A left section nav beside one panel. Sections: **Account** (`ufnuvx` — display name, sign out everywhere, the type-the-email delete with its sole-owner explanation), then an **Organization** group — **General** (rename; and, owner only, transfer ownership and the type-the-name delete), **Members** (every role sees the list; owners and admins manage roles and removal), **Invitations** (owner and admin only) — then **Secrets** (`54i6da`), **Saved logins** (`54i6da`), and **Browser extension**. Sign out itself is in the sidebar user menu, not here.
 
-### Auth screens
+### The sign-in screen
 
-Three screens, no sidebar, no attention band, a centered 400px card under the wordmark.
+One screen, no sidebar, no attention band, a centered 400px card under the wordmark. There are no passwords, so signing in and signing up are the same two steps (`ufnuvx`):
 
-- **`/signin`** — email, password, Sign in, and one grey line: "Forgot it? An Instance Admin can set a temporary password for you." (There is no self-serve reset; `imtsfx` excluded it.)
-- **`/signup`** renders one of three states, decided by an unauthenticated call (below):
-  - **bootstrap** — "Create the first account", with an info callout stating in words that this account becomes the Instance Admin;
-  - **open** — the plain registration form;
-  - **closed** — a plain page, never a 404, reading: *"Sign-up is unavailable. This instance does not offer self-serve sign-up. Ask an Instance Admin to create an account for you — they can set a temporary password, and you will choose your own the first time you sign in."*
-- **`/set-password`** — an amber callout ("You signed in with a temporary password. Choose a new one to continue — nothing else is reachable until you do."), new password, confirm, and one button. It is the only reachable route while the flag is set, and it is unreachable once it is clear.
+- **Step one** — email and one **Continue** button. Under `signup_mode: "open"` a grey line says an account is created if none exists; under `invite_only` it says sign-in only — new accounts join by Invitation. The copy is driven by `GET /api/instance` (`ufnuvx`, unauthenticated), never hardcoded.
+- **Step two** — the 6-digit Sign-in Code, with distinct messages for a wrong code, an exhausted code (offering to send a new one), rate limiting, and — invite-only, no pending Invitation — the `signup_closed` refusal, worded to say new accounts join by Invitation. A **use a different email** action returns to step one.
 
-The signup state needs an unauthenticated source, and `ufnuvx` puts `open_signup` behind an admin route. Hence, additive to `ufnuvx`:
-
-```
-GET /api/instance → 200 { signup_state: 'bootstrap' | 'open' | 'closed' }   (unauthenticated)
-```
+After sign-in, a pending-invitation banner in the shell offers any Invitations waiting on the account.
 
 ### Empty and first-run states
 
-- **Zero users** — any visit lands on `/signup` in bootstrap wording.
+- **Zero users** — nothing special: the first visitor signs in at `/signin`, and verifying the code creates the account and its Organization (`ufnuvx`).
 - **No Workflows** — the Workflows screen *is* a first-run panel of two numbered steps. Step 1, **Install the browser extension**: the download (`GET /extension.zip`, `d8ux2s`), the unzip → `chrome://extensions` → Developer mode → Load unpacked sequence, and connecting by entering this instance's address in the extension popup — showing its live connection state and staying visible until the extension connects, then collapsing to a green tick. Step 2, **Create your first workflow**, always available, because naming a Workflow does not need the extension.
 - **A Workflow with no Steps** — the editor's empty state, "Record your first steps", with Start recording disabled and replaced by the install/connect prompt when the extension is not connected.
 - **A Workflow with Steps but no Version** — Run, New batch, and New schedule disabled everywhere behind **one identical sentence**: *"Publish a Version before this Workflow can run."* Used on the list row, the Workflow header, both creation pages, and as the rendering of a `409 no_published_version`.
@@ -349,7 +337,7 @@ All additive, and no touched spec is implemented yet:
 
 - **`9gea5p` gains `GET /api/attention`** with the shape above, and the `runs_attention` partial index. `RunSummary` must carry the fields the Runs list renders (listed above).
 - **`d8ux2s` gains the Workflow CRUD routes** and `WorkflowSummary`, including `draft_state` as the named form of the editor header's Draft chip.
-- **`ufnuvx` gains `GET /api/instance`** (unauthenticated) returning the signup state, and its `must_change_password` 403 carries `code=must_change_password` so the fetch wrapper can recognise it.
+- **`ufnuvx` already owns `GET /api/instance`** (unauthenticated, `signup_mode`) and the `X-Organization` header contract with its `403 code=not_a_member`; this spec consumes both — the fetch wrapper stamps the header and recognises the code.
 
 ## Dependencies
 
@@ -367,29 +355,27 @@ Two seams.
 
 **Seam 1 — the backend HTTP API**, tests speaking HTTP to the FastAPI app with a real Postgres. This is the same seam all five published specs use; no new machinery. Good tests here assert external behavior only: status codes, JSON shapes, and observable effects. Worked examples:
 
-- `GET /api/attention` for a user with 7 `waiting_for_human` Runs → `waiting` has exactly 5 entries, soonest `deadline_at` first, and `waiting_count` is 7.
-- The same call for a user with none → `waiting: []` and three zero counts; the other user's waiting Runs are invisible.
+- `GET /api/attention` for an Organization with 7 `waiting_for_human` Runs → `waiting` has exactly 5 entries, soonest `deadline_at` first, and `waiting_count` is 7.
+- The same call with another Organization's header → `waiting: []` and three zero counts; one Organization's waiting Runs are invisible to another.
 - With 50 000 terminal Runs and 3 non-terminal ones, the query plan uses `runs_attention` and touches 3 rows — asserted by `EXPLAIN`, so the cost claim is a test rather than a hope.
 - `GET /api/workflows?sort=name&limit=10` paged to exhaustion over 25 Workflows → 25 distinct ids, none seen twice, in name order, while a Run finishes mid-paging.
 - `GET /api/workflows?q=acme` → only matching names, case-insensitively; `sort=activity` puts the Workflow whose Run started most recently first, and a never-run Workflow orders by its own `updated_at`.
 - `POST /api/workflows/{id}/duplicate` → 201, every Step id differs from the source, order and payloads match, and the copy's `draft_state` is `never_published`.
 - `DELETE /api/workflows/{id}` on a Workflow with 2 Schedules and 42 Runs → 204, and all of them plus their Artifacts are gone; the same call while a Run is `running` → `409 run_active`.
 - A Workflow with no published Version in `GET /api/workflows` → `draft_state: 'never_published'` and no `published_version`; `POST /api/workflows/{id}/runs` on it → `409 no_published_version`.
-- `GET /api/instance` with zero users → `bootstrap`; after the first registration → `closed`; with open signup on → `open`. Unauthenticated in all three cases.
+- `GET /api/instance` → the configured `signup_mode`, unauthenticated, defaulting to `open` (`ufnuvx` owns the endpoint; this screen only renders it).
 
 **Seam 2 — `resolveGate`**, a pure function, tested directly with no browser and no DOM. It is the whole guard logic, and it is the one piece of real frontend behavior this spec adds. Worked examples:
 
 | Input | Expected |
 | --- | --- |
-| `(null, '/runs')` | redirect `/signin?next=/runs` |
-| `(null, '/signin')` | render |
-| `(mustChange, '/workflows')` | redirect `/set-password` |
-| `(mustChange, '/set-password')` | render |
-| `(ok, '/set-password')` | redirect `/workflows` |
-| `(ok, '/signin')` | redirect `/workflows` |
-| `(nonAdmin, '/settings/admin/users')` | redirect `/settings/account` |
-| `(admin, '/settings/admin/users')` | render |
-| `(null, '/runs?status=failed')` | redirect `/signin?next=/runs%3Fstatus%3Dfailed` |
+| `(null, null, '/runs')` | redirect `/signin?next=/runs` |
+| `(null, null, '/signin')` | render |
+| `(ok, 'member', '/signin')` | redirect `/workflows` |
+| `(ok, 'member', '/settings/organization/invitations')` | redirect `/settings/account` |
+| `(ok, 'admin', '/settings/organization/invitations')` | render |
+| `(ok, 'owner', '/settings/organization')` | render |
+| `(null, null, '/runs?status=failed')` | redirect `/signin?next=/runs%3Fstatus%3Dfailed` |
 | `next` = `https://evil.example/x` | falls back to `/workflows` |
 
 No component or DOM tests. The eleven primitives are presentational, the lists' one behavioral rule (`workflowId` hides a column and swaps an empty state) is three lines of conditional rendering, and a rendering stack does not exist in this codebase yet — adding one to assert that is a poor trade.
@@ -411,8 +397,14 @@ No component or DOM tests. The eleven primitives are presentational, the lists' 
 ## Further Notes
 
 - **This spec is the visual language's only durable record.** `prototype/app-shell` is disposable and this issue closes when it is built, so an implementer should treat the language sections above as the reference and, when they build the primitives, leave the rules where a reviewer will meet them.
-- **No glossary additions.** Every domain concept here — Workflow, Run, Schedule, Batch, Secret, Auth State, Instance Admin, Occurrence — is already defined. The primitives are UI vocabulary, not domain vocabulary.
+- **No glossary additions.** Every domain concept here — Workflow, Run, Schedule, Batch, Secret, Auth State, Organization, Membership, Invitation, Occurrence — is already defined. The primitives are UI vocabulary, not domain vocabulary.
 - **No ADR.** The far-reaching decision in the area is the attention band, and it is cheap to reverse; the stack facts belong to `ymz3md`.
 - **`ymz3md` is a prerequisite in practice**: it establishes the stack and the four check commands, and this is the first spec whose implementation is mostly frontend. The session that lands it should expect to set up Tailwind, shadcn, and the frontend test runner that Seam 2 needs.
-- **Build order that keeps each step verifiable**: the auth screens and `resolveGate` first (they gate everything and need no lists), then the shell with the attention band, then the Workflows list with its CRUD routes, then the two shared lists, then Settings and the first-run panel.
+- **Build order that keeps each step verifiable**: the sign-in screen and `resolveGate` first (they gate everything and need no lists), then the shell with the Organization switcher and the attention band, then the Workflows list with its CRUD routes, then the two shared lists, then Settings and the first-run panel.
 - Provenance for anything ambiguous above: node `dm4cff` (the map) and node `7mfxzj` (the look and the language), whose notes carry the reasoning, and branch `prototype/app-shell`, whose LANGUAGE tab renders every primitive with the earlier prototype it came from.
+
+## Notes
+
+**claude** — 2026-08-15T04:13:45Z
+
+Edited 2026-08-15 for ADR 0005 (Organization tenancy, passwordless Sign-in Codes): /signup and /set-password are gone (one two-step /signin), the gate takes an org role instead of is_admin/must_change flags, the fetch wrapper stamps X-Organization and handles not_a_member, Settings' Admin group became the Organization group (General/Members/Invitations), the sidebar user menu gains the Organization switcher, and the attention endpoint/index scope by org_id. GET /api/instance now lives in ufnuvx as signup_mode.

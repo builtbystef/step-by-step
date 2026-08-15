@@ -13,7 +13,7 @@ depends_on:
     - wljln8
     - 3iwv5i
 created: 2026-08-11T18:47:59Z
-updated: 2026-08-12T01:02:03Z
+updated: 2026-08-15T04:14:42Z
 ---
 
 ## Problem Statement
@@ -42,7 +42,7 @@ A Chrome extension records interactions in the user's real browser session and t
 
 ### Storage
 
-- A Workflow row carries: owner (per ADR 0001, exactly one user), name, workflow-level default step timeout (default 30 s, set explicitly — never inherited from a Playwright binding default), and per-workflow takeover timeout (default 30 min).
+- A Workflow row carries: the owning Organization (per ADR 0005, exactly one), name, workflow-level default step timeout (default 30 s, set explicitly — never inherited from a Playwright binding default), and per-workflow takeover timeout (default 30 min).
 - The Draft and each Version store their Steps as **one JSONB array on their own row** — not per-step rows. Publish copies the Draft's array verbatim into a new immutable Version N in a single insert. Per-type payload changes need no migrations.
 - **Variable declarations live in the same versioned document as the Steps**: the Draft document holds `steps` and `variables`; publish snapshots both. A Version is therefore self-contained and executable forever.
 - Step `id` is an app-minted UUID assigned when the Step is created (at capture or editor add) and **never rewritten by edits or publish** — stable ids across Versions are what make cross-version Step history and Selector Drift aggregation possible.
@@ -239,3 +239,7 @@ Additive amendment from the execution spec (9gea5p), agreed with the user 2026-0
 2. The `pause-for-takeover` payload gains `successCheck?: Target` — the element whose appearance means the human is done. It reuses this spec's Target shape and the resolve() contract. 4tjwpw's verified hand-back and auto hand-back have nothing to check without it; absent means hand-back stays manual, which is always the case for a heuristic pause.
 
 The execution spec (9gea5p) owns the runtime behavior of both fields; this spec owns their place in the document and the editor.
+
+**claude** — 2026-08-15T04:14:42Z
+
+Edited 2026-08-15: Workflow ownership re-scoped from user to Organization per ADR 0005 (which supersedes ADR 0001). Workflow CRUD and all org-scoped routes carry the X-Organization header per the accounts spec (ufnuvx); the recording-session token stays scoped to one user + one Draft.

@@ -13,7 +13,7 @@ _Avoid_: {{rejected synonyms}}
 ## Language
 
 **Workflow**:
-A named, editable sequence of Steps that a user records in the browser and owns. The unit that is edited, scheduled, and run.
+A named, editable sequence of Steps recorded in the browser, belonging to one Organization. The unit that is edited, scheduled, and run.
 _Avoid_: recording, automation, script
 
 **Step**:
@@ -57,16 +57,32 @@ A file that a Run produces: a screenshot, a download, or a trace.
 _Avoid_: attachment, output file
 
 **Secret**:
-A named, encrypted value in a user's vault. A Workflow's secret Variable binds to a Secret by name, and the value itself never appears in step payloads, logs, or Artifacts.
+A named, encrypted value in an Organization's vault, on which a member may keep a Personal Override. A Workflow's secret Variable binds to a Secret by name, and the value itself never appears in step payloads, logs, or Artifacts.
 _Avoid_: credential, vault entry
 
 **Auth State**:
-A user's saved signed-in browser state (cookies and web storage) for one site, captured with consent from the extension or written back by a Worker. A Run's browser receives the user's Auth State for the sites it touches before it starts.
+Saved signed-in browser state (cookies and web storage) for one site in an Organization's vault, captured with consent from the extension or written back by a Worker, and subject to Personal Overrides. A Run's browser receives the applicable Auth State for the sites it touches before it starts.
 _Avoid_: session state, storage state, login blob
 
-**Instance Admin**:
-A user with instance-level powers: creating, disabling, deleting, and password-resetting users, and toggling open signup. Tenancy isolation still applies — an Instance Admin never sees another user's Workflows, Runs, Secrets, or Auth State.
-_Avoid_: superuser, operator, owner
+**Personal Override**:
+A member's own value for an Organization's Secret, or their own saved login for a domain (with or without a shared record for it), resolved ahead of the Organization's values for Runs that member starts; Scheduled and Batch Runs never use them.
+_Avoid_: personal secret, private copy
+
+**Organization**:
+The tenant. Every Workflow, Run, Batch, Schedule, Secret, and Auth State belongs to exactly one Organization, and users act inside one through a Membership.
+_Avoid_: team, workspace, tenant, account
+
+**Membership**:
+The link between a user and one Organization, carrying a role — owner, admin, or member — that sets what the user may do there. An Organization has exactly one owner.
+_Avoid_: seat, org user
+
+**Invitation**:
+An emailed offer to join an Organization with a given role. Accepting it — by signing in with the invited address — creates the Membership.
+_Avoid_: invite link, provisioning
+
+**Sign-in Code**:
+A short-lived, single-use code emailed to an address; entering it proves control of the address and signs the user in. The only authentication method — there are no passwords.
+_Avoid_: OTP, magic link, verification code
 
 **Selector Drift**:
 The condition where a Step resolves through a lower-ranked selector candidate than the one recorded as best, showing that the page has changed under the Workflow.
