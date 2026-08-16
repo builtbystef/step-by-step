@@ -9,7 +9,13 @@ export default defineConfig({
     // Machine-written files keep their generators' formatting so the CI
     // contract job can diff regenerated output against what's committed.
     // .beaver issue files are managed by the beaver CLI, not formatted here.
-    ignorePatterns: ["**/src/generated/**", "**/openapi.json", ".beaver/**"],
+    ignorePatterns: [
+      "**/src/generated/**",
+      "**/openapi.json",
+      ".beaver/**",
+      ".agents/**",
+      ".claude/**",
+    ],
   },
   lint: {
     plugins: ["typescript"],
