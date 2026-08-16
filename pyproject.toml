@@ -10,6 +10,9 @@ members = ["apps/api"]
 
 [tool.uv]
 package = false
+# setup-uv reads this, so CI and local dev run the same uv (bump by hand —
+# Dependabot misses it).
+required-version = "==0.12.3"
 
 [dependency-groups]
 # Shared Python toolchain — every workspace member gets these via `uv run`.
