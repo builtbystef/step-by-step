@@ -44,7 +44,7 @@ useless-overload-body = "error"
 
 [tool.ruff]
 line-length = 88
-extend-exclude = ["**/node_modules", ".agents", ".claude", "./beaver"]
+extend-exclude = ["**/node_modules", ".agents", ".claude", ".beaver"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
