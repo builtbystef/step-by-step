@@ -45,7 +45,10 @@ useless-overload-body = "error"
 
 [tool.ruff]
 line-length = 88
-extend-exclude = ["**/node_modules"]
+# Agent tooling carries its own scripts and is authored outside this repo's
+# style pass. CI runs ruff over the whole tree, so the exclusion has to live
+# here — vite.config.ts ignorePatterns only covers the Vite+ formatter.
+extend-exclude = ["**/node_modules", ".agents", ".claude"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
