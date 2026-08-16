@@ -16,9 +16,8 @@ package = false
 dev = ["ruff>=0.16.2", "ty", "pytest>=8"]
 
 [tool.ty.rules]
-# Full strict (ymz3md): every rule ty ships at default level "warn" is
-# promoted to "error". Default-"ignore" rules stay off. Revisit on ty upgrades:
-# `ty explain rule` lists newly added warn-level rules.
+# Full strict: every rule ty ships at default level "warn" is
+# promoted to "error". Revisit on ty upgrades:
 ambiguous-protocol-member = "error"
 deprecated = "error"
 experimental-syntax = "error"
