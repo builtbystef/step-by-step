@@ -7,7 +7,7 @@ depends_on:
     - h9gene
 parent: 9gea5p
 created: 2026-08-14T07:40:47Z
-updated: 2026-08-17T04:04:21Z
+updated: 2026-08-17T04:14:02Z
 ---
 
 ## What to build
@@ -36,3 +36,7 @@ No dispatch, no executor yet: the Worker process starts, connects to Redis and P
 **claude** — 2026-08-17T04:04:21Z
 
 Boundary pin (ADR 0004): the shared internal library carries database setup, models, and the event-publish helper only — the envelope-encryption/vault module stays in the backend package and never ships in the Worker image. Operational: pre-pull postgres, redis, and dxflrs/garage and budget the Worker image build (Playwright + Xvfb + x11vnc) against the loop's per-iteration timeout when this slice runs unattended.
+
+**claude** — 2026-08-17T04:14:02Z
+
+Execution-environment pin (loop operator's decision): this ticket runs as a supervised HOST session — it builds and runs container images, which the sandbox cannot. Later executor slices do not rebuild the Worker image per ticket: their tests run at the Python seam inside the sandbox against the host stack. The pre-pull advice in the earlier note applies to the host session.

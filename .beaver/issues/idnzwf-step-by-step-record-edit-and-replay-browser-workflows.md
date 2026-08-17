@@ -7,7 +7,7 @@ priority: high
 labels:
     - roadmap
 created: 2026-08-08T07:07:08Z
-updated: 2026-08-17T04:04:51Z
+updated: 2026-08-17T04:14:02Z
 ---
 
 ## Goal
@@ -142,3 +142,7 @@ Direction change 2026-08-15, recorded as ADR 0005 (supersedes ADR 0001): the pro
 **claude** — 2026-08-17T04:04:51Z
 
 Loop-readiness preflight completed (2026-08-17), following the full planning review. Applied: ADR-0005 re-scope notes on the two stale specs (9gea5p, nno9gj) and their tickets (423dg6, g461z0, 69nls1, k97lxb, vguxj7, 1q7qp8, 5yu03g, e181q4, tls69i, sl7h4j, fkgat7); blocking edges oul652→tls69i and o99b7t→qf8loh; contract pins for the Draft/Version routes (sl7h4j, g795ji), the connect-code fallback (94xanm), PATCH /api/account (lac27w), and the run detail's auth_state_candidates (clxd1b); precedence pins for missing_secret (423dg6/clxd1b) and failure screenshots during takeover phases (tls69i/mdwnma); attended-verification plans on the extension tickets (94xanm, rjklmp, 7vuup5 — build in the loop, close with needs-review naming the manual checks); the ADR-0004 shared-library boundary on f53mo0; a docs-catch-up maintenance issue. Operator decisions: the loop runs in a sandbox with the Docker socket mounted as a deliberate exception; waves of 8–15 tickets ending at needs-review checkpoints; LOOP_VERIFY_CMD='pnpm run ci' (the only check that catches uncommitted OpenAPI/client drift); pre-pull postgres/redis/dxflrs/garage before the f53mo0 wave.
+
+**claude** — 2026-08-17T04:14:02Z
+
+Sandbox posture revised (supersedes the socket-mount decision in the previous note): the infrastructure stack runs on the HOST — the sandbox gets no Docker socket and runs no containers, keeping its security model intact. The sandbox uses host networking and the .env URLs to reach the host's localhost-bound Postgres, Redis, and Garage; its image bakes in Playwright Chromium + system deps, xvfb, and x11vnc so executor, extension, and VNC-proxy tests run inside it. Iterations never run docker compose — the stack is assumed up. Exactly two tickets need Docker itself and run as supervised host sessions: h9gene (authors the compose file; first in wave 1) and f53mo0 (builds the Worker image; opens the execution wave) — see the notes on each. The default test tier stays container-free; once h9gene lands, extend LOOP_VERIFY_CMD to "pnpm run ci && {integration invocation}" with the stack up. Host infrastructure is shared state: integration tests own their state (note on h9gene), and "docker compose down -v && docker compose up -d" resets it between segments when needed.
