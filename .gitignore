@@ -11,6 +11,9 @@ coverage/
 # Tool caches
 .cache/
 .vite/
+# The sandbox keeps its pnpm store here: its home is a container volume on
+# another filesystem, and the store has to share one with node_modules.
+.pnpm-store/
 
 # Environment and secrets
 .env

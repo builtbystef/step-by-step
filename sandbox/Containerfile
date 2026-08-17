@@ -1,0 +1,96 @@
+# The agent sandbox image for step-by-step. Build it and run it only through
+# sandbox/start.sh. Everything installed here is reachable only from inside
+# the sandbox.
+#
+# The infrastructure stack (Postgres, Redis, Garage) is NOT in this image. It
+# runs on the host under Docker; start.sh joins the host's network namespace,
+# so the localhost URLs in .env resolve from inside. Nothing here builds or
+# runs containers — the tickets that do (the compose stack, the Worker image)
+# are supervised host sessions.
+FROM docker.io/library/golang:1.26-trixie AS beaver-build
+# The tracker CLI lives outside the repository on the host, so the image
+# builds its own copy. Pinned — a rebuild gets the same beaver.
+RUN CGO_ENABLED=0 go install \
+        github.com/builtbystef/beaver-backlog/cmd/beaver@v0.0.0-20260811185725-ef48f10b3241
+
+FROM docker.io/library/ubuntu:24.04
+
+# The toolchain versions the repository pins: .node-version, the
+# packageManager field, [tool.uv] required-version, .python-version.
+ARG NODE_VERSION=24.18.0
+ARG PNPM_VERSION=11.17.0
+ARG UV_VERSION=0.12.3
+ARG PYTHON_VERSION=3.14
+ARG PLAYWRIGHT_VERSION=1.62.1
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# node_modules is repo-local, so the host and the sandbox share it, and each
+# side built it against its own pnpm store. Whichever side runs next rebuilds
+# it — fast, from that side's store. pnpm 11 asks for confirmation before
+# that rebuild, and it takes the answer only from CI or from a project-level
+# pnpm-workspace.yaml setting; a non-interactive agent can give neither. This
+# also puts the test runners in run-once mode, which is what a verify command
+# wants. For a watch-mode session, override it: `CI= pnpm dev`.
+ENV CI=true
+
+RUN apt-get update && \
+    apt-get install -y \
+        git \
+        curl \
+        ca-certificates \
+        build-essential \
+        ripgrep \
+        jq \
+        xz-utils \
+        unzip \
+        less \
+        procps \
+        xvfb \
+        x11vnc \
+        x11-utils \
+        fonts-liberation \
+        postgresql-client \
+        redis-tools \
+    && rm -rf /var/lib/apt/lists/*
+
+# Node from the official tarball, so the version matches .node-version
+# exactly. pnpm comes from npm at the pinned packageManager version.
+RUN curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+        | tar -xJ -C /usr/local --strip-components=1 \
+    && npm install -g "pnpm@${PNPM_VERSION}" \
+    && npm cache clean --force
+
+# uv, and the interpreter it manages, in a system location: the home volume
+# stays disposable, and a fresh volume still has Python 3.14.
+ENV UV_PYTHON_INSTALL_DIR=/opt/uv-python
+RUN curl -LsSf "https://astral.sh/uv/${UV_VERSION}/install.sh" \
+        | env UV_INSTALL_DIR=/usr/local/bin INSTALLER_NO_MODIFY_PATH=1 sh \
+    && uv python install "${PYTHON_VERSION}"
+
+# Chromium and its system libraries for the recorder and the Worker. The
+# browser directory stays writable, so a later `playwright install chromium`
+# for a different pin works without a rebuild. Xvfb and x11vnc above give the
+# headed-browser tickets a display to attach to.
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
+RUN npx -y "playwright@${PLAYWRIGHT_VERSION}" install --with-deps chromium \
+    && rm -rf /var/lib/apt/lists/* /root/.npm
+
+RUN npm install -g \
+        @anthropic-ai/claude-code \
+        @openai/codex \
+        @earendil-works/pi-coding-agent \
+    && npm cache clean --force
+
+COPY --from=beaver-build /go/bin/beaver /usr/local/bin/beaver
+
+# The sandbox runs as a user without privileges: agent CLIs (Claude Code,
+# Codex) refuse their full-permission flags under root. The uid 1000 also
+# agrees with the host user, through the runtime's userns/user flag, so that
+# /workspace stays the host user's property.
+RUN userdel -r ubuntu 2>/dev/null || true; \
+    useradd --create-home --uid 1000 --shell /bin/bash agent
+RUN chown -R 1000:1000 /opt/ms-playwright /opt/uv-python
+USER agent
+
+WORKDIR /workspace
