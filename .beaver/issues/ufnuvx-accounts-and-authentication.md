@@ -53,7 +53,7 @@ Passwordless email accounts with server-side sessions. Signing in and signing up
 
 **Removal and leaving.** Removing a member (or leaving) ends the Membership immediately: org content disappears from their app, and their Personal Overrides in that Organization's vault are deleted. Nothing else stops — Schedules, Runs, and Batches belong to the Organization, not the member. The owner cannot be removed and cannot leave without first transferring ownership. There is no per-user disable.
 
-**Organization deletion.** Owner-only, behind typing the Organization's name. Queued and running Runs are cancelled first (a Run acting with the Organization's Secrets must not outlive them), then everything the Organization owns is purged — Workflows, Drafts, Versions, Schedules, Batches, Runs, Step Results, Secrets, Auth State, Personal Overrides, Invitations, Memberships in Postgres, and the Runs' Artifacts in MinIO.
+**Organization deletion.** Owner-only, behind typing the Organization's name. Queued and running Runs are cancelled first (a Run acting with the Organization's Secrets must not outlive them), then everything the Organization owns is purged — Workflows, Drafts, Versions, Schedules, Batches, Runs, Step Results, Secrets, Auth State, Personal Overrides, Invitations, Memberships in Postgres, and the Runs' Artifacts in Garage.
 
 **Account deletion.** Self-serve, behind typing the account email. Refused with 403 `sole_owner` while the user owns any Organization — transfer or delete those first. Otherwise: end all Memberships (with the removal semantics above), delete sessions, pending codes, and the user row. Hard, irreversible, no grace period.
 
@@ -107,7 +107,7 @@ Worked examples:
 - A session last touched 29 days ago → extends; 31 idle days → 401. Two requests a minute apart → one `last_seen_at` write.
 - Admin invites `b@x.com` as member → 201 and the console mailer captured an Invitation email; a member calling the same route → 403.
 - Removing a member: their next request with that `X-Organization` → 403 `not_a_member`, their session elsewhere still works, and the Organization's Schedules keep firing.
-- Owner deletes the Organization with the typed name → 204; its rows and its Runs' MinIO objects are gone; members' accounts survive.
+- Owner deletes the Organization with the typed name → 204; its rows and its Runs' Garage objects are gone; members' accounts survive.
 - Sole owner of one org calls `DELETE /api/account` → 403 `sole_owner`; after transfer-ownership → 204, and the org's work is untouched.
 
 ## Out of Scope

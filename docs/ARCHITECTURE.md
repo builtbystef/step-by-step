@@ -23,7 +23,9 @@ Two packages are decided but not yet built; each lands with the first slice that
 - `apps/worker` — the Worker (see the glossary): its own uv workspace member, depending on the `step-by-step-api` package for shared models. If that dependency gets awkward, the escape hatch is extracting a shared Python lib into `packages/`.
 - `apps/extension` — the MV3 recording extension. The workspace globs and `vp check`/`vp test` cover it the moment it exists.
 
-The deployment shape (settled in `px25yw`): one docker compose stack — backend, Workers, Postgres, Redis, MinIO. The compose file lands with the first slice that needs a running service; until then, `pnpm dev` runs FastAPI and Next.js directly.
+The deployment shape (settled in `px25yw`): one docker compose stack — backend, Workers, Postgres, Redis, Garage. The compose file lands with the first slice that needs a running service; until then, `pnpm dev` runs FastAPI and Next.js directly.
+
+Garage is the Artifact store, chosen over MinIO on 2026-08-16 after MinIO archived its community edition; `px25yw` carries the reasoning and `ymz3md` the stack fact. What binds code rather than compose: artifacts are read and written through the **S3 API only**, via boto3 against a configurable endpoint URL, so the store stays swappable. Garage has no object versioning, bucket policies, object lock, or server-side encryption — none are used here, since retention is app-driven and ADR 0003 puts encryption in the application layer.
 
 ## Seams
 

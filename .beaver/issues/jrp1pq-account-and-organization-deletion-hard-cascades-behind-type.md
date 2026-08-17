@@ -12,7 +12,7 @@ updated: 2026-08-15T04:11:51Z
 
 ## What to build
 
-Leaving is irreversible and complete, at both levels. The owner deletes an Organization behind typing its name; a user deletes their own account behind typing their email, refused with `sole_owner` while they own any Organization — transfer or delete those first. This slice establishes the two-level ownership-cascade convention every future table joins: org-owned tables cascade from `organizations`, the user-owned rows (sessions, Memberships, Sign-in Codes) cascade from `users`, so no deletion ever leaves a row referencing what is gone. Extending the purge over Workflows, Runs, the vault, and MinIO is a separate blocked slice.
+Leaving is irreversible and complete, at both levels. The owner deletes an Organization behind typing its name; a user deletes their own account behind typing their email, refused with `sole_owner` while they own any Organization — transfer or delete those first. This slice establishes the two-level ownership-cascade convention every future table joins: org-owned tables cascade from `organizations`, the user-owned rows (sessions, Memberships, Sign-in Codes) cascade from `users`, so no deletion ever leaves a row referencing what is gone. Extending the purge over Workflows, Runs, the vault, and Garage is a separate blocked slice.
 
 ## Acceptance criteria
 

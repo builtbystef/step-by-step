@@ -7,7 +7,7 @@ priority: high
 labels:
     - maintenance
 created: 2026-08-08T06:42:33Z
-updated: 2026-08-14T05:21:14Z
+updated: 2026-08-17T01:01:44Z
 ---
 
 No code and no chosen stack exist yet, so `format`, `lint`, `typecheck`, and `test` have no commands. The entry files (`AGENTS.md`, `CLAUDE.md`) carry placeholders instead of commands.
@@ -102,3 +102,21 @@ Beyond the straight copy:
 - Alloy's .gitignore replaced ours; the secrets entries (*.pem, *.key, secrets.*, .secrets/) were merged back in.
 - AGENTS.md Checks section replaced wholesale; docs/ARCHITECTURE.md now records the layout, the typed API boundary, the dev proxy, the DB seam, strictness, and test tiers; README status updated.
 - CI workflow (.github/workflows/ci.yml, three jobs: web, api, contract) came with the template — already in place for whenever a CI-capable remote appears.
+
+**claude** — 2026-08-17T01:01:44Z
+
+STACK FACT (2026-08-16), recorded here because this issue owns the stack: the Artifact store is GARAGE (Deuxfleurs, AGPLv3), not MinIO. Item 9 of the Phase 1 note above named MinIO in the compose service list; read it as Garage. Everything else in that note stands.
+
+Why the change: MinIO abandoned its community edition — maintenance mode in December 2025, repository marked unmaintained 2026-02-12, archived read-only 2026-04-25. The AGPLv3 licence did not change; the code was abandoned, not relicensed, so there are no further releases and no security patches. The user caught this on 2026-08-16 and chose Garage over SeaweedFS.
+
+What binds later sessions:
+
+1. The compose service is Garage: image dxflrs/garage, S3 API on :3900, admin on :3903, a mounted garage.toml and a persistent volume. Since v2.3.0 a single node self-bootstraps with `garage server --single-node --default-bucket` plus GARAGE_DEFAULT_ACCESS_KEY / GARAGE_DEFAULT_SECRET_KEY / GARAGE_DEFAULT_BUCKET — no init sidecar, unlike MinIO's `mc`.
+
+2. THE CODE DEPENDS ON THE S3 API, NEVER ON THE VENDOR. boto3 against a configurable endpoint URL; the `minio` Python SDK is out (it is the dead project's own client). This is what made this swap one compose service instead of a rewrite, and it is worth keeping true.
+
+3. Garage has no object versioning, no bucket policies, no object lock, and no server-side encryption. None are used: retention is app-driven (9gea5p — none in v1, DELETE purges), and ADR 0003 already puts encryption in the application layer. Presigned URLs, multipart, CORS, ListObjectsV2 and explicit DELETE — everything tls69i needs — are all supported.
+
+4. Rejected: SeaweedFS (Apache 2.0, bigger community, genuinely fine — Garage won on footprint and on being one conceptual unit instead of master/volume/filer) and RustFS (alpha; its own docs say not for production).
+
+No ADR was written: docs/adr/README.md requires a decision to be hard to reverse, and this one is one compose service plus an endpoint URL. The full reasoning is on px25yw, the node that originally chose MinIO.

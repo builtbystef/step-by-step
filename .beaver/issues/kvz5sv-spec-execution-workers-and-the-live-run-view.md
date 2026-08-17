@@ -13,7 +13,7 @@ depends_on:
     - apx4rs
 parent: idnzwf
 created: 2026-08-11T19:45:28Z
-updated: 2026-08-12T01:02:24Z
+updated: 2026-08-17T01:01:44Z
 ---
 
 Write the spec for the execution area (session:spec). The area's nodes: execution architecture — isolation, queue semantics, streaming (px25yw, with ADR 0002); mid-run browser takeover research (1ar6xu); takeover UX prototype (4tjwpw); live run view and timeline prototype (apx4rs).
@@ -54,3 +54,7 @@ Seams the user agreed to: (1) the backend HTTP API, with the scheduler tick and 
 Two additive amendments to published spec d8ux2s, noted on that issue: Step envelope gains `screenshot?: boolean`; `pause-for-takeover` gains `successCheck?: Target` (4tjwpw's success predicate had nowhere to live).
 
 Glossary: **Takeover** added.
+
+**claude** — 2026-08-17T01:01:44Z
+
+CORRECTION (2026-08-16): where the Artifacts bullet says "purging its MinIO objects", read Garage. MinIO archived its community edition read-only on 2026-04-25 (abandoned, not relicensed), and the Artifact store is now Garage. Nothing else in this node changes — screenshots off by default, always on a failing Step, never during waiting_for_human; one chunked trace per Run; retention none in v1; access by short-lived presigned URL after an ownership check. Garage supports presigned URLs. Full reasoning on px25yw; stack fact on ymz3md; the live text is in spec 9gea5p.

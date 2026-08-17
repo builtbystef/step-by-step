@@ -13,7 +13,7 @@ depends_on:
     - u7nkwh
 parent: idnzwf
 created: 2026-08-08T07:08:04Z
-updated: 2026-08-10T03:34:11Z
+updated: 2026-08-17T01:01:26Z
 ---
 
 One live interview (grill-me). With scope (8iuuh8), takeover mechanics (1ar6xu), and auth-state constraints (u7nkwh) known, decide:
@@ -51,3 +51,17 @@ LIVENESS — Each Worker heartbeats its current Run's row every few seconds; the
 DATA ACCESS & ARTIFACTS — Workers access Postgres directly via a shared internal library (first-party trusted code in one deployment; only the secrets boundary may be revisited, in 7o0nmx). Workers write Artifacts directly to S3-compatible storage (MinIO in the compose stack) and insert the Artifact rows in Postgres themselves. Artifact bytes stay out of the backend's request path and out of Postgres.
 
 Deployment shape confirmed in passing: the entire stack is self-hosted docker compose — backend, Workers, Postgres, Redis, MinIO. Glossary: Worker added. ADR: docs/adr/0002-no-automatic-run-retries.md.
+
+**claude** — 2026-08-17T01:01:26Z
+
+SUPERSEDED IN PART (2026-08-16): the Artifact store is GARAGE, not MinIO. Everything else this node settled stands unchanged — S3-compatible object storage, Workers writing Artifacts directly and inserting their own rows, artifact bytes out of the backend's request path and out of Postgres, one self-hosted docker compose stack.
+
+Reason: MinIO put its community edition into maintenance mode in December 2025, marked the repository "NO LONGER MAINTAINED" on 2026-02-12, and archived it read-only on 2026-04-25. The AGPLv3 licence did not change — the code was abandoned, not relicensed. No further releases, reviewed patches, official community binaries, or security patches. Engineering moved to AIStor, the paid product.
+
+Garage (Deuxfleurs, AGPLv3, garagehq.deuxfleurs.fr) replaces it. It is purpose-built for exactly this scale — self-hosted, single node, too small for Ceph. S3 API on :3900, admin on :3903. Since v2.3.0 a single node bootstraps itself: `garage server --single-node --default-bucket` with GARAGE_DEFAULT_ACCESS_KEY / GARAGE_DEFAULT_SECRET_KEY / GARAGE_DEFAULT_BUCKET, so the compose stack needs no init sidecar (MinIO needed an `mc` one).
+
+It covers every S3 feature this project uses: presigned URLs, multipart upload, CORS, ListObjectsV2, explicit DELETE. It lacks object versioning, bucket policies, object lock and server-side encryption — none of which this project uses; retention here is app-driven (9gea5p: none in v1, DELETE purges).
+
+Considered and rejected: SeaweedFS (Apache 2.0, larger community, fine choice — Garage won on footprint and on being one conceptual unit rather than master/volume/filer); RustFS (Apache 2.0, markets itself as a drop-in MinIO replacement, but still alpha/early-beta and its own docs say not for production).
+
+No ADR: docs/adr/README.md requires a decision to be hard to reverse, and this one is one compose service plus an endpoint URL — the code depends on the S3 API, never on the vendor. Recorded as a stack fact on ymz3md instead.

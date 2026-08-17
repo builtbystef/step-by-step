@@ -185,9 +185,9 @@ batch.row     { batch_id, row_index, status, run_id?, at }
 - **Screenshots** are per Step and **off by default**. A Step's `screenshot` toggle turns capture on for that Step. A **failing** Step is always screenshotted regardless of its toggle — that is diagnostics, not a preference. No screenshot is taken while a Run is in `waiting_for_human` (54i6da: nothing may catch an MFA code mid-type).
 - **Trace**: Playwright tracing runs for the whole Run, chunked — a chunk is stopped before every secret-referencing Step and restarted after it, and paused across takeover. A Run therefore yields several trace Artifacts with an `index`, each openable in Trace Viewer; that is a consequence of the bracketing, not an accident.
 - **Downloads** are captured as they are produced and stored with their suggested filename.
-- Workers write objects to MinIO directly and insert the `artifacts` row themselves (px25yw). Bytes never pass through the backend.
+- Workers write objects to Garage directly and insert the `artifacts` row themselves (px25yw). Bytes never pass through the backend.
 - **Access**: `GET /api/runs/{id}/artifacts/{artifactId}/download` checks Run ownership, then redirects to a short-lived presigned URL.
-- **Retention: none in v1.** Artifacts live until their Run is deleted. `DELETE /api/runs/{id}` (terminal Runs only) purges the Run, its Step Results, log lines, and its MinIO objects; ufnuvx's account cascade does the same in bulk. There is no age-based or size-based garbage collection.
+- **Retention: none in v1.** Artifacts live until their Run is deleted. `DELETE /api/runs/{id}` (terminal Runs only) purges the Run, its Step Results, log lines, and its Garage objects; ufnuvx's account cascade does the same in bulk. There is no age-based or size-based garbage collection.
 
 ### The scheduler loop
 
@@ -225,7 +225,7 @@ GET    /api/runs/{id}                → 200 {run, step_results, control_interva
 GET    /api/runs/{id}/logs?after_seq=&step_id=                  → 200 [LogLine]
 GET    /api/runs/{id}/output?format=json|csv                    → 200 assembled output
 GET    /api/runs/{id}/artifacts/{artifactId}/download           → 307 presigned URL
-DELETE /api/runs/{id}                → 204 (terminal Runs only; purges MinIO objects)
+DELETE /api/runs/{id}                → 204 (terminal Runs only; purges Garage objects)
                                        409 code=run_active
 
 POST   /api/runs/{id}/cancel         → 202
@@ -292,7 +292,7 @@ Both are additive, and neither spec is implemented yet:
 
 - **redis-py** — the dispatch list, the control channel, and the event pub/sub. No task framework (arq, Celery, RQ): the mechanism is two list operations and a conditional claim, and a framework would bring its own retry policy, which ADR 0002 forbids.
 - **croniter** — cron expression parsing and next-occurrence computation. Timezone handling is the standard library's `zoneinfo`; no other scheduling library.
-- **boto3** (or the `minio` client) — S3-compatible object writes from Workers and presigned URL minting in the backend.
+- **boto3** — S3-compatible object writes from Workers and presigned URL minting in the backend, against a configurable endpoint URL. Not the `minio` client: it is the abandoned project's own SDK, and the point of speaking plain S3 is that the store stays swappable (px25yw records why this matters).
 - **@novnc/novnc** — the browser-side RFB client for the pane. Writing an RFB client is not a side quest.
 - **Worker image system packages: Xvfb, x11vnc, and a minimal window manager.** The display, the VNC server, and sane handling of the browser's own dialogs and popups. These are image packages, not Python dependencies.
 
@@ -317,11 +317,11 @@ Worked examples:
 - A Batch whose row 2 fails → rows 3–5 still run; `rerun` on row 2 → a new Run attached to row 2, the row's status follows the new attempt, and the earlier attempt is still listed.
 - Cancel a Batch mid-row-3 → row 3's Run cancelled, rows 4–5 `cancelled`.
 - `GET /api/runs/{id}/output?format=csv` for a Run with a list-mode extract of 24 records → 24 data rows with the field names as the header; the Batch's output over five rows → one table whose columns are the union of Variables and output names.
-- `DELETE` a `running` Run → 409 `run_active`; a terminal one → 204 and its MinIO objects are gone.
+- `DELETE` a `running` Run → 409 `run_active`; a terminal one → 204 and its Garage objects are gone.
 - An artifact download request from a second user's session → 404, and no presigned URL is minted.
 - The log cap: 10 001 published lines → 10 000 rows plus the truncation line, and the endpoint's last line says truncated.
 
-**Seam 2 — the Worker's Run executor.** Hand it a Version and local fixture pages, let it drive a real Playwright browser, and assert on what it writes out: Step Result rows, run status transitions, control intervals, objects in MinIO, and events published to Redis. Everything below it — selector resolution, actionability, trace bracketing — is observable here; the resolution module has its own tests in d8ux2s.
+**Seam 2 — the Worker's Run executor.** Hand it a Version and local fixture pages, let it drive a real Playwright browser, and assert on what it writes out: Step Result rows, run status transitions, control intervals, objects in Garage, and events published to Redis. Everything below it — selector resolution, actionability, trace bracketing — is observable here; the resolution module has its own tests in d8ux2s.
 
 Worked examples:
 
