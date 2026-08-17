@@ -9,7 +9,7 @@ depends_on:
     - y2fsy1
 parent: d8ux2s
 created: 2026-08-14T06:03:37Z
-updated: 2026-08-14T06:03:37Z
+updated: 2026-08-17T04:04:21Z
 ---
 
 ## What to build
@@ -24,3 +24,9 @@ The full recording loop, closed. The editor starts a recording: the app mints a 
 - [ ] Token expiry mid-recording: the app re-mints against the same session, the extension resumes, and buffered Steps survive locally and on the server.
 - [ ] Closing the app tab during a recording costs nothing — checkpoints go directly to the backend.
 - [ ] End to end on a fixture site: record clicks and typing, bind the password Step to a secret Variable, save — the editor then shows the finished Steps in the Draft.
+
+## Notes
+
+**claude** — 2026-08-17T04:04:21Z
+
+Attended-verification plan (loop operator's decision): cover checkpointing, service-worker-kill persistence, and app-tab-close survival in the harness where it can drive them; any AC the harness cannot drive goes into a needs-review note for the user's attended pass instead of closing unverified.

@@ -8,7 +8,7 @@ depends_on:
     - 1q7qp8
 parent: 9gea5p
 created: 2026-08-14T07:44:05Z
-updated: 2026-08-14T07:44:05Z
+updated: 2026-08-17T04:03:58Z
 ---
 
 ## What to build
@@ -36,3 +36,9 @@ No age- or size-based garbage collection in v1 — Artifacts live until their Ru
 - [ ] Each Artifact insert is announced by an `artifact` event carrying ids, never bytes.
 - [ ] The download route checks ownership: the owner gets a 307 to a presigned URL that works and then expires; another user gets 404 and no URL is minted.
 - [ ] `DELETE` on a `running` Run → 409 `run_active`; on a terminal Run → 204, and the Run's rows, Step Results, log lines, and Garage objects are all gone (verified by observing the object store).
+
+## Notes
+
+**claude** — 2026-08-17T04:03:58Z
+
+Re-scope per ADR 0005: the download and delete routes' ownership check is the org Membership gate — another Organization's caller → 404; any member of the Run's Organization may download and delete. Screenshot precedence (mirrored on mdwnma): the always-screenshot-on-failure rule applies to automation failures only — a Step failed while the Run is in a waiting/human/verifying phase (takeover_timeout, takeover_abandoned) takes no failure screenshot; leak prevention outranks diagnostics, because the frame could hold an MFA code or a half-typed credential.

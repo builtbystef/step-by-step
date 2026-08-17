@@ -7,7 +7,7 @@ priority: high
 labels:
     - roadmap
 created: 2026-08-08T07:07:08Z
-updated: 2026-08-15T04:14:42Z
+updated: 2026-08-17T04:04:51Z
 ---
 
 ## Goal
@@ -138,3 +138,7 @@ With all six areas specced and the stack landed, the next sessions break the spe
 **claude** — 2026-08-15T04:14:42Z
 
 Direction change 2026-08-15, recorded as ADR 0005 (supersedes ADR 0001): the product is shaped as a SaaS without billing — Organization tenancy (auto-org at signup, owner/admin/member roles, Invitations), passwordless Sign-in Code auth via a mailer seam (Resend/SMTP/console), no Instance Admin, SIGNUP_MODE env var. The accounts spec ufnuvx is rewritten; qf0lu8 and 8wxso0 are cancelled; t7jki2/3nxs4k/x06w5q/jrp1pq/o99b7t/lac27w/shurgk/hat4cf are repurposed; ycn8xm (mailer seam) is new; the vault spec 54i6da is labeled needs-review for org re-scoping with Personal Overrides.
+
+**claude** — 2026-08-17T04:04:51Z
+
+Loop-readiness preflight completed (2026-08-17), following the full planning review. Applied: ADR-0005 re-scope notes on the two stale specs (9gea5p, nno9gj) and their tickets (423dg6, g461z0, 69nls1, k97lxb, vguxj7, 1q7qp8, 5yu03g, e181q4, tls69i, sl7h4j, fkgat7); blocking edges oul652→tls69i and o99b7t→qf8loh; contract pins for the Draft/Version routes (sl7h4j, g795ji), the connect-code fallback (94xanm), PATCH /api/account (lac27w), and the run detail's auth_state_candidates (clxd1b); precedence pins for missing_secret (423dg6/clxd1b) and failure screenshots during takeover phases (tls69i/mdwnma); attended-verification plans on the extension tickets (94xanm, rjklmp, 7vuup5 — build in the loop, close with needs-review naming the manual checks); the ADR-0004 shared-library boundary on f53mo0; a docs-catch-up maintenance issue. Operator decisions: the loop runs in a sandbox with the Docker socket mounted as a deliberate exception; waves of 8–15 tickets ending at needs-review checkpoints; LOOP_VERIFY_CMD='pnpm run ci' (the only check that catches uncommitted OpenAPI/client drift); pre-pull postgres/redis/dxflrs/garage before the f53mo0 wave.

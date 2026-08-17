@@ -8,7 +8,7 @@ depends_on:
     - tf6796
     - pjxuqx
 created: 2026-08-12T03:43:09Z
-updated: 2026-08-12T03:43:09Z
+updated: 2026-08-17T04:03:24Z
 ---
 
 # Creating Batches and Schedules
@@ -281,3 +281,9 @@ Worked examples:
 - Reference prototypes, disposable — steal patterns, not code: branch `prototype/batch-creation` (`PROTOTYPE-batch-creation.html`, three variants with a messy-CSV fixture and a publish-a-new-Variable toggle) and branch `prototype/schedule-creation` (`PROTOTYPE-schedule-creation.html`, real cron parsing, a movable clock, and the overlap-skip / instance-down / viewer-timezone / paused scenarios).
 - The two grids are one component. A Batch's grid has N rows and a Schedule's has exactly one; the locked secret column, the paste handling, and the import path are shared. Building them twice is the mistake this spec is trying to prevent.
 - The grace window (120 s), the row cap (1 000), the Occurrence prune depth (500), and the ETA sample (last 10 succeeded Runs, minimum 3) are named constants in one place, not literals spread through the loop.
+
+## Notes
+
+**claude** — 2026-08-17T04:03:24Z
+
+Re-scope per ADR 0005 before building any slice: Schedules and Batches are org-owned (org_id, the X-Organization gate, foreign ids 404); 'one table of every Schedule the user owns' reads 'the active Organization's Schedules'. Per-user disable no longer exists — the tick's 'non-disabled user' condition is dropped: a Schedule fires iff enabled and due. Scheduled and Batch Runs carry a null starter user_id (54i6da: org-value resolution only, 422 no_starter on personal-scoped consent).

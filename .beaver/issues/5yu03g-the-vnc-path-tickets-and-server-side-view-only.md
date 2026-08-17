@@ -7,7 +7,7 @@ depends_on:
     - qmnvgr
 parent: 9gea5p
 created: 2026-08-14T07:43:37Z
-updated: 2026-08-14T07:43:37Z
+updated: 2026-08-17T04:03:47Z
 ---
 
 ## What to build
@@ -24,3 +24,9 @@ View-only is enforced server-side: the proxy authenticates to the Worker's VNC s
 - [ ] A ticket is single-use and expires: redeeming twice fails, redeeming after the TTL fails.
 - [ ] Another user's Run id → 404 with no ticket minted and no connection attempted; a terminal Run → no connection.
 - [ ] A second session of the owner can hold a view-only connection while the first holds control.
+
+## Notes
+
+**claude** — 2026-08-17T04:03:47Z
+
+Re-scope per ADR 0005: 'the Run's ownership' is org Membership via X-Organization — another Organization's Run id → 404; any member of the Run's Organization may mint stream tickets and take over (54i6da: a takeover by a different member does not re-resolve credentials).

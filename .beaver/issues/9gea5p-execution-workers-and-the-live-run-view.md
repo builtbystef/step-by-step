@@ -10,7 +10,7 @@ depends_on:
     - 4tjwpw
     - apx4rs
 created: 2026-08-12T01:01:52Z
-updated: 2026-08-12T01:01:52Z
+updated: 2026-08-17T04:03:24Z
 ---
 
 # Execution, Workers, and the live run view
@@ -368,3 +368,9 @@ Prior art: none yet in the repository. The accounts spec (ufnuvx) lands the HTTP
 - The `waiting_for_human` Run holding its Worker slot is an accepted v1 cost (px25yw). An instance whose Workers are all parked on humans has no queued work moving, and nothing in v1 mitigates that beyond the takeover timeout.
 - u7nkwh established that a transferred session can fail for reasons invisible to us (device-bound cookies, token binding, fingerprinting). v1 predicts nothing: a failed authentication is classified `auth_challenge` and routed to a login Step or a takeover. Do not add heuristics that guess.
 - Glossary: **Takeover** is added by this spec. Every other term it uses — Run, Step Result, Worker, Batch, Schedule, Artifact, Version, Selector Drift — is already defined.
+
+## Notes
+
+**claude** — 2026-08-17T04:03:24Z
+
+Re-scope per ADR 0005 before building any slice: this spec predates the org-tenancy pivot and was never re-scoped. Runs and Batches are org-owned — org_id FK with cascade, routes authorized via the session + X-Organization Membership gate, a foreign Organization's id → 404. 'Scoped to the calling user' reads 'scoped to the active Organization' throughout. Runs keep a nullable starter user_id (set for manual/test starts, null for schedule/batch triggers) — it drives 54i6da's override resolution and the 422 no_starter rule. Per-user disable no longer exists (removed with the Instance Admin in ufnuvx's re-scope) — every 'disabled user' condition in this spec is dropped. The attention index promised in pc0t8s is ON runs (org_id, takeover_deadline_at) partial over non-terminal statuses — pc0t8s's 'deadline_at' is this spec's takeover_deadline_at column.

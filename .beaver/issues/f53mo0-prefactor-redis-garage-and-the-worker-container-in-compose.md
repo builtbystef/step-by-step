@@ -7,7 +7,7 @@ depends_on:
     - h9gene
 parent: 9gea5p
 created: 2026-08-14T07:40:47Z
-updated: 2026-08-17T01:02:29Z
+updated: 2026-08-17T04:04:21Z
 ---
 
 ## What to build
@@ -30,3 +30,9 @@ No dispatch, no executor yet: the Worker process starts, connects to Redis and P
 - [ ] The bucket exists after a cold `docker compose up` with no manual step, and its objects survive `docker compose down && docker compose up`.
 - [ ] A presigned GET minted with the public endpoint configuration fetches the smoke-test object **from the host**, outside the compose network, and returns 403 or 404 after it expires.
 - [ ] Scaling to two Workers (compose scale) brings up two independent displays and VNC servers with no port collision.
+
+## Notes
+
+**claude** — 2026-08-17T04:04:21Z
+
+Boundary pin (ADR 0004): the shared internal library carries database setup, models, and the event-publish helper only — the envelope-encryption/vault module stays in the backend package and never ships in the Worker image. Operational: pre-pull postgres, redis, and dxflrs/garage and budget the Worker image build (Playwright + Xvfb + x11vnc) against the loop's per-iteration timeout when this slice runs unattended.

@@ -7,7 +7,7 @@ depends_on:
     - fpzupm
 parent: nno9gj
 created: 2026-08-14T19:51:44Z
-updated: 2026-08-14T19:51:44Z
+updated: 2026-08-17T04:03:37Z
 ---
 
 ## What to build
@@ -38,3 +38,9 @@ The tick is invoked directly as a function with an injected now; effects are ass
 - [ ] A Schedule accumulating more than 500 rows is pruned to its most recent 500.
 - [ ] `last_skip_reason` is gone from the schema and from every response that carried it.
 - [ ] Deleting a Schedule deletes its Occurrence rows.
+
+## Notes
+
+**claude** — 2026-08-17T04:03:37Z
+
+Re-scope per ADR 0005: the tick enumerates each due, enabled Schedule of the (org-owned) table — the 'of a non-disabled user' condition and the 'disabled user's enabled Schedule' AC are dropped; per-user disable no longer exists. Everything else unchanged.

@@ -7,7 +7,7 @@ depends_on:
     - 423dg6
 parent: 9gea5p
 created: 2026-08-14T07:42:22Z
-updated: 2026-08-14T07:42:34Z
+updated: 2026-08-17T04:03:37Z
 ---
 
 ## What to build
@@ -36,3 +36,8 @@ DELETE /api/schedules/{id}           → 204
 - [ ] The fired Run executes the latest published Version at fire time, not the Version that existed when the Schedule was created.
 - [ ] Schedule routes are user-scoped: another user's Schedule id → 404.
 
+## Notes
+
+**claude** — 2026-08-17T04:03:37Z
+
+Re-scope per ADR 0005 (notes on 9gea5p and nno9gj): schedules is org-owned — org_id replaces the user column; routes scope via X-Organization, so 'another user's Schedule id → 404' reads another Organization's. Drop the two disabled-user criteria (the 'disabled user's Schedules do not fire' sentence and its AC) — per-user disable was removed with ufnuvx's re-scope. Everything else unchanged.

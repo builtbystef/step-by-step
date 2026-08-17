@@ -8,7 +8,7 @@ depends_on:
     - oul652
 parent: 9gea5p
 created: 2026-08-14T07:44:33Z
-updated: 2026-08-14T07:44:33Z
+updated: 2026-08-17T04:03:47Z
 ---
 
 ## What to build
@@ -29,3 +29,9 @@ And the cockpit gains its Output tab: the assembled object rendered as a table, 
 - [ ] A failed Run's output contains what was extracted before the failure.
 - [ ] The Output tab renders the records as a table and both download buttons deliver the endpoint's formats.
 - [ ] Ownership holds: another user's Run id → 404.
+
+## Notes
+
+**claude** — 2026-08-17T04:03:47Z
+
+Re-scope per ADR 0005: ownership is the org Membership gate — another Organization's Run id → 404; any member of the Run's Organization reads the output.

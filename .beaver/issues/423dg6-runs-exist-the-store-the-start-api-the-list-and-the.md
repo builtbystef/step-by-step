@@ -8,7 +8,7 @@ depends_on:
     - g795ji
 parent: 9gea5p
 created: 2026-08-14T07:41:05Z
-updated: 2026-08-14T07:41:05Z
+updated: 2026-08-17T04:03:37Z
 ---
 
 ## What to build
@@ -36,3 +36,9 @@ Starting a Run stores the supplied non-secret Variable values (secret Variables 
 - [ ] The detail response carries the Run, its Step Results in position order, its control intervals, and its artifacts in one payload.
 - [ ] Every route is scoped to the calling user: another user's Run id → 404.
 - [ ] Starting a Run of a Workflow with no published Version is rejected with a clear error (test Runs excepted).
+
+## Notes
+
+**claude** — 2026-08-17T04:03:37Z
+
+Re-scope per ADR 0005 (see the note on 9gea5p): runs gains org_id (FK organizations, cascade) and a nullable starter user_id (set for manual/test starts, null for schedule/batch); every route scopes to the active Organization via the shared X-Organization gate — 'another user's Run id → 404' reads 'another Organization's Run id → 404', and any member of the Run's Organization sees it. Land the attention-index ground here: a partial index on (org_id, takeover_deadline_at) over non-terminal statuses — fkgat7 later asserts its plan. Also settle missing_secret precedence: the 409 on POST .../runs is a best-effort pre-check for request-time starts; the authoritative check is the credentials fetch at claim (clxd1b) — schedule/batch starts have no request to refuse, and a Run whose Secret disappears between start and claim ends failed/missing_secret.

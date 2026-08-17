@@ -7,7 +7,7 @@ depends_on:
     - 69nls1
 parent: nno9gj
 created: 2026-08-14T19:51:44Z
-updated: 2026-08-14T19:51:44Z
+updated: 2026-08-17T04:03:37Z
 ---
 
 ## What to build
@@ -52,3 +52,9 @@ The preview is **the only source of Occurrence times in the product** — the se
 - [ ] `run-now` while a Run of that Schedule is non-terminal → 409 `schedule_run_active` with `blocking_run_id`; after that Run ends → 201, and the new Run appears in the Schedule's history with `trigger = schedule`.
 - [ ] `run-now` on a `needs_values` Schedule → 409 `needs_values` naming the Variables.
 - [ ] Every route is user-scoped: another user's Schedule id → 404.
+
+## Notes
+
+**claude** — 2026-08-17T04:03:37Z
+
+Re-scope per ADR 0005: 'every Schedule the user owns' reads 'the active Organization's Schedules'; route scoping is the X-Organization Membership gate, so 'another user's Schedule id → 404' reads another Organization's.

@@ -8,7 +8,7 @@ depends_on:
     - lac27w
 parent: d8ux2s
 created: 2026-08-14T06:01:49Z
-updated: 2026-08-14T06:01:49Z
+updated: 2026-08-17T04:03:47Z
 ---
 
 ## What to build
@@ -37,3 +37,9 @@ extract payload = scalar (one named value, text or attribute) | list (flat recor
 - [ ] A save where a step value references `{{name}}` that `variables` does not declare is rejected — this is how deleting a still-used Variable is refused at the seam.
 - [ ] Tenancy holds: another user's Workflow or Draft is 404, never 403-with-existence-leak.
 - [ ] HTTP seam tests with a real Postgres cover the duplicate-id example, the undeclared-variable refusal, id stability, and isolation.
+
+## Notes
+
+**claude** — 2026-08-17T04:03:47Z
+
+Tenancy wording per ADR 0005: 'another user's Workflow or Draft is 404' reads 'another Organization's' — Workflows are org-owned and any member of the Organization reads and saves the Draft. Pinned Draft routes (this slice owns them): GET /api/workflows/{id}/draft → 200 {steps, variables}; PUT /api/workflows/{id}/draft {steps, variables} → 200 replacing the document whole, 400 with machine-readable codes on validation failure (duplicate_step_id naming the id, undeclared_variable naming the name, unknown_step_type, malformed_payload). Every route carries an operation_id — the generated client is named from it.

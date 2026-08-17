@@ -13,9 +13,10 @@ depends_on:
     - g461z0
     - tls69i
     - 297ba3
+    - qf8loh
 parent: ufnuvx
 created: 2026-08-14T05:46:32Z
-updated: 2026-08-15T04:11:51Z
+updated: 2026-08-17T04:03:58Z
 ---
 
 ## What to build
@@ -31,3 +32,9 @@ The accounts spec's deletion and removal semantics, extended over the domain obj
 - [ ] A Run that is mid-flight when the Personal Overrides it resolved are deleted finishes with the credentials it already holds — removal does not cancel org work.
 - [ ] Deleting an account removes that user's Personal Overrides in every Organization they belonged to, while those Organizations' work is untouched.
 - [ ] Integration seam tests cover the full purge and both removal cases, observing external effects only.
+
+## Notes
+
+**claude** — 2026-08-17T04:03:58Z
+
+Added blocking edge on qf8loh: the mid-flight-override AC observes credentials fetched once at Run start and held in Worker memory — behavior clxd1b/qf8loh land.

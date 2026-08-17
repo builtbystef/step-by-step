@@ -8,7 +8,7 @@ depends_on:
     - ycn8xm
 parent: ufnuvx
 created: 2026-08-14T05:45:06Z
-updated: 2026-08-15T04:11:51Z
+updated: 2026-08-17T04:04:08Z
 ---
 
 ## What to build
@@ -27,3 +27,9 @@ The core tracer through accounts, passwordless: a visitor enters an email, a Sig
 - [ ] `GET /api/instance` unauthenticated → 200 `{signup_mode}` reflecting the environment variable, defaulting to `open`.
 - [ ] The web app has a two-step sign-in screen (email → code entry) used for both first and returning visits; when signed in, the UI shows the account's email; the frontend talks only through the generated client behind the one-origin proxy.
 - [ ] Seam tests are HTTP against the app with a real Postgres, reading codes from the console mailer's capture, covering every status code and cookie behavior above.
+
+## Notes
+
+**claude** — 2026-08-17T04:04:08Z
+
+Scope addition: also land PATCH /api/account {display_name} → 200 (session-authed, no X-Organization needed). ufnuvx names the route but no slice owned it; the Settings account panel (hat4cf) consumes it.

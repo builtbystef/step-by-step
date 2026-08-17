@@ -7,7 +7,7 @@ depends_on:
     - disgge
 parent: d8ux2s
 created: 2026-08-14T06:03:09Z
-updated: 2026-08-14T06:03:09Z
+updated: 2026-08-17T04:04:21Z
 ---
 
 ## What to build
@@ -23,3 +23,9 @@ The remaining capture behaviors, including the two safety promises: a recorded p
 - [ ] A target inside a closed shadow root, or in a frame the extension cannot inject into, triggers an immediate inline warning in plain, non-technical language; recording never blocks, and the Step permanently carries the unsupported flag with that warning text.
 - [ ] Dismissing the debugger infobar (or opening DevTools) ends the recording while keeping every Step captured so far; the user may save or discard.
 - [ ] Extension-boundary tests cover the password, select, extract, unsupported, and infobar cases on fixture pages; the download case is verified in a real Chrome session.
+
+## Notes
+
+**claude** — 2026-08-17T04:04:21Z
+
+Attended-verification plan (loop operator's decision): the real-Chrome download AC and the debugger-infobar dismissal AC cannot be verified headlessly. Build everything, cover the password/select/extract/unsupported cases in the harness, then apply needs-review with a note naming the two manual checks for the user's attended pass, and do not close.

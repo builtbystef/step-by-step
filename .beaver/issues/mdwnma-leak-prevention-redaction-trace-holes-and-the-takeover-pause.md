@@ -10,7 +10,7 @@ depends_on:
     - tls69i
 parent: 54i6da
 created: 2026-08-14T06:16:25Z
-updated: 2026-08-14T07:45:35Z
+updated: 2026-08-17T04:03:58Z
 ---
 
 ## What to build
@@ -27,3 +27,9 @@ This slice's edge on the execution spec is an umbrella; tighten it when that spe
 - [ ] The trace of a Run with a secret-typing Step has no chunk covering that Step, and chunks exist before and after it.
 - [ ] Between take-control and hand-back, no periodic screenshot and no trace chunk is produced; both resume afterwards; the live stream keeps flowing throughout.
 - [ ] Step payloads and Step Results carry Variable names only: a sweep of the Run's stored rows and Artifacts for the secret value finds nothing.
+
+## Notes
+
+**claude** — 2026-08-17T04:03:58Z
+
+Precedence pin (mirrored on tls69i): during waiting/human/verifying phases the no-screenshot rule wins over tls69i's always-screenshot-on-failure — a Step failed by takeover_timeout or takeover_abandoned takes no failure screenshot. Leak prevention outranks diagnostics.

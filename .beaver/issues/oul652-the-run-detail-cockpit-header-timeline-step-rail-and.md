@@ -8,9 +8,10 @@ depends_on:
     - it3m03
     - qmnvgr
     - 5rkj33
+    - tls69i
 parent: 9gea5p
 created: 2026-08-14T07:44:24Z
-updated: 2026-08-14T07:44:24Z
+updated: 2026-08-17T04:03:58Z
 ---
 
 ## What to build
@@ -35,3 +36,9 @@ The screen where a Run is understood, settled by the prototypes and restated as 
 - [ ] Cancel shows the plain-language confirm, then the cancelling band, and resolves to the terminal banner when the event arrives.
 - [ ] Run again opens the dialog prefilled with the Run's Variable values.
 - [ ] The status chip is the only element rendering lifecycle state, in the app's semantic hues.
+
+## Notes
+
+**claude** — 2026-08-17T04:03:58Z
+
+Added blocking edge on tls69i: the cockpit's ACs render failure screenshots and per-step artifact expansions that tls69i lands.

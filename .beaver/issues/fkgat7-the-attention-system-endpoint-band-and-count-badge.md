@@ -8,7 +8,7 @@ depends_on:
     - 423dg6
 parent: pc0t8s
 created: 2026-08-14T05:55:24Z
-updated: 2026-08-14T07:45:35Z
+updated: 2026-08-17T04:03:58Z
 ---
 
 ## What to build
@@ -24,3 +24,9 @@ The shell's promise that a waiting Run is visible everywhere. One small polled e
 - [ ] When a countdown reaches zero the band reads that the deadline has passed, and the next poll clears it — the client never flips a Run's state itself.
 - [ ] The Runs nav badge shows running + queued + waiting, hidden at zero, amber when anything waits and blue otherwise, and stays visible on the icon rail.
 - [ ] HTTP seam tests with a real Postgres cover the capped list, the ordering, the per-Organization isolation, and the plan assertion.
+
+## Notes
+
+**claude** — 2026-08-17T04:03:58Z
+
+Index reconciliation with 423dg6's schema: the partial index is ON runs (org_id, takeover_deadline_at) over non-terminal statuses — this spec's 'deadline_at' shorthand is 9gea5p's takeover_deadline_at column. The index ground lands with 423dg6 (see its re-scope note); this slice asserts the query plan.

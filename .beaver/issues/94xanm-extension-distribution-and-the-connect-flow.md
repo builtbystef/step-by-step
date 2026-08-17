@@ -7,7 +7,7 @@ depends_on:
     - lac27w
 parent: d8ux2s
 created: 2026-08-14T06:02:27Z
-updated: 2026-08-14T06:02:27Z
+updated: 2026-08-17T04:04:21Z
 ---
 
 ## What to build
@@ -23,3 +23,9 @@ The MV3 extension package and the path from a fresh browser to a connected insta
 - [ ] An unauthenticated version endpoint reports the current and minimum-supported extension versions.
 - [ ] Every message the extension accepts is validated — origin, sender, tab context, payload — with content-script messages doubly so.
 - [ ] The extension test harness exists: Playwright driving headless Chromium with the unpacked build, proving the package loads and the handshake validation rejects a wrong-origin or wrong-nonce message.
+
+## Notes
+
+**claude** — 2026-08-17T04:04:21Z
+
+Pinned connect-code fallback (this slice owns it): authenticated POST /api/extension/connect-codes → 201 {code, expires_at} — single-use, 10-minute TTL, displayed by the app's connect surface; unauthenticated POST /api/extension/connect {code} → 200 {} consuming the code, 401 bad_code otherwise. Success tells the extension the entered origin is a live instance whose signed-in user authorized pairing; the extension then stores the origin as connected. The zip and install page are unauthenticated, like the version endpoint. Attended-verification plan (loop operator's decision): the popup's permission-grant gesture cannot be driven headlessly — build everything including the Playwright harness ACs, then apply needs-review with a note naming the gesture-dependent checks for a manual pass in real Chrome, and do not close.

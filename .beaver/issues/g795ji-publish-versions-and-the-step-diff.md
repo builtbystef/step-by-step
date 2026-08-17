@@ -7,7 +7,7 @@ depends_on:
     - sl7h4j
 parent: d8ux2s
 created: 2026-08-14T06:02:01Z
-updated: 2026-08-14T06:02:01Z
+updated: 2026-08-17T04:04:08Z
 ---
 
 ## What to build
@@ -22,3 +22,9 @@ The immutable half of the storage model. Publishing snapshots the Draft's whole 
 - [ ] Draft state derives as: no Versions → never-published; Draft differs from the latest Version → unpublished-changes; byte-equal → in-sync. Publishing flips unpublished-changes to in-sync; the next Draft edit flips it back.
 - [ ] Restoring a past Version copies its document into the Draft with step ids preserved, leaving the Version itself untouched; the resulting draft state reflects the comparison against the latest Version.
 - [ ] HTTP seam tests with a real Postgres cover the byte-match, immutability, the worked diff, the state transitions, and restore.
+
+## Notes
+
+**claude** — 2026-08-17T04:04:08Z
+
+Pinned routes (this slice owns them): POST /api/workflows/{id}/versions → 201 {number} (publish, mints N+1); GET /api/workflows/{id}/versions → 200 [{number, created_at}]; GET /api/workflows/{id}/versions/{number} → 200 the document; POST /api/workflows/{id}/versions/{number}/restore → 200 (copies the document into the Draft); GET /api/workflows/{id}/draft/diff → 200 {added, changed, removed} by stable step id with labels, against the latest Version — the publish modal and the draft-state derivation both consume it. operation_id on each route.

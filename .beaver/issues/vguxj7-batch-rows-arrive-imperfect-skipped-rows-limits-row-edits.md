@@ -7,7 +7,7 @@ depends_on:
     - 297ba3
 parent: nno9gj
 created: 2026-08-14T19:51:01Z
-updated: 2026-08-14T19:51:01Z
+updated: 2026-08-17T04:03:47Z
 ---
 
 ## What to build
@@ -37,3 +37,9 @@ BatchSummary = { id, name, workflow_id, created_at, cancelled_at,
 - [ ] `POST /rows/fill` on a Batch with 5 `queued` rows, 3 of which lack `region`, while one further row is `running` → `updated_count: 3`, and the running row is untouched.
 - [ ] `GET /api/batches?workflow_id=` returns BatchSummary rows with stats derived from rows; keyset paging over seeded Batches yields distinct ids in order.
 - [ ] Every route is user-scoped: another user's Batch id → 404.
+
+## Notes
+
+**claude** — 2026-08-17T04:03:47Z
+
+Re-scope per ADR 0005: Batches are org-owned; routes scope via the X-Organization gate — 'another user's Batch id → 404' reads another Organization's.

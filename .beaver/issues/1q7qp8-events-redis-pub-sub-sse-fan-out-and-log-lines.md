@@ -7,7 +7,7 @@ depends_on:
     - 6ewr2p
 parent: 9gea5p
 created: 2026-08-14T07:41:51Z
-updated: 2026-08-14T07:41:51Z
+updated: 2026-08-17T04:03:47Z
 ---
 
 ## What to build
@@ -44,3 +44,9 @@ GET /api/runs/{runId}/logs?after_seq=&step_id=  → 200 [LogLine]
 - [ ] `after_seq` returns only later lines; `step_id` returns only that Step's lines.
 - [ ] The SSE route enforces Run ownership: another user's Run id → 404 before any subscription.
 - [ ] No event carries artifact bytes — an `artifact` event carries ids only.
+
+## Notes
+
+**claude** — 2026-08-17T04:03:47Z
+
+Re-scope per ADR 0005: the SSE route's ownership check is the org Membership gate — another Organization's Run id → 404; any member of the Run's Organization may subscribe.

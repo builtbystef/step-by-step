@@ -9,7 +9,7 @@ depends_on:
     - 423dg6
 parent: 54i6da
 created: 2026-08-14T06:16:00Z
-updated: 2026-08-15T04:32:52Z
+updated: 2026-08-17T04:04:08Z
 ---
 
 ## What to build
@@ -58,3 +58,9 @@ This slice's edge on the execution spec is an umbrella; tighten it to the specif
 - [ ] Consent for a domain never reported as a candidate → 404 `not_a_candidate`; `scope: personal` on a Scheduled or Batch Run → 422 `no_starter`.
 - [ ] A Run that reached `failed` → write-back is rejected by the non-terminal check, so a failed Run's state can never land.
 - [ ] The credentials response body appears in no request log line.
+
+## Notes
+
+**claude** — 2026-08-17T04:04:08Z
+
+Two pins. (1) The run detail (GET /api/runs/{id}) gains auth_state_candidates: [{domain, consent: {scope} | null}] — populated from this slice's candidate/consent state, empty when the Run has none; 2aybf8's keep-this-login prompt renders it. (2) missing_secret precedence (mirrored on 423dg6): the request-time 409 on POST .../runs is a best-effort pre-check; this slice's 409 at the credentials fetch is authoritative for every trigger — a Run whose Secret disappears between start and claim ends failed/missing_secret.

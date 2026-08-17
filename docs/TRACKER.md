@@ -23,7 +23,7 @@ Each other field change is also `beaver update {{ref}}` — `--title`, `--body` 
 
 ## Labels
 
-Labels are free-form. Use the canonical names without changes: `bug`, `spec`, `maintenance`, `review`, `research`, `needs-review`, `roadmap`, `roadmap:{{id}}`, `session:research` / `session:prototype` / `session:grill` / `session:task` / `session:spec`. A spec issue carries `spec` — build its sub-issues, never the spec issue. Apply a label to an existing issue with `beaver update {{ref}} --label {{name}}`. Remove one with `beaver update {{ref}} --label -{{name}}`.
+Labels are free-form. Use the canonical names without changes: `bug`, `spec`, `maintenance`, `review`, `research`, `needs-review`, `roadmap`, `roadmap:{{id}}`, `session:research` / `session:prototype` / `session:grill` / `session:task` / `session:spec`. A spec issue carries `spec` — build its sub-issues, never the spec issue. Each spec's title collides with a closed `session:spec` issue that wrote it (for example "Spec: accounts and authentication" vs. "Accounts and authentication") — when fetching a parent spec, the `spec` label is the discriminator, never the title. Apply a label to an existing issue with `beaver update {{ref}} --label {{name}}`. Remove one with `beaver update {{ref}} --label -{{name}}`.
 
 ## Closed issues
 
