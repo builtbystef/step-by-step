@@ -81,7 +81,7 @@ Tables are declared in the backend, not in core: `step_by_step_api.accounts.mode
 
 Migrations run with `pnpm --filter api run migrate` (`alembic upgrade head`). Three revisions exist: the empty baseline that gives the runner a head to reach, the accounts schema, and the Workflow document store.
 
-One autogenerate quirk to expect: every revision generated after the accounts schema proposes dropping the `invitation_role` and `membership_role` check constraints. SQLAlchemy's non-native `Enum` writes those constraints but does not offer them for comparison, so the proposal is noise and is deleted by hand from the generated file. Issue `t6xbdg` holds the permanent fix.
+`env.py`'s `include_object` hides one thing from autogenerate: the check constraint a non-native `Enum` column writes, which alembic reflects but does not compare, and would otherwise propose dropping in every revision. The names come from the metadata each run, so a column a model really drops takes its constraint out of the filter and the drop is proposed as it should be; `tests/integration/test_migrations.py` holds both halves.
 
 ### The vault's encryption
 
