@@ -110,7 +110,16 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     restart: unless-stopped
-    environment: *stack-environment
+    environment:
+      <<: *stack-environment
+      # The vault's master key, and the one variable that is deliberately not
+      # in the shared anchor: the backend holds it and the Workers never do
+      # (ADR 0004). The backend refuses to start unless it is base64 of 32
+      # bytes. A dev default, on the same terms as Garage's above, so that a
+      # cold `docker compose up` needs no .env — a real deployment overrides
+      # it, and losing the key it replaces makes every stored value
+      # unrecoverable, by design.
+      STEPBYSTEP_MASTER_KEY: ${STEPBYSTEP_MASTER_KEY:-ZGV2LW9ubHkgbWFzdGVyIGtleSAtIG5ldmVyIHNoaXA=}
     ports:
       # 8001, because `pnpm dev` runs a backend on the host's 8000 and the two
       # are meant to coexist. Override with API_PORT.
