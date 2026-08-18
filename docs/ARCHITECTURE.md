@@ -105,6 +105,16 @@ picks that, `console` by default, and `MAIL_FROM` is the sender.
 - **resend** — an HTTP POST to Resend with `RESEND_API_KEY`; the recommended
   hosted path.
 
+The console adapter's message is a log record, and it reaches an operator only
+because **`step_by_step_api.logs` configures application logging** — one
+handler on the root logger, on stdout — from the lifespan, ahead of the gates.
+That is the single place: uvicorn gives its own `uvicorn*` loggers a handler
+and the root none, so before this the Sign-in Code was written to a logger with
+nothing attached and dropped (`95v5fm`). uvicorn's loggers do not propagate to
+the root, so its access and error records are neither silenced nor doubled, and
+every other module does nothing but take its logger and write to it. The Worker
+configures its own, in `step_by_step_worker.main`, since it is another process.
+
 The adapter is built once and **at startup**, from the lifespan beside the
 master key: a mailer whose configuration is missing stops the boot with the
 variable's name, rather than surfacing on the first person's sign-in — and the

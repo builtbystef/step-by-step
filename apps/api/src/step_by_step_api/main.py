@@ -8,6 +8,7 @@ from step_by_step_api.accounts.routes import router as accounts_router
 from step_by_step_api.accounts.service import signup_mode
 from step_by_step_api.envelope import master_key
 from step_by_step_api.errors import install_error_handler
+from step_by_step_api.logs import configure as configure_logging
 from step_by_step_api.mail import mailer
 
 
@@ -15,12 +16,17 @@ from step_by_step_api.mail import mailer
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """What the backend proves before it serves a request.
 
-    All three are read here rather than at first use: an instance that cannot
-    open its own vault, cannot send the Sign-in Code that is the only way in,
-    or cannot say who may sign up, must fail while an operator is still
-    watching the boot — not hours later on someone's secret or someone's
-    sign-in.
+    Logging first, so that everything after it is said somewhere an operator
+    can read it: uvicorn gives its own loggers a handler and the application's
+    none, and a record written to a logger with no handler is dropped.
+
+    Then all three are read here rather than at first use: an instance that
+    cannot open its own vault, cannot send the Sign-in Code that is the only
+    way in, or cannot say who may sign up, must fail while an operator is
+    still watching the boot — not hours later on someone's secret or
+    someone's sign-in.
     """
+    configure_logging()
     master_key()
     mailer()
     signup_mode()
