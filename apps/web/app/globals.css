@@ -1,0 +1,152 @@
+@import "tailwindcss";
+
+/*
+ * The visual language: the surfaces, the semantic ramp, and the type scale.
+ *
+ * THIS FILE IS THE ONLY PLACE A RAW HEX VALUE MAY APPEAR. Everything else
+ * reaches a colour through a token, so that one hue keeps one meaning.
+ */
+
+/*
+ * There is no dark mode. Tailwind's `dark:` variant defaults to the viewer's
+ * OS preference, which would half-apply a palette that does not exist, so it
+ * is bound to a class this app never sets. The variants shadcn's generated
+ * components carry are then inert rather than wrong.
+ */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* Surfaces and ink. */
+  --bg: #f5f6f8;
+  --panel: #ffffff;
+  --ink: #1a2130;
+  --mut: #68738a;
+  --line: #e3e7ee;
+
+  /* The semantic ramp — one hue, one meaning. There is no drift hue: selector
+     drift is "a human should look at this", which is --wait, told apart by its
+     words and its icon. */
+  --accent: #2f6fed; /* the machine is acting; informational; interactive */
+  --accent-bg: #e8effd;
+  --wait: #b97a08; /* a human is needed, or was */
+  --wait-bg: #fdf3e0;
+  --human: #7c3aed; /* a secret, or a human-supplied value */
+  --human-bg: #f1eafd;
+  --ok: #178a50; /* succeeded */
+  --ok-bg: #e2f5ea;
+  --bad: #c92f34; /* failed */
+  --bad-bg: #fbe9e9;
+
+  /*
+   * shadcn's own token names, mapped onto the above so the generated
+   * components speak this palette and no second one exists. `--accent` is
+   * deliberately the same hue in both vocabularies: shadcn's hover surface is
+   * "interactive", which is exactly what our accent means.
+   */
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --card: var(--panel);
+  --card-foreground: var(--ink);
+  --popover: var(--panel);
+  --popover-foreground: var(--ink);
+  --primary: var(--accent);
+  --primary-foreground: var(--panel);
+  --secondary: var(--bg);
+  --secondary-foreground: var(--ink);
+  --muted: var(--bg);
+  --muted-foreground: var(--mut);
+  --accent-foreground: var(--panel);
+  --destructive: var(--bad);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--accent);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-ink: var(--ink);
+  --color-mut: var(--mut);
+  --color-line: var(--line);
+
+  --color-accent: var(--accent);
+  --color-accent-bg: var(--accent-bg);
+  --color-wait: var(--wait);
+  --color-wait-bg: var(--wait-bg);
+  --color-human: var(--human);
+  --color-human-bg: var(--human-bg);
+  --color-ok: var(--ok);
+  --color-ok-bg: var(--ok-bg);
+  --color-bad: var(--bad);
+  --color-bad-bg: var(--bad-bg);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+@theme {
+  --font-sans: system-ui, sans-serif;
+
+  /*
+   * The type scale is exactly six sizes. Tailwind's default font-size
+   * namespace is cleared so a seventh is not reachable by accident; `xs`,
+   * `sm`, and `base` are kept as aliases onto three of the six, because
+   * shadcn's generated components are written against those names.
+   *
+   * Spacing and radius are Tailwind's defaults untouched: the language's
+   * 4/6/8/12/16/24 spacing is 1/1.5/2/3/4/6, and its 6/8/10/999 radii are
+   * md/lg/xl/full.
+   */
+  --text-*: initial;
+
+  --text-micro: 11px; /* badges, column headers, section labels */
+  --text-micro--line-height: 1.4;
+  --text-small: 12px; /* meta lines, secondary controls */
+  --text-small--line-height: 1.4;
+  --text-half: 13px; /* table cells, callout text — the half-step down */
+  --text-half--line-height: 1.45;
+  --text-body: 14px;
+  --text-body--line-height: 1.45;
+  --text-title: 16px; /* panel and card titles */
+  --text-title--line-height: 1.35;
+  --text-page: 20px; /* one per screen */
+  --text-page--line-height: 1.3;
+  --text-page--font-weight: 700;
+
+  --text-xs: var(--text-small);
+  --text-xs--line-height: 1.4;
+  --text-sm: var(--text-body);
+  --text-sm--line-height: 1.45;
+  --text-base: var(--text-title);
+  --text-base--line-height: 1.35;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+    outline-color: color-mix(in oklch, var(--ring) 50%, transparent);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: 1.45;
+  }
+}

@@ -6,12 +6,23 @@ packages:
 catalogMode: prefer
 
 catalog:
+  "@tailwindcss/postcss": ^4.3.3
+  "@tanstack/react-query": ^5.101.4
   "@types/node": ^24
+  class-variance-authority: ^0.7.1
+  clsx: ^2.1.1
+  lucide-react: ^1.31.0
+  radix-ui: ^1.6.7
+  tailwind-merge: ^3.6.0
+  tailwindcss: ^4.3.3
   typescript: ^7.0.2
   # Bump these two together. A split pair fails at startup. Dependabot misses
   # the coupling through the npm: alias, so update both by hand.
   vite: npm:@voidzero-dev/vite-plus-core@0.2.8
   vite-plus: 0.2.8
+  # Pinned exact to the version Vite+ bundles: a second Vitest in the graph
+  # is two test runners. Bump it with vite-plus, not on its own.
+  vitest: 4.1.10
 overrides:
   vite: "catalog:"
 peerDependencyRules:
