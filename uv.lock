@@ -734,6 +734,7 @@ source = { editable = "apps/api" }
 dependencies = [
     { name = "alembic" },
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pynacl" },
     { name = "sqlalchemy" },
@@ -741,24 +742,17 @@ dependencies = [
     { name = "uvicorn", extra = ["standard"] },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "httpx" },
-]
-
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = ">=1.19.1" },
     { name = "fastapi", specifier = ">=0.115" },
+    { name = "httpx", specifier = ">=0.28" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "pynacl", specifier = ">=1.6" },
     { name = "sqlalchemy", specifier = ">=2" },
     { name = "step-by-step-core", editable = "packages/core" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.52.1" },
 ]
-
-[package.metadata.requires-dev]
-dev = [{ name = "httpx", specifier = ">=0.28" }]
 
 [[package]]
 name = "step-by-step-core"

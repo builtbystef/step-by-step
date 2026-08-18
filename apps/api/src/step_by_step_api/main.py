@@ -5,17 +5,20 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from step_by_step_api.envelope import master_key
+from step_by_step_api.mail import mailer
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """What the backend proves before it serves a request.
 
-    The master key is read here rather than at the first vault write: an
-    instance that cannot open its own vault must fail while an operator is
-    still watching the boot, not hours later on someone's password.
+    Both are read here rather than at first use: an instance that cannot open
+    its own vault, or cannot send the Sign-in Code that is the only way in,
+    must fail while an operator is still watching the boot — not hours later
+    on someone's secret or someone's sign-in.
     """
     master_key()
+    mailer()
     yield
 
 

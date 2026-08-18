@@ -85,6 +85,34 @@ Migrations run with `pnpm --filter api run migrate` (`alembic upgrade head`). On
 
 `master_key()` reads `STEPBYSTEP_MASTER_KEY` — base64 of 32 bytes — and is the only thing in the module that touches the environment; every other function takes the key it works with, which is what makes rotation a two-key call rather than a global swap. The backend's **lifespan calls it at startup**, so a missing, malformed, or wrong-length key stops the process while an operator is watching rather than failing on the first vault write. In `compose.yaml` the variable sits on the `api` service alone, outside the `x-stack-environment` anchor the Workers share.
 
+### The mailer
+
+`step_by_step_api.mail` is the one place email leaves the system. Callers say
+`send(to, subject, text)` and never learn which adapter carried it; `MAILER`
+picks that, `console` by default, and `MAIL_FROM` is the sender.
+
+- **console** — logs the message and keeps it in an in-process outbox. It is
+  what makes a dev instance work with no mail service, and it is the **test
+  capture point**: the accounts seam tests read the Sign-in Code out of
+  `outbox()` rather than out of the table that holds its hash.
+- **smtp** — `smtplib` against `SMTP_HOST`/`SMTP_PORT` (587 by default),
+  authenticating with `SMTP_USERNAME`/`SMTP_PASSWORD` when both are set and
+  upgrading with STARTTLS when the server offers it. Offered-not-required, so
+  that a relay on the instance's own host still works. It keeps self-hosting
+  provider-free.
+- **resend** — an HTTP POST to Resend with `RESEND_API_KEY`; the recommended
+  hosted path.
+
+The adapter is built once and **at startup**, from the lifespan beside the
+master key: a mailer whose configuration is missing stops the boot with the
+variable's name, rather than surfacing on the first person's sign-in — and the
+Sign-in Code is the only way into an instance. The variables sit on the `api`
+service alone in `compose.yaml`, outside the anchor the Workers share, because
+the backend sends every email and a Worker sends none.
+
+A failed send raises whatever the adapter's own library raises. v1 has no
+caller that catches one, so nothing is wrapped to make them look alike.
+
 ### The Artifact store, and its two endpoints
 
 `step_by_step_core.objects` is boto3 against a configurable endpoint, and it exposes **two** clients on purpose:

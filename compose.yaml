@@ -120,6 +120,17 @@ services:
       # it, and losing the key it replaces makes every stored value
       # unrecoverable, by design.
       STEPBYSTEP_MASTER_KEY: ${STEPBYSTEP_MASTER_KEY:-ZGV2LW9ubHkgbWFzdGVyIGtleSAtIG5ldmVyIHNoaXA=}
+      # The mailer, on the api service alone for the same reason: the backend
+      # sends every email and the Workers send none. console by default, so a
+      # cold `docker compose up` needs no mail service; the adapter variables
+      # pass through empty and are read only by the adapter that MAILER names.
+      MAILER: ${MAILER:-console}
+      MAIL_FROM: ${MAIL_FROM:-step-by-step@localhost}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
     ports:
       # 8001, because `pnpm dev` runs a backend on the host's 8000 and the two
       # are meant to coexist. Override with API_PORT.

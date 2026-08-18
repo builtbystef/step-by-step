@@ -15,17 +15,20 @@ from collections.abc import Iterator
 import pytest
 from fastapi.testclient import TestClient
 from step_by_step_api.envelope import KEY_BYTES, MasterKeyError, master_key
+from step_by_step_api.mail import MailerConfigurationError, mailer
 from step_by_step_api.main import app
 
 VALID = b64encode(bytes(range(KEY_BYTES))).decode()
 
 
 @pytest.fixture(autouse=True)
-def unconfigured_key() -> Iterator[None]:
-    """No test here may inherit — or leave behind — a cached master key."""
+def unconfigured_boot() -> Iterator[None]:
+    """No test here may inherit — or leave behind — what a boot caches."""
     master_key.cache_clear()
+    mailer.cache_clear()
     yield
     master_key.cache_clear()
+    mailer.cache_clear()
 
 
 def test_the_backend_starts_with_a_valid_master_key(
@@ -61,6 +64,19 @@ def test_the_backend_refuses_to_start_on_a_key_of_the_wrong_length(
     monkeypatch.setenv("STEPBYSTEP_MASTER_KEY", b64encode(b"too short").decode())
 
     with pytest.raises(MasterKeyError, match="9 bytes"), TestClient(app):
+        pass
+
+
+def test_the_backend_refuses_to_start_on_a_mailer_it_cannot_configure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The same gate, for the same reason: a mailer that cannot send is found
+    at boot rather than by the first person who asks for a Sign-in Code."""
+    monkeypatch.setenv("STEPBYSTEP_MASTER_KEY", VALID)
+    monkeypatch.setenv("MAILER", "smtp")
+    monkeypatch.delenv("SMTP_HOST", raising=False)
+
+    with pytest.raises(MailerConfigurationError, match="SMTP_HOST"), TestClient(app):
         pass
 
 
