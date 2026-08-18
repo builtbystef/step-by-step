@@ -193,6 +193,12 @@ It also rewrites `lib/utils.ts`, which drops the tailwind-merge extension that t
 
 `apps/web` imports only `@step-by-step/api-client`. The generated functions return `{data, error}` rather than throwing, so a 401 is a value the screen reads and not an exception it has to catch. Cookies ride along because the browser talks to one origin: the Next proxy makes the session cookie same-origin, which is also what makes `SameSite=Lax` the whole CSRF story.
 
+Every generated call goes through the package's one `client`, which `src/index.ts` re-exports for exactly that reason: it is the seam the app configures once. Three modules sit on it.
+
+- `lib/gate.ts` — the route gate. `resolveGate(me, activeOrgRole, pathname)` answers `render` or `redirect`, and it is pure: no router, no DOM, no fetch, so the whole guard is a table that `lib/gate.test.ts` reads back. `landingAfterSignIn(next)` is the other half — `next` arrives in a URL anyone can write, so it is honored only when it is a path of this app (one leading slash, not an auth route) and otherwise falls back to `HOME_PATH`.
+- `lib/api.ts` — the global fetch wrapper. `installUnauthorizedRedirect(navigate)` installs one response interceptor on the shared client: a 401 means the visitor has no session, which is a question the gate already answers, so it asks it with the path the visitor is on. A tab left open across a session expiry therefore recovers with a redirect instead of a screenful of errors, and the sign-in screen — where `GET /api/auth/me` answers 401 by design — is left alone because the gate says `render` there. `app/providers.tsx` installs it once for the app and empties the query cache before the redirect, so a stale identity cannot bounce the visitor back. The active Organization's `X-Organization` header belongs in this same interceptor and arrives with the shell.
+- `lib/identity.ts` — who the visitor is, under one query key, so the shell and every consumer share one `GET /api/auth/me`. `signOutAndLeave` ends the session, empties the cache, and lands on sign-in with nothing carried.
+
 ### Strictness
 
 Both typecheckers run at full strict, set at scaffold time. TypeScript: the flag set in `tsconfig/base.json` (`strict` plus `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noFallthroughCasesInSwitch`, `noUncheckedSideEffectImports`, `verbatimModuleSyntax`). Python: `[tool.ty.rules]` in the root `pyproject.toml` promotes every rule ty ships at default level "warn" to "error".

@@ -1,0 +1,189 @@
+"use client";
+
+import { getInstance, requestSigninCode, verifySigninCode } from "@step-by-step/api-client";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState, type ReactNode } from "react";
+
+import { emailStepNote, refusalMessage } from "./messages";
+
+import { Callout } from "@/components/primitives/callout";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { landingAfterSignIn, resolveGate, SIGN_IN_PATH } from "@/lib/gate";
+import { IDENTITY_KEY, identityQuery } from "@/lib/identity";
+
+/**
+ * The sign-in screen: the one route outside the shell.
+ *
+ * Signing in and signing up are the same two steps, because there are no
+ * passwords — an address, then the Sign-in Code that address received. What
+ * the instance does with an address it has never seen is the one thing that
+ * differs between the two, and `GET /api/instance` is what says so.
+ */
+
+/** The instance's own facts change about as often as the deployment does. */
+const INSTANCE_QUERY = {
+  queryKey: ["instance"] as const,
+  staleTime: Number.POSITIVE_INFINITY,
+  queryFn: async () => (await getInstance()).data ?? null,
+};
+
+export function SignInScreen() {
+  const router = useRouter();
+  const cache = useQueryClient();
+  const next = useSearchParams().get("next");
+
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [sent, setSent] = useState(false);
+
+  const identity = useQuery(identityQuery());
+  const instance = useQuery(INSTANCE_QUERY);
+
+  // Someone who is already signed in has no business on this screen; the gate
+  // says so, and `next` says where they were going before they were sent here.
+  const arrived = resolveGate(identity.data ?? null, null, SIGN_IN_PATH).kind === "redirect";
+  useEffect(() => {
+    if (arrived) {
+      router.replace(landingAfterSignIn(next));
+    }
+  }, [arrived, next, router]);
+
+  const askForCode = useMutation({
+    mutationFn: async () => {
+      const { error } = await requestSigninCode({ body: { email } });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setCode("");
+      setSent(true);
+    },
+  });
+
+  const signIn = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await verifySigninCode({ body: { email, code } });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: async () => {
+      await cache.invalidateQueries({ queryKey: IDENTITY_KEY });
+    },
+  });
+
+  if (identity.isPending || arrived) {
+    return <Screen />;
+  }
+
+  const note = emailStepNote(instance.data?.signup_mode);
+
+  // One refusal at a time: a wrong code and a refused resend cannot both be
+  // the last thing that happened.
+  const refused = signIn.error ?? askForCode.error;
+
+  return (
+    <Screen>
+      <Card className="w-full">
+        <CardContent>
+          {sent ? (
+            <form
+              className="flex flex-col gap-3"
+              onSubmit={(submitted) => {
+                submitted.preventDefault();
+                signIn.mutate();
+              }}
+            >
+              <Label htmlFor="code">Sign-in Code</Label>
+              <p className="text-small text-mut">
+                We sent a 6-digit code to <span className="text-ink">{email}</span>. It works once,
+                and it expires in 10 minutes.
+              </p>
+              <Input
+                id="code"
+                value={code}
+                autoFocus
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                onChange={(typed) => setCode(typed.target.value.trim())}
+              />
+              {refused ? <Callout tone="bad">{refusalMessage(refused)}</Callout> : null}
+              <Button type="submit" disabled={signIn.isPending || code.length === 0}>
+                Sign in
+              </Button>
+              <div className="flex items-center justify-between">
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="px-0 text-small"
+                  disabled={askForCode.isPending}
+                  onClick={() => {
+                    signIn.reset();
+                    askForCode.mutate();
+                  }}
+                >
+                  Send a new code
+                </Button>
+                <Button
+                  type="button"
+                  variant="link"
+                  size="sm"
+                  className="px-0 text-small"
+                  onClick={() => {
+                    signIn.reset();
+                    askForCode.reset();
+                    setCode("");
+                    setSent(false);
+                  }}
+                >
+                  Use a different email
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <form
+              className="flex flex-col gap-3"
+              onSubmit={(submitted) => {
+                submitted.preventDefault();
+                askForCode.mutate();
+              }}
+            >
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                autoFocus
+                autoComplete="email"
+                onChange={(typed) => setEmail(typed.target.value.trim())}
+              />
+              {note ? <p className="text-small text-mut">{note}</p> : null}
+              {askForCode.error ? (
+                <Callout tone="bad">{refusalMessage(askForCode.error)}</Callout>
+              ) : null}
+              <Button type="submit" disabled={askForCode.isPending || email.length === 0}>
+                Continue
+              </Button>
+            </form>
+          )}
+        </CardContent>
+      </Card>
+    </Screen>
+  );
+}
+
+/** No sidebar and no attention band: the wordmark, and one 400px card. */
+function Screen({ children }: { children?: ReactNode }) {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center gap-6 px-4 py-12">
+      <div className="flex w-full max-w-[400px] flex-col items-center gap-6">
+        <h1 className="text-page">Step by Step</h1>
+        {children}
+      </div>
+    </main>
+  );
+}
