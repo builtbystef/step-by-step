@@ -3,7 +3,13 @@ name = "step-by-step-api"
 version = "0.1.0"
 description = "FastAPI backend"
 requires-python = ">=3.14"
-dependencies = ["alembic>=1.19.1", "fastapi>=0.115", "sqlalchemy>=2", "uvicorn[standard]>=0.52.1"]
+dependencies = [
+  "alembic>=1.19.1",
+  "fastapi>=0.115",
+  "psycopg[binary]>=3.2",
+  "sqlalchemy>=2",
+  "uvicorn[standard]>=0.52.1",
+]
 
 [dependency-groups]
 dev = ["httpx>=0.28"]

@@ -3,6 +3,7 @@ from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
+from step_by_step_api.db import Base
 
 config = context.config
 
@@ -13,9 +14,8 @@ config.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL"])
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Autogenerate target. Point this at the models' metadata when the first
-# table lands, e.g.: from step_by_step_api.db import Base; Base.metadata
-target_metadata = None
+# Autogenerate target: every table inherits step_by_step_api.db.Base.
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:

@@ -53,5 +53,7 @@ extend-exclude = ["**/node_modules", ".agents", ".claude", ".beaver"]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 
 [tool.pytest.ini_options]
-addopts = "-q"
+# The default run is the fast tier: no services, nothing to start.
+addopts = "-q -m 'not integration'"
 testpaths = ["apps/api/tests"]
+markers = ["integration: needs the compose stack; run with `pnpm test:integration`"]

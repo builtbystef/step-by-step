@@ -7,6 +7,14 @@ One command vocabulary covers both languages: root pnpm scripts fan out through 
 - Typecheck: `pnpm check`
 - Test: `pnpm test`
 
+### Services
+
+`docker compose up -d` starts the stack (Postgres today). Copy `.env.example` to `.env` and load it — `set -a; source .env; set +a` — so `DATABASE_URL` is in the environment; nothing reads a connection URL from anywhere else. Then `pnpm --filter api run migrate` applies the migrations.
+
+- Integration test tier: `pnpm test:integration` (needs the stack up and `DATABASE_URL` set)
+
+`pnpm test` is the fast tier and stays green with no services running.
+
 `pnpm check` deliberately runs format + lint + typecheck as one pass. After changing an endpoint, `pnpm build` regenerates the OpenAPI schema and typed client — commit them (CI fails on drift). `pnpm run ci` is check + test + build.
 
 ## Project docs & tracker

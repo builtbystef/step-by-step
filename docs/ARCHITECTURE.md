@@ -23,7 +23,9 @@ Two packages are decided but not yet built; each lands with the first slice that
 - `apps/worker` — the Worker (see the glossary): its own uv workspace member, depending on the `step-by-step-api` package for shared models. If that dependency gets awkward, the escape hatch is extracting a shared Python lib into `packages/`.
 - `apps/extension` — the MV3 recording extension. The workspace globs and `vp check`/`vp test` cover it the moment it exists.
 
-The deployment shape (settled in `px25yw`): one docker compose stack — backend, Workers, Postgres, Redis, Garage. The compose file lands with the first slice that needs a running service; until then, `pnpm dev` runs FastAPI and Next.js directly.
+The deployment shape (settled in `px25yw`): one docker compose stack — backend, Workers, Postgres, Redis, Garage. `compose.yaml` at the root holds it; Postgres is in it today, and Redis, Garage, the backend, and the Workers join with the slices that need them. `docker compose up -d` starts it. The application processes still run on the host — `pnpm dev` runs FastAPI and Next.js directly and they reach the stack over published host ports.
+
+Postgres publishes on host port **5433** by default, not 5432, so the stack does not collide with another project's Postgres on the same machine; `POSTGRES_PORT` overrides it, as `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` override the rest. `.env.example` carries the matching `DATABASE_URL`. The stack is long-lived shared state: dev, the tests, and any sandboxed agent loop all reach the same containers, so nothing may assume it starts fresh.
 
 Garage is the Artifact store, chosen over MinIO on 2026-08-16 after MinIO archived its community edition; `px25yw` carries the reasoning and `ymz3md` the stack fact. What binds code rather than compose: artifacts are read and written through the **S3 API only**, via boto3 against a configurable endpoint URL, so the store stays swappable. Garage has no object versioning, bucket policies, object lock, or server-side encryption — none are used here, since retention is app-driven and ADR 0003 puts encryption in the application layer.
 
@@ -39,7 +41,15 @@ In dev the browser only talks to Next.js: `apps/web/next.config.ts` rewrites `/a
 
 ### The database
 
-SQLAlchemy 2 + Alembic. The connection URL comes only from the `DATABASE_URL` environment variable (`apps/api/alembic/env.py` sets it; `alembic.ini` carries no URL). No tables and no migrations exist yet — the first slice that needs a table writes the first model and the first migration, and points `target_metadata` at the models' metadata.
+SQLAlchemy 2 + Alembic, on psycopg 3 (`postgresql+psycopg://`). The connection URL comes only from the `DATABASE_URL` environment variable — `apps/api/alembic/env.py` sets it, `alembic.ini` carries no URL, and `step_by_step_api.db` reads it too. Nothing defaults it in code, so a missing variable is a loud failure rather than a silent connection to the wrong database.
+
+`step_by_step_api.db` is the seam:
+
+- `Base` — the declarative base every table inherits; `alembic/env.py` autogenerates from its metadata.
+- `get_engine()` — the process-wide engine, built on first use rather than at import, so the no-services tier and anything that merely imports the app need no database.
+- `SessionDep` — the annotated dependency a route handler declares to receive its request's session. The session opens when the request starts and closes when it ends, rolling back whatever the handler did not commit. Handlers commit for themselves.
+
+Migrations run with `pnpm --filter api run migrate` (`alembic upgrade head`). One revision exists — an empty baseline that gives the runner a head to reach; the accounts slice writes the first tables.
 
 ### Strictness
 
@@ -47,4 +57,10 @@ Both typecheckers run at full strict, set at scaffold time. TypeScript: the flag
 
 ## Test tiers
 
-One tier today: `pnpm test` runs Vitest and pytest with no services — fast, hermetic. A marked integration tier (Postgres/Redis via compose) appears with the first test that needs it, separated so the fast tier stays the default.
+Two tiers, split by a pytest marker.
+
+**Fast (the default).** `pnpm test` runs Vitest and pytest with no services — hermetic, nothing to start. The pytest side deselects `-m integration` through `addopts`, so the tier stays fast by default rather than by anyone remembering a flag.
+
+**Integration.** `pnpm test:integration` runs the tests marked `@pytest.mark.integration` against the real Postgres, with `DATABASE_URL` in the environment. It lives in `apps/api/tests/integration/`. CI runs it in its own `integration` job against a Postgres service container.
+
+The integration tier owns its state: its session fixture creates a database of its own on the running Postgres, migrates it to head, and drops it at the end. That is what makes it safe against a long-lived shared stack — no test may assume a fresh one, and two runs never collide.

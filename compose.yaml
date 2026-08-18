@@ -1,0 +1,29 @@
+# The development stack. `docker compose up -d` starts it; the services it
+# holds are long-lived shared state that dev, tests, and CI all reach over
+# localhost. Redis, Garage, the backend, and the Workers join it later.
+name: step-by-step
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-stepbystep}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-stepbystep}
+      POSTGRES_DB: ${POSTGRES_DB:-stepbystep}
+    ports:
+      # 5433 on the host by default: 5432 is the port a developer's other
+      # project already holds. Override with POSTGRES_PORT.
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-stepbystep} -d ${POSTGRES_DB:-stepbystep}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres-data:

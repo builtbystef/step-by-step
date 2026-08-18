@@ -56,6 +56,43 @@ jobs:
       - run: uv run ty check
       - run: uv run pytest
 
+  # The integration tier: the same pytest suite, run against a real Postgres.
+  # Locally this database comes from `docker compose up -d`; here it is a
+  # service container. Either way the URL arrives only in the environment.
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: stepbystep
+          POSTGRES_PASSWORD: stepbystep
+          POSTGRES_DB: stepbystep
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+
+      - run: uv sync --locked --all-packages
+
+      - run: uv run pytest -m integration
+        env:
+          DATABASE_URL: postgresql+psycopg://stepbystep:stepbystep@localhost:5432/stepbystep
+
   # The committed openapi.json and generated client must match the FastAPI app.
   contract:
     runs-on: ubuntu-latest

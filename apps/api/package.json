@@ -3,9 +3,11 @@
   "private": true,
   "scripts": {
     "dev": "uv run uvicorn step_by_step_api.main:app --reload --port 8000",
+    "migrate": "uv run alembic upgrade head",
     "check": "uv run ruff format --check . && uv run ruff check . && uv run ty check",
     "check:fix": "uv run ruff format . && uv run ruff check --fix .",
     "test": "uv run pytest tests",
+    "test:integration": "uv run pytest tests -m integration",
     "build": "uv run python -m step_by_step_api.export openapi.json"
   }
 }
