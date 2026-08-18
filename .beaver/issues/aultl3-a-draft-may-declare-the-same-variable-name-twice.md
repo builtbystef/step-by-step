@@ -1,11 +1,12 @@
 ---
 id: aultl3
 title: A Draft may declare the same Variable name twice
-state: todo
+state: done
+assignee: claude
 priority: low
 parent: d8ux2s
 created: 2026-08-18T10:34:45Z
-updated: 2026-08-18T10:34:45Z
+updated: 2026-08-18T23:15:44Z
 ---
 
 ## What to build
@@ -21,3 +22,9 @@ The fix is the same shape as the duplicate-id rule, in `step_by_step_api.workflo
 - [ ] A Draft save whose `variables` declares one name twice is refused with a machine-readable code that names the repeated name.
 - [ ] Names are compared as written — `Password` and `password` are two names, because `{{name}}` interpolation matches exactly.
 - [ ] An HTTP seam test covers the refusal.
+
+## Notes
+
+**claude** — 2026-08-18T23:15:44Z
+
+Refused with duplicate_variable_name in validated(), read before the Step loop so the declaration list is settled before anything is read against it. Names compared as written. Two seam tests: the refusal, and Password/password saving as two Variables.

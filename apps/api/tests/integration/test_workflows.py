@@ -121,6 +121,48 @@ def test_a_duplicate_step_id_is_refused_and_the_error_names_it(
     assert read_draft(account, workflow_id).json()["steps"] == []
 
 
+def test_a_duplicate_variable_name_is_refused_and_the_error_names_it(
+    new_account: NewAccount,
+) -> None:
+    """Secret masking keys off the Variable's secret flag, so a name declared
+    twice with two flags decides by whichever row a reader happens to pick
+    whether the value is masked in a form, in logs, and in a Batch's rows."""
+    account = new_account()
+    workflow_id = a_workflow(account)
+
+    refused = save_draft(
+        account,
+        workflow_id,
+        variables=[
+            {"name": "password", "secret": True},
+            {"name": "password", "secret": False},
+        ],
+    )
+
+    assert refused.status_code == 400, refused.text
+    assert refused.json()["code"] == "duplicate_variable_name"
+    assert "password" in refused.json()["message"]
+    assert read_draft(account, workflow_id).json()["variables"] == []
+
+
+def test_variable_names_that_differ_only_in_case_are_two_variables(
+    new_account: NewAccount,
+) -> None:
+    """`{{name}}` interpolation matches exactly, so folding the comparison here
+    would refuse a document whose two references do resolve to two values."""
+    account = new_account()
+    workflow_id = a_workflow(account)
+    declared = [{"name": "Password", "secret": True}, {"name": "password"}]
+
+    saved = save_draft(account, workflow_id, variables=declared)
+
+    assert saved.status_code == 200, saved.text
+    assert [variable["name"] for variable in saved.json()["variables"]] == [
+        "Password",
+        "password",
+    ]
+
+
 def a_target(**over: object) -> dict[str, object]:
     """A ranked candidate list, best-first, as the recorder verified it."""
     return {

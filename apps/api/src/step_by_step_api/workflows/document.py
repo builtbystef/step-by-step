@@ -11,9 +11,9 @@ place that does not.
 
 Shape is Pydantic's: the eight Step types are a union discriminated by `type`,
 so an unknown type and a payload that does not fit its type are told apart
-before any rule reads the document. What is left — a repeated Step id, a
-`{{name}}` nothing declares — reads the document as a whole, and lives in
-`validated`.
+before any rule reads the document. What is left — a repeated Variable name,
+a repeated Step id, a `{{name}}` nothing declares — reads the document as a
+whole, and lives in `validated`.
 """
 
 import re
@@ -322,10 +322,24 @@ def validated(document: WorkflowDocument) -> WorkflowDocument:
     """The document, or the refusal that says what is wrong with it.
 
     Shape is Pydantic's; what is left are the rules that read the document as
-    a whole — the two ways a document can be well-formed and still be wrong.
+    a whole — the three ways a document can be well-formed and still be wrong.
+
+    The declaration list is read first, because everything after it is read
+    against that list, and a list that names one Variable twice does not say
+    what it declares — which of the two rows a reader picks would decide
+    whether the value is masked. Names are compared as written, never folded:
+    `{{name}}` matches exactly, so `Password` and `password` are two Variables.
     """
+    declared: set[str] = set()
+    for variable in document.variables:
+        if variable.name in declared:
+            raise ApiError(
+                400,
+                "duplicate_variable_name",
+                f"two Variables carry the name {variable.name}",
+            )
+        declared.add(variable.name)
     seen: set[UUID] = set()
-    declared = {variable.name for variable in document.variables}
     for step in document.steps:
         if step.id in seen:
             raise ApiError(
