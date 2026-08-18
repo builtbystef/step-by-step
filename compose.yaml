@@ -131,6 +131,12 @@ services:
       SMTP_USERNAME: ${SMTP_USERNAME:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
+      # Who may sign up. `open` lets anyone who controls an email address make
+      # an account; `invite_only` takes nobody the Organization has not
+      # invited. There is no instance administrator and no settings table to
+      # hold this (ADR 0005), so an exposed instance is closed here or not at
+      # all. The Workers never read it — they serve no one.
+      SIGNUP_MODE: ${SIGNUP_MODE:-open}
     ports:
       # 8001, because `pnpm dev` runs a backend on the host's 8000 and the two
       # are meant to coexist. Override with API_PORT.

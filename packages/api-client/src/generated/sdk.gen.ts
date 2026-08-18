@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetGreetingData, GetGreetingErrors, GetGreetingResponses, GetHealthData, GetHealthResponses } from './types.gen';
+import type { GetCurrentAccountData, GetCurrentAccountErrors, GetCurrentAccountResponses, GetGreetingData, GetGreetingErrors, GetGreetingResponses, GetHealthData, GetHealthResponses, GetInstanceData, GetInstanceResponses, RequestSigninCodeData, RequestSigninCodeErrors, RequestSigninCodeResponses, SignOutData, SignOutErrors, SignOutResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, VerifySigninCodeData, VerifySigninCodeErrors, VerifySigninCodeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -17,6 +17,76 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
      */
     meta?: keyof ClientMeta extends never ? Record<string, unknown> : ClientMeta;
 };
+
+/**
+ * Get Instance
+ *
+ * The one fact the sign-in screen needs before anyone has signed in.
+ */
+export const getInstance = <ThrowOnError extends boolean = false>(options?: Options<GetInstanceData, ThrowOnError>): RequestResult<GetInstanceResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetInstanceResponses, unknown, ThrowOnError>({ url: '/api/instance', ...options });
+
+/**
+ * Request Signin Code
+ *
+ * Mail a Sign-in Code to an address — 202 whether or not it is anybody.
+ *
+ * The answer must not vary with whether an account exists, or it becomes a
+ * way to ask which addresses are on this instance. So there is nothing in
+ * the body to differ, and the caller learns what happened by entering a code.
+ */
+export const requestSigninCode = <ThrowOnError extends boolean = false>(options: Options<RequestSigninCodeData, ThrowOnError>): RequestResult<RequestSigninCodeResponses, RequestSigninCodeErrors, ThrowOnError> => (options.client ?? client).post<RequestSigninCodeResponses, RequestSigninCodeErrors, ThrowOnError>({
+    url: '/api/auth/request-code',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Verify Signin Code
+ *
+ * Prove control of an address, which signs in — and signs up if it is new.
+ */
+export const verifySigninCode = <ThrowOnError extends boolean = false>(options: Options<VerifySigninCodeData, ThrowOnError>): RequestResult<VerifySigninCodeResponses, VerifySigninCodeErrors, ThrowOnError> => (options.client ?? client).post<VerifySigninCodeResponses, VerifySigninCodeErrors, ThrowOnError>({
+    url: '/api/auth/verify-code',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get Current Account
+ *
+ * Who the caller is, and which Organizations they can act in.
+ */
+export const getCurrentAccount = <ThrowOnError extends boolean = false>(options?: Options<GetCurrentAccountData, ThrowOnError>): RequestResult<GetCurrentAccountResponses, GetCurrentAccountErrors, ThrowOnError> => (options?.client ?? client).get<GetCurrentAccountResponses, GetCurrentAccountErrors, ThrowOnError>({ url: '/api/auth/me', ...options });
+
+/**
+ * Update Account
+ *
+ * Change the display name. The email is the identity and is not editable.
+ */
+export const updateAccount = <ThrowOnError extends boolean = false>(options: Options<UpdateAccountData, ThrowOnError>): RequestResult<UpdateAccountResponses, UpdateAccountErrors, ThrowOnError> => (options.client ?? client).patch<UpdateAccountResponses, UpdateAccountErrors, ThrowOnError>({
+    url: '/api/account',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Sign Out
+ *
+ * End this session — the row goes, and the browser stops carrying its key.
+ *
+ * Other sessions of the same user are untouched; ending all of them is the
+ * session-expiry slice's `logout-all`.
+ */
+export const signOut = <ThrowOnError extends boolean = false>(options?: Options<SignOutData, ThrowOnError>): RequestResult<SignOutResponses, SignOutErrors, ThrowOnError> => (options?.client ?? client).post<SignOutResponses, SignOutErrors, ThrowOnError>({ url: '/api/auth/logout', ...options });
 
 /**
  * Get Health

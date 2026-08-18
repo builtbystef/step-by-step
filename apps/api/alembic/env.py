@@ -14,7 +14,10 @@ config.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL"])
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Autogenerate target: every table inherits step_by_step_core.db.Base.
+# Autogenerate target: every table inherits step_by_step_core.db.Base, and
+# importing the model modules is what registers them on its metadata.
+import step_by_step_api.accounts.models  # noqa: E402, F401
+
 target_metadata = Base.metadata
 
 

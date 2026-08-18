@@ -5,6 +5,216 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/api/instance": {
+      "get": {
+        "summary": "Get Instance",
+        "description": "The one fact the sign-in screen needs before anyone has signed in.",
+        "operationId": "getInstance",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Instance"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/request-code": {
+      "post": {
+        "summary": "Request Signin Code",
+        "description": "Mail a Sign-in Code to an address \u2014 202 whether or not it is anybody.\n\nThe answer must not vary with whether an account exists, or it becomes a\nway to ask which addresses are on this instance. So there is nothing in\nthe body to differ, and the caller learns what happened by entering a code.",
+        "operationId": "requestSigninCode",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/verify-code": {
+      "post": {
+        "summary": "Verify Signin Code",
+        "description": "Prove control of an address, which signs in \u2014 and signs up if it is new.",
+        "operationId": "verifySigninCode",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerificationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedIn"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "summary": "Get Current Account",
+        "description": "Who the caller is, and which Organizations they can act in.",
+        "operationId": "getCurrentAccount",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/account": {
+      "patch": {
+        "summary": "Update Account",
+        "description": "Change the display name. The email is the identity and is not editable.",
+        "operationId": "updateAccount",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "summary": "Sign Out",
+        "description": "End this session \u2014 the row goes, and the browser stops carrying its key.\n\nOther sessions of the same user are untouched; ending all of them is the\nsession-expiry slice's `logout-all`.",
+        "operationId": "signOut",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "summary": "Get Health",
@@ -65,6 +275,101 @@
   },
   "components": {
     "schemas": {
+      "Account": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "orgs": {
+            "items": {
+              "$ref": "#/components/schemas/OrganizationMembership"
+            },
+            "type": "array",
+            "title": "Orgs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "display_name",
+          "orgs"
+        ],
+        "title": "Account",
+        "description": "Who the caller is. The email is theirs as they typed it."
+      },
+      "AccountUpdate": {
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          }
+        },
+        "type": "object",
+        "title": "AccountUpdate",
+        "description": "The one thing about an account its owner may change here."
+      },
+      "CodeRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 320,
+            "minLength": 3,
+            "pattern": "^[^@\\s]+@[^@\\s]+$",
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "CodeRequest",
+        "description": "Step one of the sign-in screen: the address to send a code to."
+      },
+      "ErrorBody": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorBody",
+        "description": "What every refusal this application raises looks like."
+      },
       "Greeting": {
         "properties": {
           "message": {
@@ -103,6 +408,75 @@
           "status"
         ],
         "title": "Health"
+      },
+      "Instance": {
+        "properties": {
+          "signup_mode": {
+            "$ref": "#/components/schemas/SignupMode"
+          }
+        },
+        "type": "object",
+        "required": [
+          "signup_mode"
+        ],
+        "title": "Instance",
+        "description": "What an unauthenticated visitor may learn about this instance."
+      },
+      "OrganizationMembership": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "role"
+        ],
+        "title": "OrganizationMembership",
+        "description": "One Organization a user acts in, and what they may do there."
+      },
+      "Role": {
+        "type": "string",
+        "enum": [
+          "owner",
+          "admin",
+          "member"
+        ],
+        "title": "Role",
+        "description": "What a Membership lets a user do in its Organization.\n\nExactly three, and an Organization has exactly one owner. Roles gate\nmembership and lifecycle actions only \u2014 every role does the domain work."
+      },
+      "SignedIn": {
+        "properties": {
+          "created": {
+            "type": "boolean",
+            "title": "Created"
+          }
+        },
+        "type": "object",
+        "required": [
+          "created"
+        ],
+        "title": "SignedIn",
+        "description": "What signing in tells the screen: whether this visit made the account.\n\nThe screen needs it to decide between welcoming someone and letting them\ncarry on, and it is the only thing that differs between the two."
+      },
+      "SignupMode": {
+        "type": "string",
+        "enum": [
+          "open",
+          "invite_only"
+        ],
+        "title": "SignupMode"
       },
       "ValidationError": {
         "properties": {
@@ -143,6 +517,30 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VerificationRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 320,
+            "minLength": 3,
+            "pattern": "^[^@\\s]+@[^@\\s]+$",
+            "title": "Email"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 1,
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "code"
+        ],
+        "title": "VerificationRequest",
+        "description": "Step two of the sign-in screen: the address, and the code it received."
       }
     }
   }

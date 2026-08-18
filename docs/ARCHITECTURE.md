@@ -77,7 +77,9 @@ SQLAlchemy 2 + Alembic, on psycopg 3 (`postgresql+psycopg://`). The connection U
 
 `step_by_step_api.db` adds only what is FastAPI's: `SessionDep`, the annotated dependency a route handler declares to receive its request's session. The session opens when the request starts and closes when it ends, rolling back whatever the handler did not commit. Handlers commit for themselves.
 
-Migrations run with `pnpm --filter api run migrate` (`alembic upgrade head`). One revision exists — an empty baseline that gives the runner a head to reach; the accounts slice writes the first tables.
+Tables are declared in the backend, not in core: `step_by_step_api.accounts.models` holds the six accounts tables, and `alembic/env.py` imports it so that `Base.metadata` knows them before autogenerate compares. Core owns the connection, never the schema.
+
+Migrations run with `pnpm --filter api run migrate` (`alembic upgrade head`). Two revisions exist: the empty baseline that gives the runner a head to reach, and the accounts schema.
 
 ### The vault's encryption
 
@@ -112,6 +114,28 @@ the backend sends every email and a Worker sends none.
 
 A failed send raises whatever the adapter's own library raises. v1 has no
 caller that catches one, so nothing is wrapped to make them look alike.
+
+### Accounts
+
+`step_by_step_api.accounts` is who a person is and how they prove it. Email is the sole identity, there are no passwords, and the tenant is the Organization (ADR 0005). Five modules:
+
+- `models.py` — the six tables. `users` (unique on `lower(email)`, stored as entered), `sessions`, `signin_codes`, `organizations`, `memberships`, `invitations`. All six landed in one migration, including the columns later slices animate — the wrong-guess counter and the Invitation expiry — because a column added now costs nothing and a migration written later costs a deployment.
+- `codes.py` — the Sign-in Code: six digits from the CSPRNG, ten minutes, single-use, one outstanding per address. The table holds a SHA-256 and never the code. That digest is not a defence against guessing a six-digit number offline and is not meant to be: the protections are the lifetime, the single use, and the attempt cap. What it buys is that a leaked backup hands nobody a working code.
+- `sessions.py` — a 256-bit opaque token in an httpOnly, `SameSite=Lax` cookie (`Secure` following the request's scheme), against a row holding only its SHA-256. Server-side rather than a JWT because signing out, removing a member, and deleting an account all have to end access now, and a token the server does not store cannot be taken back. `CurrentUser` is the dependency that makes a route signed-in-only.
+- `service.py` — signing up and signing in, which are one flow, plus `SIGNUP_MODE`. Verifying returns a verdict rather than raising, so that the route commits what happened — a spent code, a counted wrong guess, a created account — before answering with it.
+- `routes.py` — the HTTP surface, including the unauthenticated `/api/instance`.
+
+Requesting a code answers 202 whether or not the address is anybody: an answer that varied would be a way to ask which addresses are on this instance. The wording of the email varies instead, by what entering the code will do.
+
+`SIGNUP_MODE` (`open` by default, `invite_only` the other) decides whether verifying a code for an unknown address creates the account. There is no instance settings table and no instance administrator. It is read per request and proven at boot, beside the master key and the mailer.
+
+### Errors
+
+`step_by_step_api.errors` is the one refusal shape: `{code, message}`, raised as `ApiError` from anywhere in a request. A client decides what to do from `code` and never from prose — the sign-in screen tells a wrong code from a closed instance by that field alone. `errors(401, 403)` on a route is what puts the model in the OpenAPI schema, so the generated client types what the frontend reads.
+
+### The clock
+
+`step_by_step_api.clock` is the one place the current time enters. Sign-in Codes expire, sessions slide, and Invitations run out — three behaviours whose tests would otherwise wait real minutes. Every one of them asks `clock.now()`, so a test moves time by replacing one function.
 
 ### The Artifact store, and its two endpoints
 
@@ -154,6 +178,10 @@ Three things the CLI writes are deliberately not kept, and a re-run will reintro
 - **A webfont.** `init` adds Geist through `next/font/google`; the type scale is `system-ui`.
 
 It also rewrites `lib/utils.ts`, which drops the tailwind-merge extension that teaches it the six font sizes. `lib/utils.test.ts` fails when that happens.
+
+### The frontend's data layer
+
+`apps/web` imports only `@step-by-step/api-client`. The generated functions return `{data, error}` rather than throwing, so a 401 is a value the screen reads and not an exception it has to catch. Cookies ride along because the browser talks to one origin: the Next proxy makes the session cookie same-origin, which is also what makes `SameSite=Lax` the whole CSRF story.
 
 ### Strictness
 

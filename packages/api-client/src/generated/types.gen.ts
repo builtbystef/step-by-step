@@ -5,6 +5,70 @@ export type ClientOptions = {
 };
 
 /**
+ * Account
+ *
+ * Who the caller is. The email is theirs as they typed it.
+ */
+export type Account = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Display Name
+     */
+    display_name: string | null;
+    /**
+     * Orgs
+     */
+    orgs: Array<OrganizationMembership>;
+};
+
+/**
+ * AccountUpdate
+ *
+ * The one thing about an account its owner may change here.
+ */
+export type AccountUpdate = {
+    /**
+     * Display Name
+     */
+    display_name?: string | null;
+};
+
+/**
+ * CodeRequest
+ *
+ * Step one of the sign-in screen: the address to send a code to.
+ */
+export type CodeRequest = {
+    /**
+     * Email
+     */
+    email: string;
+};
+
+/**
+ * ErrorBody
+ *
+ * What every refusal this application raises looks like.
+ */
+export type ErrorBody = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Message
+     */
+    message: string;
+};
+
+/**
  * Greeting
  */
 export type Greeting = {
@@ -35,6 +99,62 @@ export type Health = {
 };
 
 /**
+ * Instance
+ *
+ * What an unauthenticated visitor may learn about this instance.
+ */
+export type Instance = {
+    signup_mode: SignupMode;
+};
+
+/**
+ * OrganizationMembership
+ *
+ * One Organization a user acts in, and what they may do there.
+ */
+export type OrganizationMembership = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    role: Role;
+};
+
+/**
+ * Role
+ *
+ * What a Membership lets a user do in its Organization.
+ *
+ * Exactly three, and an Organization has exactly one owner. Roles gate
+ * membership and lifecycle actions only — every role does the domain work.
+ */
+export type Role = 'owner' | 'admin' | 'member';
+
+/**
+ * SignedIn
+ *
+ * What signing in tells the screen: whether this visit made the account.
+ *
+ * The screen needs it to decide between welcoming someone and letting them
+ * carry on, and it is the only thing that differs between the two.
+ */
+export type SignedIn = {
+    /**
+     * Created
+     */
+    created: boolean;
+};
+
+/**
+ * SignupMode
+ */
+export type SignupMode = 'open' | 'invite_only';
+
+/**
  * ValidationError
  */
 export type ValidationError = {
@@ -61,6 +181,173 @@ export type ValidationError = {
         [key: string]: unknown;
     };
 };
+
+/**
+ * VerificationRequest
+ *
+ * Step two of the sign-in screen: the address, and the code it received.
+ */
+export type VerificationRequest = {
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Code
+     */
+    code: string;
+};
+
+export type GetInstanceData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/instance';
+};
+
+export type GetInstanceResponses = {
+    /**
+     * Successful Response
+     */
+    200: Instance;
+};
+
+export type GetInstanceResponse = GetInstanceResponses[keyof GetInstanceResponses];
+
+export type RequestSigninCodeData = {
+    body: CodeRequest;
+    path?: never;
+    query?: never;
+    url: '/api/auth/request-code';
+};
+
+export type RequestSigninCodeErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RequestSigninCodeError = RequestSigninCodeErrors[keyof RequestSigninCodeErrors];
+
+export type RequestSigninCodeResponses = {
+    /**
+     * Successful Response
+     */
+    202: unknown;
+};
+
+export type VerifySigninCodeData = {
+    body: VerificationRequest;
+    path?: never;
+    query?: never;
+    url: '/api/auth/verify-code';
+};
+
+export type VerifySigninCodeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type VerifySigninCodeError = VerifySigninCodeErrors[keyof VerifySigninCodeErrors];
+
+export type VerifySigninCodeResponses = {
+    /**
+     * Successful Response
+     */
+    200: SignedIn;
+};
+
+export type VerifySigninCodeResponse = VerifySigninCodeResponses[keyof VerifySigninCodeResponses];
+
+export type GetCurrentAccountData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/auth/me';
+};
+
+export type GetCurrentAccountErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+};
+
+export type GetCurrentAccountError = GetCurrentAccountErrors[keyof GetCurrentAccountErrors];
+
+export type GetCurrentAccountResponses = {
+    /**
+     * Successful Response
+     */
+    200: Account;
+};
+
+export type GetCurrentAccountResponse = GetCurrentAccountResponses[keyof GetCurrentAccountResponses];
+
+export type UpdateAccountData = {
+    body: AccountUpdate;
+    path?: never;
+    query?: never;
+    url: '/api/account';
+};
+
+export type UpdateAccountErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateAccountError = UpdateAccountErrors[keyof UpdateAccountErrors];
+
+export type UpdateAccountResponses = {
+    /**
+     * Successful Response
+     */
+    200: Account;
+};
+
+export type UpdateAccountResponse = UpdateAccountResponses[keyof UpdateAccountResponses];
+
+export type SignOutData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/auth/logout';
+};
+
+export type SignOutErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+};
+
+export type SignOutError = SignOutErrors[keyof SignOutErrors];
+
+export type SignOutResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type SignOutResponse = SignOutResponses[keyof SignOutResponses];
 
 export type GetHealthData = {
     body?: never;

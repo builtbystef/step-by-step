@@ -14,6 +14,7 @@ from collections.abc import Iterator
 
 import pytest
 from fastapi.testclient import TestClient
+from step_by_step_api.accounts.service import SIGNUP_MODE_VARIABLE, SignupModeError
 from step_by_step_api.envelope import KEY_BYTES, MasterKeyError, master_key
 from step_by_step_api.mail import MailerConfigurationError, mailer
 from step_by_step_api.main import app
@@ -77,6 +78,18 @@ def test_the_backend_refuses_to_start_on_a_mailer_it_cannot_configure(
     monkeypatch.delenv("SMTP_HOST", raising=False)
 
     with pytest.raises(MailerConfigurationError, match="SMTP_HOST"), TestClient(app):
+        pass
+
+
+def test_the_backend_refuses_to_start_on_a_signup_mode_it_cannot_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The third boot gate. A typo here would otherwise surface on the landing
+    page of an instance whose operator has already walked away."""
+    monkeypatch.setenv("STEPBYSTEP_MASTER_KEY", VALID)
+    monkeypatch.setenv(SIGNUP_MODE_VARIABLE, "everyone")
+
+    with pytest.raises(SignupModeError, match=SIGNUP_MODE_VARIABLE), TestClient(app):
         pass
 
 
