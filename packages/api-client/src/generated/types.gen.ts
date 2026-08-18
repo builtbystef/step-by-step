@@ -148,6 +148,43 @@ export type DownloadStep = {
 };
 
 /**
+ * DraftComparison
+ *
+ * The Draft measured against the latest Version.
+ *
+ * One answer for two readers: the publish modal renders the three lists, and
+ * the Draft chip in the editor header — and the same chip in the Workflows
+ * list — renders the state. They are one derivation because they are one
+ * question, and two answers could disagree.
+ */
+export type DraftComparison = {
+    /**
+     * Added
+     */
+    added: Array<StepRef>;
+    /**
+     * Changed
+     */
+    changed: Array<StepRef>;
+    /**
+     * Removed
+     */
+    removed: Array<StepRef>;
+    state: DraftState;
+    /**
+     * Latest Version
+     */
+    latest_version: number | null;
+};
+
+/**
+ * DraftState
+ *
+ * Where a Draft stands against what has been published, in three words.
+ */
+export type DraftState = 'never-published' | 'unpublished-changes' | 'in-sync';
+
+/**
  * DurationWaitPayload
  */
 export type DurationWaitPayload = {
@@ -507,6 +544,22 @@ export type SignedIn = {
 export type SignupMode = 'open' | 'invite_only';
 
 /**
+ * StepRef
+ *
+ * One Step in a diff: what names it in a modal, and nothing else.
+ */
+export type StepRef = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Label
+     */
+    label: string;
+};
+
+/**
  * TakeoverPayload
  *
  * What the person is asked to do, and how the Run can tell they did it.
@@ -702,6 +755,22 @@ export type VerificationRequest = {
      * Code
      */
     code: string;
+};
+
+/**
+ * VersionSummary
+ *
+ * A Version without its document — what a version dropdown lists.
+ */
+export type VersionSummary = {
+    /**
+     * Number
+     */
+    number: number;
+    /**
+     * Created At
+     */
+    created_at: string;
 };
 
 /**
@@ -995,6 +1064,276 @@ export type CreateWorkflowResponses = {
 };
 
 export type CreateWorkflowResponse = CreateWorkflowResponses[keyof CreateWorkflowResponses];
+
+export type ListWorkflowVersionsData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+    };
+    query?: never;
+    url: '/api/workflows/{workflow_id}/versions';
+};
+
+export type ListWorkflowVersionsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListWorkflowVersionsError = ListWorkflowVersionsErrors[keyof ListWorkflowVersionsErrors];
+
+export type ListWorkflowVersionsResponses = {
+    /**
+     * Response Listworkflowversions
+     *
+     * Successful Response
+     */
+    200: Array<VersionSummary>;
+};
+
+export type ListWorkflowVersionsResponse = ListWorkflowVersionsResponses[keyof ListWorkflowVersionsResponses];
+
+export type PublishWorkflowVersionData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+    };
+    query?: never;
+    url: '/api/workflows/{workflow_id}/versions';
+};
+
+export type PublishWorkflowVersionErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PublishWorkflowVersionError = PublishWorkflowVersionErrors[keyof PublishWorkflowVersionErrors];
+
+export type PublishWorkflowVersionResponses = {
+    /**
+     * Successful Response
+     */
+    201: VersionSummary;
+};
+
+export type PublishWorkflowVersionResponse = PublishWorkflowVersionResponses[keyof PublishWorkflowVersionResponses];
+
+export type GetWorkflowVersionData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+        /**
+         * Number
+         */
+        number: number;
+    };
+    query?: never;
+    url: '/api/workflows/{workflow_id}/versions/{number}';
+};
+
+export type GetWorkflowVersionErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetWorkflowVersionError = GetWorkflowVersionErrors[keyof GetWorkflowVersionErrors];
+
+export type GetWorkflowVersionResponses = {
+    /**
+     * Successful Response
+     */
+    200: WorkflowDocument;
+};
+
+export type GetWorkflowVersionResponse = GetWorkflowVersionResponses[keyof GetWorkflowVersionResponses];
+
+export type RestoreWorkflowVersionData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+        /**
+         * Number
+         */
+        number: number;
+    };
+    query?: never;
+    url: '/api/workflows/{workflow_id}/versions/{number}/restore';
+};
+
+export type RestoreWorkflowVersionErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RestoreWorkflowVersionError = RestoreWorkflowVersionErrors[keyof RestoreWorkflowVersionErrors];
+
+export type RestoreWorkflowVersionResponses = {
+    /**
+     * Successful Response
+     */
+    200: WorkflowDocument;
+};
+
+export type RestoreWorkflowVersionResponse = RestoreWorkflowVersionResponses[keyof RestoreWorkflowVersionResponses];
+
+export type GetWorkflowDraftDiffData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+    };
+    query?: never;
+    url: '/api/workflows/{workflow_id}/draft/diff';
+};
+
+export type GetWorkflowDraftDiffErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetWorkflowDraftDiffError = GetWorkflowDraftDiffErrors[keyof GetWorkflowDraftDiffErrors];
+
+export type GetWorkflowDraftDiffResponses = {
+    /**
+     * Successful Response
+     */
+    200: DraftComparison;
+};
+
+export type GetWorkflowDraftDiffResponse = GetWorkflowDraftDiffResponses[keyof GetWorkflowDraftDiffResponses];
 
 export type GetWorkflowDraftData = {
     body?: never;

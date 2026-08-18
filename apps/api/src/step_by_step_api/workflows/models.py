@@ -1,8 +1,8 @@
-"""The Workflow tables: the Workflow itself, and its one Draft.
+"""The Workflow tables: the Workflow itself, its one Draft, and its Versions.
 
-Two rows rather than one, because the Draft is the first of a family: a
-Version stores the same document shape, and a list screen must be able to read
-a Workflow's name without dragging a two-hundred-Step document along with it.
+Three tables rather than one, because the Draft is one of a family: a Version
+stores the same document shape, and a list screen must be able to read a
+Workflow's name without dragging a two-hundred-Step document along with it.
 """
 
 from datetime import datetime
@@ -66,4 +66,28 @@ class WorkflowDraft(Base):
     document: Mapped[dict[str, Any]] = mapped_column(JSONB)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class WorkflowVersion(Base):
+    """One published document of a Workflow, numbered and never rewritten.
+
+    The number is the Workflow's own count rather than a global sequence —
+    "version 3" is what a user says about their Workflow — so the key is the
+    pair, and the database refuses a number that was already minted whatever
+    two concurrent publishes believed.
+
+    There is no updated_at, and no route writes to this table after the
+    insert. A Version that could change is a Run that cannot be explained.
+    """
+
+    __tablename__ = "workflow_versions"
+
+    workflow_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workflows.id", ondelete="CASCADE"), primary_key=True
+    )
+    number: Mapped[int] = mapped_column(Integer, primary_key=True)
+    document: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
     )

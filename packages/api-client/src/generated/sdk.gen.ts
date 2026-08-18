@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CreateWorkflowData, CreateWorkflowErrors, CreateWorkflowResponses, GetCurrentAccountData, GetCurrentAccountErrors, GetCurrentAccountResponses, GetGreetingData, GetGreetingErrors, GetGreetingResponses, GetHealthData, GetHealthResponses, GetInstanceData, GetInstanceResponses, GetWorkflowDraftData, GetWorkflowDraftErrors, GetWorkflowDraftResponses, RequestSigninCodeData, RequestSigninCodeErrors, RequestSigninCodeResponses, SaveWorkflowDraftData, SaveWorkflowDraftErrors, SaveWorkflowDraftResponses, SignOutData, SignOutErrors, SignOutResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, VerifySigninCodeData, VerifySigninCodeErrors, VerifySigninCodeResponses } from './types.gen';
+import type { CreateWorkflowData, CreateWorkflowErrors, CreateWorkflowResponses, GetCurrentAccountData, GetCurrentAccountErrors, GetCurrentAccountResponses, GetGreetingData, GetGreetingErrors, GetGreetingResponses, GetHealthData, GetHealthResponses, GetInstanceData, GetInstanceResponses, GetWorkflowDraftData, GetWorkflowDraftDiffData, GetWorkflowDraftDiffErrors, GetWorkflowDraftDiffResponses, GetWorkflowDraftErrors, GetWorkflowDraftResponses, GetWorkflowVersionData, GetWorkflowVersionErrors, GetWorkflowVersionResponses, ListWorkflowVersionsData, ListWorkflowVersionsErrors, ListWorkflowVersionsResponses, PublishWorkflowVersionData, PublishWorkflowVersionErrors, PublishWorkflowVersionResponses, RequestSigninCodeData, RequestSigninCodeErrors, RequestSigninCodeResponses, RestoreWorkflowVersionData, RestoreWorkflowVersionErrors, RestoreWorkflowVersionResponses, SaveWorkflowDraftData, SaveWorkflowDraftErrors, SaveWorkflowDraftResponses, SignOutData, SignOutErrors, SignOutResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, VerifySigninCodeData, VerifySigninCodeErrors, VerifySigninCodeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -105,6 +105,58 @@ export const createWorkflow = <ThrowOnError extends boolean = false>(options: Op
         ...options.headers
     }
 });
+
+/**
+ * List Workflow Versions
+ *
+ * Every Version of this Workflow, oldest first, without their documents.
+ */
+export const listWorkflowVersions = <ThrowOnError extends boolean = false>(options: Options<ListWorkflowVersionsData, ThrowOnError>): RequestResult<ListWorkflowVersionsResponses, ListWorkflowVersionsErrors, ThrowOnError> => (options.client ?? client).get<ListWorkflowVersionsResponses, ListWorkflowVersionsErrors, ThrowOnError>({ url: '/api/workflows/{workflow_id}/versions', ...options });
+
+/**
+ * Publish Workflow Version
+ *
+ * Snapshot the Draft as the next Version.
+ *
+ * The document is copied across as it is stored rather than re-serialized
+ * through the models: what a Run reads weeks from now has to be what the
+ * editor was looking at, down to the byte, and a round trip through code
+ * that has changed since is exactly how that stops being true.
+ */
+export const publishWorkflowVersion = <ThrowOnError extends boolean = false>(options: Options<PublishWorkflowVersionData, ThrowOnError>): RequestResult<PublishWorkflowVersionResponses, PublishWorkflowVersionErrors, ThrowOnError> => (options.client ?? client).post<PublishWorkflowVersionResponses, PublishWorkflowVersionErrors, ThrowOnError>({ url: '/api/workflows/{workflow_id}/versions', ...options });
+
+/**
+ * Get Workflow Version
+ *
+ * One published document, exactly as the publish that minted it left it.
+ */
+export const getWorkflowVersion = <ThrowOnError extends boolean = false>(options: Options<GetWorkflowVersionData, ThrowOnError>): RequestResult<GetWorkflowVersionResponses, GetWorkflowVersionErrors, ThrowOnError> => (options.client ?? client).get<GetWorkflowVersionResponses, GetWorkflowVersionErrors, ThrowOnError>({ url: '/api/workflows/{workflow_id}/versions/{number}', ...options });
+
+/**
+ * Restore Workflow Version
+ *
+ * Copy a Version's document back into the Draft.
+ *
+ * An edit of the Draft and nothing more: the Version stays where it is, and
+ * what Schedules and Batches execute does not change until the user
+ * publishes what they restored.
+ *
+ * The document is not revalidated on the way in. It passed the rules at the
+ * save that preceded its publish, and a Version is executable forever —
+ * refusing to bring one back because a rule has since grown stricter would
+ * make it exactly not that.
+ */
+export const restoreWorkflowVersion = <ThrowOnError extends boolean = false>(options: Options<RestoreWorkflowVersionData, ThrowOnError>): RequestResult<RestoreWorkflowVersionResponses, RestoreWorkflowVersionErrors, ThrowOnError> => (options.client ?? client).post<RestoreWorkflowVersionResponses, RestoreWorkflowVersionErrors, ThrowOnError>({ url: '/api/workflows/{workflow_id}/versions/{number}/restore', ...options });
+
+/**
+ * Get Workflow Draft Diff
+ *
+ * What publishing would change, and where the Draft stands.
+ *
+ * Against the latest Version and no other: it is what Schedules and Batches
+ * execute, so it is the only thing "unpublished changes" can mean.
+ */
+export const getWorkflowDraftDiff = <ThrowOnError extends boolean = false>(options: Options<GetWorkflowDraftDiffData, ThrowOnError>): RequestResult<GetWorkflowDraftDiffResponses, GetWorkflowDraftDiffErrors, ThrowOnError> => (options.client ?? client).get<GetWorkflowDraftDiffResponses, GetWorkflowDraftDiffErrors, ThrowOnError>({ url: '/api/workflows/{workflow_id}/draft/diff', ...options });
 
 /**
  * Get Workflow Draft

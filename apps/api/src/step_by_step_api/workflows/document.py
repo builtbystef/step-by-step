@@ -371,3 +371,79 @@ def stored(document: WorkflowDocument) -> dict[str, Any]:
     document the editor sent.
     """
     return document.model_dump(mode="json", by_alias=True, exclude_none=True)
+
+
+class DraftState(StrEnum):
+    """Where a Draft stands against what has been published, in three words."""
+
+    NEVER_PUBLISHED = "never-published"
+    UNPUBLISHED_CHANGES = "unpublished-changes"
+    IN_SYNC = "in-sync"
+
+
+def draft_state(draft: dict[str, Any], published: dict[str, Any] | None) -> DraftState:
+    """The Draft's standing, derived rather than stored.
+
+    Derived, because a stored flag is a second truth: it would have to be set
+    by every path that writes a Draft — the editor, the recorder's finalize, a
+    restore — and the one that forgot would leave a Workflow claiming to be in
+    sync with a Version it no longer matches.
+
+    The comparison is of the whole document and not of the Steps alone: a
+    Variable renamed or a secret flag flipped changes what a Run does, so a
+    Draft that differs by nothing else is still ahead of its Version.
+    """
+    if published is None:
+        return DraftState.NEVER_PUBLISHED
+    if draft == published:
+        return DraftState.IN_SYNC
+    return DraftState.UNPUBLISHED_CHANGES
+
+
+class StepRef(BaseModel):
+    """One Step in a diff: what names it in a modal, and nothing else."""
+
+    id: UUID
+    label: str
+
+
+class DocumentDiff(BaseModel):
+    """What publishing the Draft would change, Step by Step.
+
+    Three lists with no defaults: each is always answered, so a reader renders
+    "nothing changes" from an empty list rather than from a missing key.
+    """
+
+    added: list[StepRef]
+    changed: list[StepRef]
+    removed: list[StepRef]
+
+
+def diff(published: WorkflowDocument, draft: WorkflowDocument) -> DocumentDiff:
+    """The Steps a publish would add, change, and remove.
+
+    Keyed on the Step id, because an id is the one thing an edit never
+    rewrites. Positions move whenever anything above them is inserted or
+    deleted, so a diff that read them would report every later Step as changed
+    and bury the one Step the user actually touched.
+
+    A Step that only moved therefore appears in none of the three lists. Its
+    place in the list is not what a Worker does with it — the payload is — and
+    the draft state says the Draft is ahead of its Version either way.
+    """
+    before = {step.id: step for step in published.steps}
+    after = {step.id for step in draft.steps}
+    return DocumentDiff(
+        added=[named(step) for step in draft.steps if step.id not in before],
+        changed=[
+            named(step)
+            for step in draft.steps
+            if step.id in before and before[step.id] != step
+        ],
+        removed=[named(step) for step in published.steps if step.id not in after],
+    )
+
+
+def named(step: Step) -> StepRef:
+    """A Step as a diff carries it."""
+    return StepRef(id=step.id, label=step.label)
