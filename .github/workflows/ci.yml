@@ -56,27 +56,24 @@ jobs:
       - run: uv run ty check
       - run: uv run pytest
 
-  # The integration tier: the same pytest suite, run against a real Postgres.
-  # Locally this database comes from `docker compose up -d`; here it is a
-  # service container. Either way the URL arrives only in the environment.
+  # The integration tier: the same pytest suite, run against real services.
+  # These come from `docker compose up`, the same file a developer runs, rather
+  # than from service containers — Garage needs its mounted config, which a
+  # service container cannot have because it starts before the checkout. The
+  # URLs arrive only in the environment, and they are `.env.example`'s.
   integration:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: stepbystep
-          POSTGRES_PASSWORD: stepbystep
-          POSTGRES_DB: stepbystep
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://stepbystep:stepbystep@localhost:5433/stepbystep
+      REDIS_URL: redis://localhost:6380/0
+      S3_ENDPOINT_URL: http://localhost:3910
+      S3_PUBLIC_ENDPOINT: http://localhost:3910
+      S3_ACCESS_KEY_ID: stepbystep
+      S3_SECRET_ACCESS_KEY: stepbystepstepbystepstepbystep
+      S3_BUCKET: artifacts
+      S3_REGION: garage
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -89,9 +86,11 @@ jobs:
 
       - run: uv sync --locked --all-packages
 
+      # Only the backing services: the api and worker images are not built
+      # here, and nothing in this tier needs them.
+      - run: docker compose up -d --wait postgres redis garage
+
       - run: uv run pytest -m integration
-        env:
-          DATABASE_URL: postgresql+psycopg://stepbystep:stepbystep@localhost:5432/stepbystep
 
   # The committed openapi.json and generated client must match the FastAPI app.
   contract:

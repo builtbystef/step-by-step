@@ -1,7 +1,36 @@
 # The development stack. `docker compose up -d` starts it; the services it
 # holds are long-lived shared state that dev, tests, and CI all reach over
-# localhost. Redis, Garage, the backend, and the Workers join it later.
+# localhost.
+#
+# Postgres, Redis, and Garage publish host ports so that the application
+# processes a developer runs with `pnpm dev` reach them. The backend and the
+# Workers run inside the stack as well, reaching each other by service name.
 name: step-by-step
+
+# What every process in the stack is told about the stack. Inside the network
+# the services answer to their own names on their native ports, so none of
+# these are the published host ports a developer's `pnpm dev` uses.
+x-stack-environment: &stack-environment
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-stepbystep}:${POSTGRES_PASSWORD:-stepbystep}@postgres:5432/${POSTGRES_DB:-stepbystep}
+  REDIS_URL: redis://redis:6379/0
+  # The Artifact store's two endpoints. The internal one is where objects are
+  # read and written; the public one is what a presigned URL is signed for,
+  # because the browser that follows it resolves neither `garage` nor this
+  # network. Signing with the internal endpoint breaks every real download.
+  S3_ENDPOINT_URL: http://garage:3900
+  S3_PUBLIC_ENDPOINT: ${S3_PUBLIC_ENDPOINT:-http://localhost:3910}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-stepbystep}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-stepbystepstepbystepstepbystep}
+  S3_BUCKET: ${S3_BUCKET:-artifacts}
+  S3_REGION: garage
+
+x-stack-is-up: &stack-is-up
+  postgres:
+    condition: service_healthy
+  redis:
+    condition: service_healthy
+  garage:
+    condition: service_healthy
 
 services:
   postgres:
@@ -25,5 +54,84 @@ services:
       retries: 10
       start_period: 10s
 
+  redis:
+    image: redis:8
+    restart: unless-stopped
+    ports:
+      # 6380 on the host by default, for the same reason Postgres takes 5433:
+      # a developer's other project already holds 6379. Override with REDIS_PORT.
+      - "${REDIS_PORT:-6380}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  garage:
+    image: dxflrs/garage:v2.3.0
+    restart: unless-stopped
+    # --single-node writes the one-node layout on first boot and
+    # --default-bucket creates the access key and the bucket from the
+    # GARAGE_DEFAULT_* variables below. No init sidecar, no manual step.
+    command: ["/garage", "server", "--single-node", "--default-bucket"]
+    environment:
+      # Dev defaults, deliberately fixed so a cold `docker compose up` works
+      # with no .env at all. A real deployment overrides every one of them.
+      GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET:-4f1a0c53b9d84e27a6f30b1c8d5e792a3c6b04f8e19d27a5b3c60e8f1d4a7920}
+      GARAGE_ADMIN_TOKEN: ${GARAGE_ADMIN_TOKEN:-devadmintoken}
+      GARAGE_DEFAULT_ACCESS_KEY: ${S3_ACCESS_KEY_ID:-stepbystep}
+      GARAGE_DEFAULT_SECRET_KEY: ${S3_SECRET_ACCESS_KEY:-stepbystepstepbystepstepbystep}
+      GARAGE_DEFAULT_BUCKET: ${S3_BUCKET:-artifacts}
+    ports:
+      # The S3 API on 3910, not its native 3900: another project on the same
+      # machine already holds 3900, exactly as it holds 5432 and 6379. The
+      # presigned URLs the backend mints are followed by the user's browser,
+      # which resolves this address and not `garage`, so this is the port
+      # S3_PUBLIC_ENDPOINT names. Override with GARAGE_S3_PORT.
+      - "${GARAGE_S3_PORT:-3910}:3900"
+    volumes:
+      - ./compose/garage.toml:/etc/garage.toml:ro
+      # Both named: without them the store is wiped when the container is
+      # replaced, and objects must survive `docker compose down && up`.
+      - garage-meta:/var/lib/garage/meta
+      - garage-data:/var/lib/garage/data
+    healthcheck:
+      # The image carries no shell, so this is the binary's own status command.
+      test: ["CMD", "/garage", "status"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  api:
+    build:
+      # The repository root: both images are built from the uv workspace.
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    environment: *stack-environment
+    ports:
+      # 8001, because `pnpm dev` runs a backend on the host's 8000 and the two
+      # are meant to coexist. Override with API_PORT.
+      - "${API_PORT:-8001}:8000"
+    depends_on: *stack-is-up
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    restart: unless-stopped
+    environment: *stack-environment
+    # Deliberately no `ports`. The Worker's VNC server must be reachable from
+    # the backend over this network and from nowhere else — publishing it would
+    # put a browser someone is signed into on the host. It is also what lets
+    # `docker compose up --scale worker=N` work: with no published port there
+    # is nothing for a second replica to collide with.
+    shm_size: 1gb # Chromium fails on the 64MB default.
+    depends_on: *stack-is-up
+
 volumes:
   postgres-data:
+  garage-meta:
+  garage-data:

@@ -1,0 +1,26 @@
+# Garage, the Artifact store, as a single node.
+#
+# Only what a one-node deployment needs. The two secrets this file would
+# otherwise carry — `rpc_secret` and `admin_token` — arrive as GARAGE_RPC_SECRET
+# and GARAGE_ADMIN_TOKEN instead, so no credential lives in a committed file.
+#
+# `garage server --single-node --default-bucket` (the command in compose.yaml)
+# creates the layout, the access key, and the bucket on first boot, so the stack
+# needs no init sidecar.
+
+metadata_dir = "/var/lib/garage/meta"
+data_dir = "/var/lib/garage/data"
+db_engine = "sqlite"
+
+# One node holds one copy. Anything higher would leave the cluster degraded.
+replication_factor = 1
+
+rpc_bind_addr = "[::]:3901"
+
+[s3_api]
+# The region every S3 client must sign with; `S3_REGION` carries it to them.
+s3_region = "garage"
+api_bind_addr = "[::]:3900"
+
+[admin]
+api_bind_addr = "[::]:3903"

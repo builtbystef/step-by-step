@@ -8,8 +8,12 @@ dependencies = [
   "fastapi>=0.115",
   "psycopg[binary]>=3.2",
   "sqlalchemy>=2",
+  "step-by-step-core",
   "uvicorn[standard]>=0.52.1",
 ]
+
+[tool.uv.sources]
+step-by-step-core = { workspace = true }
 
 [dependency-groups]
 dev = ["httpx>=0.28"]

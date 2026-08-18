@@ -9,7 +9,7 @@
     "check": "vp check && vp run -r check",
     "check:fix": "vp check --fix && vp run -r check:fix",
     "test": "vp test && vp run -r test",
-    "test:integration": "pnpm --filter api run test:integration",
+    "test:integration": "pnpm --filter api --filter core run test:integration",
     "build": "vp run -r build",
     "ci": "pnpm check && pnpm test && pnpm build"
   },

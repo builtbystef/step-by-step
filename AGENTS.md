@@ -9,9 +9,12 @@ One command vocabulary covers both languages: root pnpm scripts fan out through 
 
 ### Services
 
-`docker compose up -d` starts the stack (Postgres today). Copy `.env.example` to `.env` and load it — `set -a; source .env; set +a` — so `DATABASE_URL` is in the environment; nothing reads a connection URL from anywhere else. Then `pnpm --filter api run migrate` applies the migrations.
+`docker compose up -d` starts the stack: Postgres, Redis, Garage, the backend, and a Worker. Copy `.env.example` to `.env` and load it — `set -a; source .env; set +a` — so the service URLs are in the environment; nothing reads a connection URL from anywhere else. Then `pnpm --filter api run migrate` applies the migrations.
 
-- Integration test tier: `pnpm test:integration` (needs the stack up and `DATABASE_URL` set)
+Host ports are shifted off the defaults (Postgres 5433, Redis 6380, Garage 3910, the containerised backend 8001) because another project on the same machine holds 5432, 6379, 3900, and 8000. The Workers publish nothing at all — their VNC servers must stay on the compose network.
+
+- Integration test tier: `pnpm test:integration` (needs the stack up and `.env` loaded)
+- Rebuild the images after changing a Dockerfile or a Python dependency: `docker compose build api worker`
 
 `pnpm test` is the fast tier and stays green with no services running.
 

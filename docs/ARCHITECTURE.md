@@ -9,25 +9,38 @@ A two-language monorepo, scaffolded from the user's `alloy` template (issue `ymz
 ```text
 ├── apps/
 │   ├── api/            # FastAPI backend (Python package: step_by_step_api)
-│   │   └── alembic/    # migration scaffold; no migrations yet
+│   │   ├── alembic/    # migrations
+│   │   └── Dockerfile  # the backend's compose image
+│   ├── worker/         # the Worker (Python package: step_by_step_worker)
+│   │   ├── Dockerfile  # Playwright + Chromium + Xvfb + x11vnc + openbox
+│   │   └── entrypoint.sh
 │   └── web/            # Next.js frontend
 ├── packages/
+│   ├── core/           # step-by-step-core — the shared internal library
 │   └── api-client/     # @step-by-step/api-client — generated from the OpenAPI schema
+├── compose/            # configuration the stack's services mount (garage.toml)
 ├── tsconfig/           # shared TypeScript presets (base/node/browser/library)
 ├── pnpm-workspace.yaml # TS workspace + supply-chain policy
 └── pyproject.toml      # uv workspace + ruff/ty/pytest config
 ```
 
-Two packages are decided but not yet built; each lands with the first slice that needs it:
+The Python packages register in the root `pyproject.toml`'s `[tool.uv.workspace]` and each carries a `package.json` with the four check scripts, which is how `vp` fans the one command vocabulary out over both languages.
 
-- `apps/worker` — the Worker (see the glossary): its own uv workspace member, depending on the `step-by-step-api` package for shared models. If that dependency gets awkward, the escape hatch is extracting a shared Python lib into `packages/`.
+One package is decided but not yet built:
+
 - `apps/extension` — the MV3 recording extension. The workspace globs and `vp check`/`vp test` cover it the moment it exists.
 
-The deployment shape (settled in `px25yw`): one docker compose stack — backend, Workers, Postgres, Redis, Garage. `compose.yaml` at the root holds it; Postgres is in it today, and Redis, Garage, the backend, and the Workers join with the slices that need them. `docker compose up -d` starts it. The application processes still run on the host — `pnpm dev` runs FastAPI and Next.js directly and they reach the stack over published host ports.
+The deployment shape (settled in `px25yw`): one docker compose stack — backend, Workers, Postgres, Redis, Garage. `compose.yaml` at the root holds all five; `docker compose up -d` starts them. `pnpm dev` still runs FastAPI and Next.js on the host for day-to-day frontend work, reaching the stack over its published host ports; the containerised backend is what a Worker and the VNC path talk to.
 
-Postgres publishes on host port **5433** by default, not 5432, so the stack does not collide with another project's Postgres on the same machine; `POSTGRES_PORT` overrides it, as `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` override the rest. `.env.example` carries the matching `DATABASE_URL`. The stack is long-lived shared state: dev, the tests, and any sandboxed agent loop all reach the same containers, so nothing may assume it starts fresh.
+**Host ports are shifted, deliberately.** Postgres publishes on **5433**, Redis on **6380**, and Garage's S3 API on **3910** — not 5432, 6379, and 3900 — because another project on the same machine already holds all three. `POSTGRES_PORT`, `REDIS_PORT`, and `GARAGE_S3_PORT` override them; the backend container takes **8001** (`API_PORT`) so that it and `pnpm dev`'s host backend on 8000 coexist. `.env.example` carries the matching URLs. Inside the network the services answer to their own names on their native ports, and `compose.yaml`'s `x-stack-environment` anchor is the single place that says so.
+
+The Workers publish **nothing**. Their VNC servers must be reachable from the backend over the compose network and from nowhere else, which is also what makes `docker compose up --scale worker=N` work: with no published port there is nothing for a replica to collide with, and each container's `:99` display is its own.
+
+The stack is long-lived shared state: dev, the tests, and any sandboxed agent loop all reach the same containers, so nothing may assume it starts fresh.
 
 Garage is the Artifact store, chosen over MinIO on 2026-08-16 after MinIO archived its community edition; `px25yw` carries the reasoning and `ymz3md` the stack fact. What binds code rather than compose: artifacts are read and written through the **S3 API only**, via boto3 against a configurable endpoint URL, so the store stays swappable. Garage has no object versioning, bucket policies, object lock, or server-side encryption — none are used here, since retention is app-driven and ADR 0003 puts encryption in the application layer.
+
+It runs as a single self-bootstrapping node: `garage server --single-node --default-bucket` writes the one-node layout, the access key, and the bucket on first boot from the `GARAGE_DEFAULT_*` variables, so the stack needs no init sidecar and a cold `docker compose up` needs no manual step. `compose/garage.toml` is the mounted config; the `rpc_secret` and `admin_token` it would otherwise carry arrive as `GARAGE_RPC_SECRET` and `GARAGE_ADMIN_TOKEN` so that no credential sits in a committed file. Two named volumes hold its metadata and its data — without them the store is wiped whenever the container is replaced.
 
 ## Seams
 
@@ -39,17 +52,53 @@ Garage is the Artifact store, chosen over MinIO on 2026-08-16 after MinIO archiv
 
 In dev the browser only talks to Next.js: `apps/web/next.config.ts` rewrites `/api/*` to `http://localhost:8000` (override with `API_URL`). No CORS setup exists, deliberately.
 
+### The shared internal library
+
+`packages/core` (`step-by-step-core`) is what the backend and the Workers both import. It exists because Workers do **not** route their writes through the backend (`px25yw`): a Worker writes Step Results, log lines, control intervals, artifact rows, and Run status straight to Postgres, and publishes its events straight to Redis. Those seams have to live somewhere both sides can reach.
+
+Three modules, each owning one connection and nothing else:
+
+- `step_by_step_core.db` — the database, below.
+- `step_by_step_core.bus` — `get_redis()`, the process-wide client built from `REDIS_URL`. Redis is the dispatch pipe and the event bus; Postgres, never Redis, holds the truth.
+- `step_by_step_core.objects` — the Artifact store, below.
+
+What deliberately stays out: the envelope-encryption and vault module is the backend's alone and never ships in the Worker image (ADR 0004 — Workers never hold the master key).
+
 ### The database
 
-SQLAlchemy 2 + Alembic, on psycopg 3 (`postgresql+psycopg://`). The connection URL comes only from the `DATABASE_URL` environment variable — `apps/api/alembic/env.py` sets it, `alembic.ini` carries no URL, and `step_by_step_api.db` reads it too. Nothing defaults it in code, so a missing variable is a loud failure rather than a silent connection to the wrong database.
+SQLAlchemy 2 + Alembic, on psycopg 3 (`postgresql+psycopg://`). The connection URL comes only from the `DATABASE_URL` environment variable — `apps/api/alembic/env.py` sets it and `alembic.ini` carries no URL. Nothing defaults it in code, so a missing variable is a loud failure rather than a silent connection to the wrong database.
 
-`step_by_step_api.db` is the seam:
+`step_by_step_core.db` is the seam:
 
 - `Base` — the declarative base every table inherits; `alembic/env.py` autogenerates from its metadata.
 - `get_engine()` — the process-wide engine, built on first use rather than at import, so the no-services tier and anything that merely imports the app need no database.
-- `SessionDep` — the annotated dependency a route handler declares to receive its request's session. The session opens when the request starts and closes when it ends, rolling back whatever the handler did not commit. Handlers commit for themselves.
+- `session_scope()` — one session for one unit of work, as a context manager. This is the form a Worker uses.
+- `get_session()` — the same session as a generator, which is what FastAPI resolves as a dependency.
+
+`step_by_step_api.db` adds only what is FastAPI's: `SessionDep`, the annotated dependency a route handler declares to receive its request's session. The session opens when the request starts and closes when it ends, rolling back whatever the handler did not commit. Handlers commit for themselves.
 
 Migrations run with `pnpm --filter api run migrate` (`alembic upgrade head`). One revision exists — an empty baseline that gives the runner a head to reach; the accounts slice writes the first tables.
+
+### The Artifact store, and its two endpoints
+
+`step_by_step_core.objects` is boto3 against a configurable endpoint, and it exposes **two** clients on purpose:
+
+- `object_store()` reads and writes at `S3_ENDPOINT_URL` — the address a process inside the stack resolves (`http://garage:3900`).
+- `signing_store()` mints presigned URLs against `S3_PUBLIC_ENDPOINT` — the address the _user's browser_ resolves, which is never a compose hostname.
+
+They are the same value on a developer's host and different in a real deployment. Signing with the internal endpoint passes every in-network test and breaks every real download, which is why the rule lives in one module rather than in each caller. Addressing is path-style in both: virtual-host style would put the bucket in the hostname, which no browser can resolve for a compose service.
+
+`artifact_bucket()` reads `S3_BUCKET`. Credentials and region come from `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, and `S3_REGION`.
+
+### The Worker
+
+`apps/worker` (`step_by_step_worker`) is a long-lived process with a desktop. Its image carries Playwright with headed Chromium, `Xvfb` for the display, `x11vnc` for the stream the takeover pane consumes, and `openbox` so the browser's own dialogs, popups, and file pickers behave. `entrypoint.sh` starts the three, waits for the display rather than racing it, and execs the Worker.
+
+Openbox rather than fluxbox: it manages windows and nothing else. Fluxbox insists on setting a root wallpaper and, finding no wallpaper setter installed, parks an error dialog on the display — a window that would sit in every VNC frame and every screenshot Artifact.
+
+At startup the Worker proves it can reach everything a Run needs — Redis, Postgres, its display, its VNC server, and the Artifact store, the last by a real write-read-delete round trip — logs what each check found, and refuses to start if any failed. Every check runs even after one fails, so one boot shows an operator every problem rather than one problem per boot. Then it idles: there is no dispatch and no executor yet.
+
+The VNC server takes no password today. It is unreachable from anywhere but the compose network, and the view-only and control credentials the backend proxy authenticates with arrive with `5yu03g`, which owns the proxy that uses them.
 
 ### Strictness
 
@@ -61,6 +110,6 @@ Two tiers, split by a pytest marker.
 
 **Fast (the default).** `pnpm test` runs Vitest and pytest with no services — hermetic, nothing to start. The pytest side deselects `-m integration` through `addopts`, so the tier stays fast by default rather than by anyone remembering a flag.
 
-**Integration.** `pnpm test:integration` runs the tests marked `@pytest.mark.integration` against the real Postgres, with `DATABASE_URL` in the environment. It lives in `apps/api/tests/integration/`. CI runs it in its own `integration` job against a Postgres service container.
+**Integration.** `pnpm test:integration` runs the tests marked `@pytest.mark.integration` against the real Postgres, Redis, and Garage, with the URLs from `.env.example` in the environment. It lives in `apps/api/tests/integration/` and `packages/core/tests/integration/`. CI runs it in its own `integration` job, which starts the same three services with `docker compose up -d --wait` rather than with service containers — Garage needs its mounted config, and a service container starts before the checkout that would provide it.
 
-The integration tier owns its state: its session fixture creates a database of its own on the running Postgres, migrates it to head, and drops it at the end. That is what makes it safe against a long-lived shared stack — no test may assume a fresh one, and two runs never collide.
+The integration tier owns its state, because the stack is long-lived and shared: no test may assume a fresh one, and two runs never collide. The api tier's session fixture creates a database of its own on the running Postgres, migrates it to head, and drops it at the end; the core tier's store tests either read without writing or write under a key of their own and remove it afterwards.

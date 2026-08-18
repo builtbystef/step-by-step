@@ -1,0 +1,10 @@
+{
+  "name": "worker",
+  "private": true,
+  "scripts": {
+    "dev": "uv run python -m step_by_step_worker",
+    "check": "uv run ruff format --check . && uv run ruff check . && uv run ty check",
+    "check:fix": "uv run ruff format . && uv run ruff check --fix .",
+    "test": "uv run pytest tests"
+  }
+}

@@ -66,6 +66,8 @@ importers:
         specifier: 'catalog:'
         version: 7.0.2
 
+  apps/worker: {}
+
   packages/api-client:
     devDependencies:
       '@hey-api/openapi-ts':
@@ -77,6 +79,8 @@ importers:
       typescript:
         specifier: ^5.9.0
         version: 5.9.3
+
+  packages/core: {}
 
 packages:
 

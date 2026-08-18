@@ -1,0 +1,25 @@
+# The build context is the repository root, because both images are built from
+# the uv workspace: the root pyproject.toml and uv.lock resolve their
+# dependencies, and packages/core ships inside each one.
+.git
+.github
+.beaver
+.claude
+.agents
+.venv
+.pnpm-store
+.ruff_cache
+.pytest_cache
+.vite-hooks
+.vscode
+node_modules
+**/node_modules
+**/__pycache__
+**/.next
+**/dist
+apps/web
+packages/api-client
+docs
+sandbox
+.env
+.env.*

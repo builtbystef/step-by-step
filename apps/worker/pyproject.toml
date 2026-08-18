@@ -1,0 +1,13 @@
+[project]
+name = "step-by-step-worker"
+version = "0.1.0"
+description = "The Worker: one Run at a time, in a browser of its own"
+requires-python = ">=3.14"
+dependencies = ["playwright>=1.62", "step-by-step-core"]
+
+[tool.uv.sources]
+step-by-step-core = { workspace = true }
+
+[build-system]
+requires = ["uv_build>=0.12.3,<1"]
+build-backend = "uv_build"
