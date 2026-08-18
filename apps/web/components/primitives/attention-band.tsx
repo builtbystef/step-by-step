@@ -43,7 +43,8 @@ export function AttentionBand({
         {others > 0 ? ` — and ${String(others)} other ${others === 1 ? "run" : "runs"}` : ""}
       </span>
       <span className="font-mono text-small tabular-nums">{countdown}</span>
-      <Button size="sm" className="ml-auto" onClick={onTakeControl}>
+      {/* text-small because shadcn's `sm` button carries a 0.8rem size of its own. */}
+      <Button size="sm" className="ml-auto text-small" onClick={onTakeControl}>
         Take control
       </Button>
     </div>

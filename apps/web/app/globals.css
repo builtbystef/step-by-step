@@ -1,10 +1,16 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
 /*
  * The visual language: the surfaces, the semantic ramp, and the type scale.
  *
  * THIS FILE IS THE ONLY PLACE A RAW HEX VALUE MAY APPEAR. Everything else
  * reaches a colour through a token, so that one hue keeps one meaning.
+ *
+ * `shadcn/tailwind.css` carries the generated components' own variants and
+ * utilities (data-open, data-closed, scroll-fade, shimmer). It defines no
+ * colours: the palette below is the only one in the app.
  */
 
 /*
@@ -97,6 +103,9 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  /* shadcn's CardTitle reaches for `font-heading`. There is one typeface. */
+  --font-heading: var(--font-sans);
 }
 
 @theme {
@@ -110,7 +119,8 @@
    *
    * Spacing and radius are Tailwind's defaults untouched: the language's
    * 4/6/8/12/16/24 spacing is 1/1.5/2/3/4/6, and its 6/8/10/999 radii are
-   * md/lg/xl/full.
+   * md/lg/xl/full. shadcn's init writes its own `--radius` scale over the top
+   * of those; it is deliberately not kept.
    */
   --text-*: initial;
 
@@ -138,14 +148,16 @@
 
 @layer base {
   * {
-    border-color: var(--border);
-    outline-color: color-mix(in oklch, var(--ring) 50%, transparent);
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply font-sans;
   }
 
   body {
-    background-color: var(--background);
-    color: var(--foreground);
-    font-family: var(--font-sans);
+    @apply bg-background text-foreground;
+
     font-size: var(--text-body);
     line-height: 1.45;
   }

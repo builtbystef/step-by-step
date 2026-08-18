@@ -1,11 +1,10 @@
 import { clsx, type ClassValue } from "clsx";
 import { extendTailwindMerge } from "tailwind-merge";
 
-/**
- * The type scale is six named sizes rather than Tailwind's t-shirt scale, so
- * tailwind-merge is told they are font sizes. Without this it reads
- * `text-half` as a colour and lets a generated component's `text-sm` survive
- * beside it, and the later of the two in the stylesheet wins at random.
+/*
+ * tailwind-merge only knows Tailwind's own font sizes. Without the six of
+ * ours taught to it, `text-half` reads as a colour and a generated `text-sm`
+ * survives beside it, leaving stylesheet order to decide which one wins.
  */
 const twMerge = extendTailwindMerge({
   extend: {

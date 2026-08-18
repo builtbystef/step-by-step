@@ -6,7 +6,7 @@ assignee: claude
 priority: high
 parent: pc0t8s
 created: 2026-08-14T05:54:19Z
-updated: 2026-08-18T08:38:07Z
+updated: 2026-08-18T09:04:05Z
 ---
 
 ## What to build
@@ -62,3 +62,19 @@ DECISIONS A REVIEWER SHOULD SEE
 TESTS. The spec rules out component and DOM tests, so the seams are the pure modules and the source itself: lib/labels.test.ts, lib/query-client.test.ts, lib/copy.test.ts, and visual-language.test.ts, which scans apps/web for the two reviewable rules — no raw hex outside globals.css, and no lifecycle state rendered except through StatusChip. The scan was proved non-vacuous by planting a violation and watching both assertions fail.
 
 DOCS. docs/ARCHITECTURE.md gained "The frontend's visual language"; docs/CODING_STANDARDS.md gained the two rules, so a review meets them. No gallery route, and app/page.tsx is left as the template placeholder for the sign-in and shell slices to replace.
+
+**claude** — 2026-08-18T09:04:05Z
+
+Follow-up on user review: the generator was re-run against the **base** UI variant, not radix, and the semver trust problem is now solved declaratively.
+
+- `pnpm-workspace.yaml` gains `trustPolicyExclude: [semver]`. shadcn pulls `@babel/core`, which pins `semver@^6.3.1` — a 2023 release predating provenance that `trustPolicy: no-downgrade` refuses. This replaces the earlier per-invocation `--config.trustPolicy=none`, and it unblocks shadcn's normal install path, so the CLI now runs plainly.
+- `pnpm dlx shadcn@latest init -b base -p nova -f -y --no-monorepo --reinstall`. `components.json` style is `base-nova`; badge, button, card, and collapsible regenerated against `@base-ui/react`; alert came out byte-identical. `radix-ui` is removed from the app and the catalog.
+- The proper format is now in force: `globals.css` imports `shadcn/tailwind.css` (the components' `data-open` / `data-closed` variants and the `scroll-fade` / `shimmer` utilities — it carries no colours, so the ramp is still the only palette) and `tw-animate-css`, and `shadcn` and `tw-animate-css` are project dependencies rather than a generator run at arm's length.
+
+Four things `init` writes were reverted, because they contradict the criteria. They will come back on any re-run, so they are listed in ARCHITECTURE.md: its neutral oklch palette (it overwrote `--accent` with a grey) plus `chart-*` and `sidebar-*`; its `--radius` scale (radius is Tailwind's default); its `.dark` block; and Geist via `next/font/google` (the scale is `system-ui`, per the spec).
+
+`init` also rewrote `lib/utils.ts` and silently dropped the tailwind-merge font-size extension. Nothing caught that, so `lib/utils.test.ts` now does: four cases covering a generated `text-sm`, an arbitrary `text-[0.8rem]`, two of the six against each other, and `text-mut` not being mistaken for a size. Three of the four fail against a plain `twMerge` — checked.
+
+One primitive changed shape. Base UI has no `asChild`; it composes through `render`. ExpandableRow is `<Collapsible render={<tbody />}>` and `<CollapsibleContent render={<tr />}>`, and its caret is now the `CollapsibleTrigger` itself, which already renders a button. AttentionBand's Take control button gained `text-small`: shadcn's `sm` button carries a `text-[0.8rem]` of its own, which would have been a seventh size.
+
+`pnpm run ci` green: 73 files formatted, no lint or type errors in 33, 14 Vitest and 35 pytest tests pass, the build has no drift. Built CSS re-verified — no `prefers-color-scheme`, no `chart-`/`sidebar-`, no `--radius` override, `--accent` still #2f6fed, `--font-sans` still system-ui, `text-lg` still generates nothing.
