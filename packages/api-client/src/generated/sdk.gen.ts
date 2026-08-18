@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetCurrentAccountData, GetCurrentAccountErrors, GetCurrentAccountResponses, GetGreetingData, GetGreetingErrors, GetGreetingResponses, GetHealthData, GetHealthResponses, GetInstanceData, GetInstanceResponses, RequestSigninCodeData, RequestSigninCodeErrors, RequestSigninCodeResponses, SignOutData, SignOutErrors, SignOutResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, VerifySigninCodeData, VerifySigninCodeErrors, VerifySigninCodeResponses } from './types.gen';
+import type { CreateWorkflowData, CreateWorkflowErrors, CreateWorkflowResponses, GetCurrentAccountData, GetCurrentAccountErrors, GetCurrentAccountResponses, GetGreetingData, GetGreetingErrors, GetGreetingResponses, GetHealthData, GetHealthResponses, GetInstanceData, GetInstanceResponses, GetWorkflowDraftData, GetWorkflowDraftErrors, GetWorkflowDraftResponses, RequestSigninCodeData, RequestSigninCodeErrors, RequestSigninCodeResponses, SaveWorkflowDraftData, SaveWorkflowDraftErrors, SaveWorkflowDraftResponses, SignOutData, SignOutErrors, SignOutResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, VerifySigninCodeData, VerifySigninCodeErrors, VerifySigninCodeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -87,6 +87,49 @@ export const updateAccount = <ThrowOnError extends boolean = false>(options: Opt
  * session-expiry slice's `logout-all`.
  */
 export const signOut = <ThrowOnError extends boolean = false>(options?: Options<SignOutData, ThrowOnError>): RequestResult<SignOutResponses, SignOutErrors, ThrowOnError> => (options?.client ?? client).post<SignOutResponses, SignOutErrors, ThrowOnError>({ url: '/api/auth/logout', ...options });
+
+/**
+ * Create Workflow
+ *
+ * Make an empty Workflow in the acting Organization.
+ *
+ * Its Draft exists from this moment, empty: a recorder or an editor opening
+ * a Workflow that has never been touched must find a document to write into
+ * rather than a missing row.
+ */
+export const createWorkflow = <ThrowOnError extends boolean = false>(options: Options<CreateWorkflowData, ThrowOnError>): RequestResult<CreateWorkflowResponses, CreateWorkflowErrors, ThrowOnError> => (options.client ?? client).post<CreateWorkflowResponses, CreateWorkflowErrors, ThrowOnError>({
+    url: '/api/workflows',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get Workflow Draft
+ *
+ * The Draft as one document: its Steps and the Variables they reference.
+ */
+export const getWorkflowDraft = <ThrowOnError extends boolean = false>(options: Options<GetWorkflowDraftData, ThrowOnError>): RequestResult<GetWorkflowDraftResponses, GetWorkflowDraftErrors, ThrowOnError> => (options.client ?? client).get<GetWorkflowDraftResponses, GetWorkflowDraftErrors, ThrowOnError>({ url: '/api/workflows/{workflow_id}/draft', ...options });
+
+/**
+ * Save Workflow Draft
+ *
+ * Replace the Draft with the document sent, whole.
+ *
+ * Whole rather than patched: the editor holds the document it is editing, so
+ * a save is a statement of what the Draft now is, and there is no order of
+ * arrival in which two saves leave a Draft nobody wrote.
+ */
+export const saveWorkflowDraft = <ThrowOnError extends boolean = false>(options: Options<SaveWorkflowDraftData, ThrowOnError>): RequestResult<SaveWorkflowDraftResponses, SaveWorkflowDraftErrors, ThrowOnError> => (options.client ?? client).put<SaveWorkflowDraftResponses, SaveWorkflowDraftErrors, ThrowOnError>({
+    url: '/api/workflows/{workflow_id}/draft',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Get Health

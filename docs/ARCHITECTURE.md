@@ -77,9 +77,11 @@ SQLAlchemy 2 + Alembic, on psycopg 3 (`postgresql+psycopg://`). The connection U
 
 `step_by_step_api.db` adds only what is FastAPI's: `SessionDep`, the annotated dependency a route handler declares to receive its request's session. The session opens when the request starts and closes when it ends, rolling back whatever the handler did not commit. Handlers commit for themselves.
 
-Tables are declared in the backend, not in core: `step_by_step_api.accounts.models` holds the six accounts tables, and `alembic/env.py` imports it so that `Base.metadata` knows them before autogenerate compares. Core owns the connection, never the schema.
+Tables are declared in the backend, not in core: `step_by_step_api.accounts.models` holds the six accounts tables and `step_by_step_api.workflows.models` the two Workflow tables, and `alembic/env.py` imports both so that `Base.metadata` knows them before autogenerate compares. Core owns the connection, never the schema.
 
-Migrations run with `pnpm --filter api run migrate` (`alembic upgrade head`). Two revisions exist: the empty baseline that gives the runner a head to reach, and the accounts schema.
+Migrations run with `pnpm --filter api run migrate` (`alembic upgrade head`). Three revisions exist: the empty baseline that gives the runner a head to reach, the accounts schema, and the Workflow document store.
+
+One autogenerate quirk to expect: every revision generated after the accounts schema proposes dropping the `invitation_role` and `membership_role` check constraints. SQLAlchemy's non-native `Enum` writes those constraints but does not offer them for comparison, so the proposal is noise and is deleted by hand from the generated file. Issue `t6xbdg` holds the permanent fix.
 
 ### The vault's encryption
 
@@ -138,6 +140,20 @@ caller that catches one, so nothing is wrapped to make them look alike.
 Requesting a code answers 202 whether or not the address is anybody: an answer that varied would be a way to ask which addresses are on this instance. The wording of the email varies instead, by what entering the code will do.
 
 `SIGNUP_MODE` (`open` by default, `invite_only` the other) decides whether verifying a code for an unknown address creates the account. There is no instance settings table and no instance administrator. It is read per request and proven at boot, beside the master key and the mailer.
+
+`orgs.py` is the sixth module and the one every domain route uses: `ActiveMembership` reads the `X-Organization` header, finds the caller's Membership in what it names, and refuses without one — 400 `organization_required` when the header is absent, 403 `not_a_member` when the caller is not in that Organization or when the id is not a UUID at all (which of those two it was is not a client's business). The header is optional in the OpenAPI schema and required at runtime, deliberately: the frontend's fetch wrapper sets it on every request, so a required parameter would make each generated call site pass what one interceptor already carries — and a missing one has to arrive as this application's error shape rather than as FastAPI's 422.
+
+### Workflows
+
+`step_by_step_api.workflows` is the document store the recorder writes and the editor edits. A Workflow belongs to exactly one Organization (ADR 0005), carries its default step timeout and its takeover timeout as explicit columns, and holds its Steps nowhere near a table:
+
+- `models.py` — `workflows` and `workflow_drafts`. The Draft is a row of its own rather than a column on the Workflow, because a Version stores the same document shape and a list screen must read a name without dragging a two-hundred-Step document behind it. The document is one JSONB value, so a per-type payload change is a code change and never a migration.
+- `document.py` — the document contract, and the only place that knows what a Step is. The eight Step types are a Pydantic union discriminated by `type`, so the generated TypeScript client hands the editor a tagged union rather than an untyped blob. Two rules read the document as a whole and live in `validated()`: no repeated Step id, and no `{{name}}` that `variables` does not declare — which is how deleting a Variable a Step still uses is refused at the seam rather than in a screen. `{{name}}` is interpolated in a navigate URL and a type value and nowhere else; a `{{` in any other value is text.
+- `routes.py` — create a Workflow (name only; the rest of the CRUD contract is the app shell's), read the Draft, replace the Draft. Its `DocumentRoute` turns FastAPI's own 422 into this application's `{code, message}`, so that a client of the Draft routes reads one dialect for every refusal: `unknown_step_type`, `malformed_payload`, `duplicate_step_id`, `undeclared_variable`.
+
+**This document is the one part of the API that is camelCase.** `timeoutMs`, `outputName`, `subSelector`, `successCheck` — the names the spec pinned, because the recorder and the editor both write this document in JavaScript. Everything else on the wire stays snake_case. A field nobody set is left out rather than serialized as `null`: absence is what optional means here, and a Draft must read back as the document that was saved.
+
+Another Organization's Workflow answers 404 and never 403. A refusal that admitted the id exists would let anyone map another tenant's Workflows one guess at a time.
 
 ### Errors
 

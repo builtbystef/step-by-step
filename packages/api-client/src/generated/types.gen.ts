@@ -41,6 +41,59 @@ export type AccountUpdate = {
 };
 
 /**
+ * CandidateKind
+ *
+ * The ways of finding an element, in the order the recorder ranks them.
+ */
+export type CandidateKind = 'testid' | 'role' | 'placeholder' | 'label' | 'alt' | 'text' | 'title' | 'css';
+
+/**
+ * ClickPayload
+ */
+export type ClickPayload = {
+    target: Target;
+    /**
+     * Assertednavigation
+     */
+    assertedNavigation?: boolean;
+};
+
+/**
+ * ClickStep
+ */
+export type ClickStep = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Optional
+     */
+    optional?: boolean;
+    /**
+     * Disabled
+     */
+    disabled?: boolean;
+    /**
+     * Screenshot
+     */
+    screenshot?: boolean;
+    /**
+     * Timeoutms
+     */
+    timeoutMs?: number | null;
+    /**
+     * Type
+     */
+    type: 'click';
+    payload: ClickPayload;
+};
+
+/**
  * CodeRequest
  *
  * Step one of the sign-in screen: the address to send a code to.
@@ -50,6 +103,73 @@ export type CodeRequest = {
      * Email
      */
     email: string;
+};
+
+/**
+ * DownloadPayload
+ */
+export type DownloadPayload = {
+    target: Target;
+};
+
+/**
+ * DownloadStep
+ */
+export type DownloadStep = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Optional
+     */
+    optional?: boolean;
+    /**
+     * Disabled
+     */
+    disabled?: boolean;
+    /**
+     * Screenshot
+     */
+    screenshot?: boolean;
+    /**
+     * Timeoutms
+     */
+    timeoutMs?: number | null;
+    /**
+     * Type
+     */
+    type: 'download';
+    payload: DownloadPayload;
+};
+
+/**
+ * DurationWaitPayload
+ */
+export type DurationWaitPayload = {
+    /**
+     * Mode
+     */
+    mode: 'duration';
+    /**
+     * Durationms
+     */
+    durationMs: number;
+};
+
+/**
+ * ElementWaitPayload
+ */
+export type ElementWaitPayload = {
+    /**
+     * Mode
+     */
+    mode: 'element';
+    target: Target;
 };
 
 /**
@@ -66,6 +186,88 @@ export type ErrorBody = {
      * Message
      */
     message: string;
+};
+
+/**
+ * ExtractField
+ *
+ * One column of a list extraction, bound within the repeating element.
+ */
+export type ExtractField = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Subselector
+     */
+    subSelector: string;
+    /**
+     * Attribute
+     */
+    attribute?: string | null;
+};
+
+/**
+ * ExtractStep
+ */
+export type ExtractStep = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Optional
+     */
+    optional?: boolean;
+    /**
+     * Disabled
+     */
+    disabled?: boolean;
+    /**
+     * Screenshot
+     */
+    screenshot?: boolean;
+    /**
+     * Timeoutms
+     */
+    timeoutMs?: number | null;
+    /**
+     * Type
+     */
+    type: 'extract';
+    /**
+     * Payload
+     */
+    payload: ({
+        mode: 'scalar';
+    } & ScalarExtractPayload) | ({
+        mode: 'list';
+    } & ListExtractPayload);
+};
+
+/**
+ * FrameHop
+ *
+ * One step of the path into the frame an element lives in.
+ */
+export type FrameHop = {
+    /**
+     * Index
+     */
+    index: number;
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Url
+     */
+    url?: string | null;
 };
 
 /**
@@ -108,6 +310,72 @@ export type Instance = {
 };
 
 /**
+ * ListExtractPayload
+ *
+ * A flat list of records. There is no nesting, by decision.
+ */
+export type ListExtractPayload = {
+    target: Target;
+    /**
+     * Outputname
+     */
+    outputName: string;
+    /**
+     * Mode
+     */
+    mode: 'list';
+    /**
+     * Fields
+     */
+    fields: Array<ExtractField>;
+};
+
+/**
+ * NavigatePayload
+ */
+export type NavigatePayload = {
+    /**
+     * Url
+     */
+    url: string;
+};
+
+/**
+ * NavigateStep
+ */
+export type NavigateStep = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Optional
+     */
+    optional?: boolean;
+    /**
+     * Disabled
+     */
+    disabled?: boolean;
+    /**
+     * Screenshot
+     */
+    screenshot?: boolean;
+    /**
+     * Timeoutms
+     */
+    timeoutMs?: number | null;
+    /**
+     * Type
+     */
+    type: 'navigate';
+    payload: NavigatePayload;
+};
+
+/**
  * OrganizationMembership
  *
  * One Organization a user acts in, and what they may do there.
@@ -135,6 +403,90 @@ export type OrganizationMembership = {
 export type Role = 'owner' | 'admin' | 'member';
 
 /**
+ * ScalarExtractPayload
+ *
+ * One named value: an element's text, or one of its attributes.
+ */
+export type ScalarExtractPayload = {
+    target: Target;
+    /**
+     * Outputname
+     */
+    outputName: string;
+    /**
+     * Mode
+     */
+    mode: 'scalar';
+    /**
+     * Attribute
+     */
+    attribute?: string | null;
+};
+
+/**
+ * SelectPayload
+ */
+export type SelectPayload = {
+    target: Target;
+    /**
+     * Value
+     */
+    value: string;
+};
+
+/**
+ * SelectStep
+ */
+export type SelectStep = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Optional
+     */
+    optional?: boolean;
+    /**
+     * Disabled
+     */
+    disabled?: boolean;
+    /**
+     * Screenshot
+     */
+    screenshot?: boolean;
+    /**
+     * Timeoutms
+     */
+    timeoutMs?: number | null;
+    /**
+     * Type
+     */
+    type: 'select';
+    payload: SelectPayload;
+};
+
+/**
+ * SelectorCandidate
+ *
+ * One way of finding an element, verified unique when it was recorded.
+ */
+export type SelectorCandidate = {
+    kind: CandidateKind;
+    /**
+     * Value
+     */
+    value: string;
+    /**
+     * Shadowpath
+     */
+    shadowPath?: Array<string> | null;
+};
+
+/**
  * SignedIn
  *
  * What signing in tells the screen: whether this visit made the account.
@@ -153,6 +505,144 @@ export type SignedIn = {
  * SignupMode
  */
 export type SignupMode = 'open' | 'invite_only';
+
+/**
+ * TakeoverPayload
+ *
+ * What the person is asked to do, and how the Run can tell they did it.
+ */
+export type TakeoverPayload = {
+    /**
+     * Message
+     */
+    message?: string | null;
+    /**
+     * Timeoutms
+     */
+    timeoutMs?: number | null;
+    successCheck?: Target | null;
+};
+
+/**
+ * TakeoverStep
+ */
+export type TakeoverStep = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Optional
+     */
+    optional?: boolean;
+    /**
+     * Disabled
+     */
+    disabled?: boolean;
+    /**
+     * Screenshot
+     */
+    screenshot?: boolean;
+    /**
+     * Timeoutms
+     */
+    timeoutMs?: number | null;
+    /**
+     * Type
+     */
+    type: 'pause-for-takeover';
+    payload: TakeoverPayload;
+};
+
+/**
+ * Target
+ *
+ * How a Step finds its element: candidates best-first, and where they live.
+ */
+export type Target = {
+    /**
+     * Candidates
+     */
+    candidates: Array<SelectorCandidate>;
+    /**
+     * Frame
+     */
+    frame?: Array<FrameHop> | null;
+    unsupported?: Unsupported | null;
+};
+
+/**
+ * TypePayload
+ */
+export type TypePayload = {
+    target: Target;
+    /**
+     * Value
+     */
+    value: string;
+};
+
+/**
+ * TypeStep
+ */
+export type TypeStep = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Optional
+     */
+    optional?: boolean;
+    /**
+     * Disabled
+     */
+    disabled?: boolean;
+    /**
+     * Screenshot
+     */
+    screenshot?: boolean;
+    /**
+     * Timeoutms
+     */
+    timeoutMs?: number | null;
+    /**
+     * Type
+     */
+    type: 'type';
+    payload: TypePayload;
+};
+
+/**
+ * Unsupported
+ *
+ * A target the recorder captured and expects replay to fail on.
+ *
+ * The warning is written at capture, in plain language, because the person
+ * who can still do something about it is the person recording.
+ */
+export type Unsupported = {
+    reason: UnsupportedReason;
+    /**
+     * Warning
+     */
+    warning: string;
+};
+
+/**
+ * UnsupportedReason
+ *
+ * Why a recorded target will not be findable again, whatever we do.
+ */
+export type UnsupportedReason = 'closed-shadow-root' | 'cross-origin-frame';
 
 /**
  * ValidationError
@@ -183,6 +673,22 @@ export type ValidationError = {
 };
 
 /**
+ * Variable
+ *
+ * A named input a Workflow declares. Step values reference it by name.
+ */
+export type Variable = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Secret
+     */
+    secret?: boolean;
+};
+
+/**
  * VerificationRequest
  *
  * Step two of the sign-in screen: the address, and the code it received.
@@ -196,6 +702,104 @@ export type VerificationRequest = {
      * Code
      */
     code: string;
+};
+
+/**
+ * WaitStep
+ */
+export type WaitStep = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Optional
+     */
+    optional?: boolean;
+    /**
+     * Disabled
+     */
+    disabled?: boolean;
+    /**
+     * Screenshot
+     */
+    screenshot?: boolean;
+    /**
+     * Timeoutms
+     */
+    timeoutMs?: number | null;
+    /**
+     * Type
+     */
+    type: 'wait';
+    /**
+     * Payload
+     */
+    payload: ({
+        mode: 'duration';
+    } & DurationWaitPayload) | ({
+        mode: 'element';
+    } & ElementWaitPayload);
+};
+
+/**
+ * WorkflowCreation
+ *
+ * Everything creating a Workflow asks for: what to call it.
+ */
+export type WorkflowCreation = {
+    /**
+     * Name
+     */
+    name: string;
+};
+
+/**
+ * WorkflowDocument
+ *
+ * A Draft, or a Version, as one value: the Steps and the Variables.
+ */
+export type WorkflowDocument = {
+    /**
+     * Steps
+     */
+    steps?: Array<NavigateStep | ClickStep | TypeStep | SelectStep | DownloadStep | ExtractStep | WaitStep | TakeoverStep>;
+    /**
+     * Variables
+     */
+    variables?: Array<Variable>;
+};
+
+/**
+ * WorkflowSummary
+ *
+ * A Workflow without its document — what a screen shows before opening it.
+ */
+export type WorkflowSummary = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Default Step Timeout Ms
+     */
+    default_step_timeout_ms: number;
+    /**
+     * Takeover Timeout Ms
+     */
+    takeover_timeout_ms: number;
+    /**
+     * Created At
+     */
+    created_at: string;
 };
 
 export type GetInstanceData = {
@@ -348,6 +952,153 @@ export type SignOutResponses = {
 };
 
 export type SignOutResponse = SignOutResponses[keyof SignOutResponses];
+
+export type CreateWorkflowData = {
+    body: WorkflowCreation;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/workflows';
+};
+
+export type CreateWorkflowErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateWorkflowError = CreateWorkflowErrors[keyof CreateWorkflowErrors];
+
+export type CreateWorkflowResponses = {
+    /**
+     * Successful Response
+     */
+    201: WorkflowSummary;
+};
+
+export type CreateWorkflowResponse = CreateWorkflowResponses[keyof CreateWorkflowResponses];
+
+export type GetWorkflowDraftData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+    };
+    query?: never;
+    url: '/api/workflows/{workflow_id}/draft';
+};
+
+export type GetWorkflowDraftErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetWorkflowDraftError = GetWorkflowDraftErrors[keyof GetWorkflowDraftErrors];
+
+export type GetWorkflowDraftResponses = {
+    /**
+     * Successful Response
+     */
+    200: WorkflowDocument;
+};
+
+export type GetWorkflowDraftResponse = GetWorkflowDraftResponses[keyof GetWorkflowDraftResponses];
+
+export type SaveWorkflowDraftData = {
+    body: WorkflowDocument;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+    };
+    query?: never;
+    url: '/api/workflows/{workflow_id}/draft';
+};
+
+export type SaveWorkflowDraftErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SaveWorkflowDraftError = SaveWorkflowDraftErrors[keyof SaveWorkflowDraftErrors];
+
+export type SaveWorkflowDraftResponses = {
+    /**
+     * Successful Response
+     */
+    200: WorkflowDocument;
+};
+
+export type SaveWorkflowDraftResponse = SaveWorkflowDraftResponses[keyof SaveWorkflowDraftResponses];
 
 export type GetHealthData = {
     body?: never;
