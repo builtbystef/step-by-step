@@ -1,6 +1,7 @@
 import type { Target } from "@step-by-step/api-client";
 
 import { targetsOf, type Step } from "./steps";
+import { REFERENCE } from "./variables";
 
 import { duration } from "../../../../../lib/duration";
 
@@ -19,9 +20,6 @@ export type Segment =
   | { kind: "text"; text: string }
   | { kind: "variable"; name: string }
   | { kind: "target"; text: string; machine: boolean };
-
-const REFERENCE = /\{\{\s*([A-Za-z_][A-Za-z0-9_-]*)\s*\}\}/g;
-/** A Variable reference, as the document store reads one when it validates. */
 
 export function summarize(step: Step): Segment[] {
   const [target] = targetsOf(step);

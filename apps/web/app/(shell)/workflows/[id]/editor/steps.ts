@@ -81,3 +81,28 @@ export function blankStep(type: AddableStepType): Step {
   }
   return { ...envelope, type, label: "Pause for a person", payload: {} };
 }
+
+/**
+ * The one value this Step interpolates Variables into, or null.
+ *
+ * A navigate URL and a type value are the two, and they are the two the
+ * document store interpolates as well — a `{{` anywhere else is text the page
+ * receives, so a Variable control has no business over that field.
+ */
+export function interpolatedValue(step: Step): string | null {
+  if (step.type === "navigate") {
+    return step.payload.url;
+  }
+  return step.type === "type" ? step.payload.value : null;
+}
+
+/** The same Step, with that value rewritten. Anything else is handed back as it is. */
+export function withInterpolatedValue(step: Step, value: string): Step {
+  if (step.type === "navigate") {
+    return { ...step, payload: { ...step.payload, url: value } };
+  }
+  if (step.type === "type") {
+    return { ...step, payload: { ...step.payload, value } };
+  }
+  return step;
+}

@@ -1,8 +1,8 @@
 "use client";
 
-import { saveWorkflowDraft, type WorkflowDocument } from "@step-by-step/api-client";
+import { saveWorkflowDraft, type Variable, type WorkflowDocument } from "@step-by-step/api-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { Braces, Plus } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 
@@ -11,6 +11,8 @@ import { saveRefusal } from "./messages";
 import { draftKey, draftQuery } from "./queries";
 import { StepCard } from "./step-card";
 import { ADDABLE_STEP_TYPES, STEP_TYPE_LABELS, blankStep, type Step } from "./steps";
+import { VariablesDrawer } from "./variables-drawer";
+import { secretNames, variableRows, withLiteralMadeVariable, type Span } from "./variables";
 
 import { workflowKey, workflowQuery } from "../queries";
 
@@ -19,6 +21,7 @@ import { workflowsKey } from "../../queries";
 import { useActiveOrganization } from "../../../use-active-organization";
 
 import { Callout } from "@/components/primitives/callout";
+import { CountBadge } from "@/components/primitives/count-badge";
 import { EmptyState } from "@/components/primitives/empty-state";
 import { StickyActionFooter } from "@/components/primitives/sticky-action-footer";
 import { Button } from "@/components/ui/button";
@@ -41,10 +44,13 @@ import {
  * saved on every keystroke would be a hundred rejected documents on the way
  * to one good one.
  *
- * Three things on this tab belong to later slices and are deliberately not
- * here: the selector panel behind a target's badge (`m6s5me`), the Variables
- * drawer and pill insertion (`z8p5dp`), and recording, test runs, and
- * publishing (`7vuup5`, `2ggmhx`, `fq0wr7`).
+ * Variables live in the same document and are edited from the drawer, so a
+ * declaration, a rename, and the Steps that use it all travel in the one save
+ * — which is also why a rename can rewrite every value that reaches for it.
+ *
+ * Two things on this tab belong to later slices and are deliberately not
+ * here: the selector panel behind a target's badge (`m6s5me`), and
+ * recording, test runs, and publishing (`7vuup5`, `2ggmhx`, `fq0wr7`).
  */
 export default function EditorTab() {
   const { active } = useActiveOrganization();
@@ -63,6 +69,8 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
   const workflow = useQuery(workflowQuery(orgId, workflowId));
   const [edited, setEdited] = useState<WorkflowDocument | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [drawer, setDrawer] = useState(false);
+  const [highlighted, setHighlighted] = useState<string | null>(null);
 
   const save = useMutation({
     mutationFn: async (document: WorkflowDocument) => {
@@ -97,6 +105,14 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
     return draft.error ? <Callout tone="bad">{saveRefusal(draft.error)}</Callout> : null;
   }
 
+  const variables: Variable[] = document.variables ?? [];
+  const secrets = secretNames(document);
+  // Which cards a drawer row lit up. The names are the document's, so a
+  // highlight of a Variable that a later edit deletes simply lights nothing.
+  const usages = new Set(
+    variableRows(document).find((row) => row.name === highlighted)?.usedBy ?? [],
+  );
+
   const add = (type: (typeof ADDABLE_STEP_TYPES)[number]) => {
     const step = blankStep(type);
     setEdited(withStepAdded(document, step));
@@ -128,9 +144,54 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
     </DropdownMenu>
   );
 
+  const variablesButton = (
+    <Button
+      variant="secondary"
+      onClick={() => {
+        setDrawer(true);
+      }}
+    >
+      <Braces className="size-3.5" />
+      Variables
+      <CountBadge count={variables.length} />
+    </Button>
+  );
+
   return (
     <>
       {save.error ? <Callout tone="bad">{saveRefusal(save.error)}</Callout> : null}
+
+      <div className="flex justify-end">{variablesButton}</div>
+
+      {highlighted === null ? null : (
+        <Callout
+          tone="secret"
+          actions={
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-small"
+              onClick={() => {
+                setHighlighted(null);
+              }}
+            >
+              Done
+            </Button>
+          }
+        >
+          {usages.size === 0
+            ? `Nothing uses {{${highlighted}}} any more.`
+            : `The steps that use {{${highlighted}}} are lit below.`}
+        </Callout>
+      )}
+
+      <VariablesDrawer
+        open={drawer}
+        document={document}
+        onOpenChange={setDrawer}
+        onChange={setEdited}
+        onShowUsages={setHighlighted}
+      />
 
       {steps.length === 0 ? (
         <EmptyState
@@ -149,12 +210,18 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
                   position={position}
                   count={steps.length}
                   workflowDefaultMs={workflowDefaultMs}
+                  variables={variables}
+                  secrets={secrets}
+                  highlighted={usages.has(step.id)}
                   expanded={expanded === step.id}
                   onExpand={(open) => {
                     setExpanded(open ? step.id : null);
                   }}
                   onChange={(next: Step) => {
                     setEdited(withStepReplaced(document, next));
+                  }}
+                  onConvert={(variable: Variable, span: Span) => {
+                    setEdited(withLiteralMadeVariable(document, step.id, variable, span));
                   }}
                   onMove={(direction) => {
                     setEdited(withStepMoved(document, step.id, direction));

@@ -1,3 +1,5 @@
+import { KeyRound } from "lucide-react";
+
 import type { Segment } from "./summary";
 
 import { cn } from "@/lib/utils";
@@ -11,10 +13,21 @@ import { cn } from "@/lib/utils";
  * from something the page says out loud is monospace, because that is what it
  * is: a machine string.
  *
+ * A secret Variable is the same hue filled in, under a key: a person scanning
+ * forty cards for where the password goes should find it without reading, and
+ * the difference is the declaration's flag rather than anything about the
+ * `{{name}}` — which is why the set of secret names is handed in.
+ *
  * The parts are keyed by position: a sentence is derived from the Step on
  * every render, so no part of it has an identity of its own.
  */
-export function Sentence({ segments }: { segments: Segment[] }) {
+export function Sentence({
+  segments,
+  secrets,
+}: {
+  segments: Segment[];
+  secrets: ReadonlySet<string>;
+}) {
   return (
     <span className="text-half text-mut">
       {segments.map((part, at) => {
@@ -22,7 +35,15 @@ export function Sentence({ segments }: { segments: Segment[] }) {
           return <span key={at}>{part.text}</span>;
         }
         if (part.kind === "variable") {
-          return (
+          return secrets.has(part.name) ? (
+            <span
+              key={at}
+              className="inline-flex items-center gap-0.5 rounded bg-human px-1 font-semibold text-panel"
+            >
+              <KeyRound className="size-3" />
+              {`{{${part.name}}}`}
+            </span>
+          ) : (
             <span key={at} className="rounded bg-human-bg px-1 font-semibold text-human">
               {`{{${part.name}}}`}
             </span>

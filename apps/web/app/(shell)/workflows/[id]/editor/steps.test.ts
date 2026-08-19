@@ -5,7 +5,9 @@ import {
   ADDABLE_STEP_TYPES,
   STEP_TYPE_LABELS,
   blankStep,
+  interpolatedValue,
   targetsOf,
+  withInterpolatedValue,
   type Step,
   type StepType,
 } from "./steps";
@@ -105,5 +107,47 @@ describe("a Step added in the editor", () => {
   it("offers the two types that are only ever added by hand", () => {
     expect(ADDABLE_STEP_TYPES).toContain("wait");
     expect(ADDABLE_STEP_TYPES).toContain("pause-for-takeover");
+  });
+});
+
+describe("the value a Step interpolates Variables into", () => {
+  it("is the URL of a navigate and the value of a type, and nothing else", () => {
+    const going: Step = {
+      id: "1",
+      label: "",
+      type: "navigate",
+      payload: { url: "https://a.test" },
+    };
+    const choosing: Step = {
+      id: "2",
+      label: "",
+      type: "select",
+      payload: { target: A_TARGET, value: "Germany" },
+    };
+
+    expect(interpolatedValue(going)).toBe("https://a.test");
+    expect(
+      interpolatedValue({
+        id: "3",
+        label: "",
+        type: "type",
+        payload: { target: A_TARGET, value: "x" },
+      }),
+    ).toBe("x");
+    expect(interpolatedValue(choosing)).toBeNull();
+  });
+
+  it("is written back into the payload the type keeps it in", () => {
+    const typed: Step = {
+      id: "1",
+      label: "",
+      type: "type",
+      payload: { target: A_TARGET, value: "x" },
+    };
+
+    const written = withInterpolatedValue(typed, "{{password}}");
+
+    expect(interpolatedValue(written)).toBe("{{password}}");
+    expect(written.id).toBe("1");
   });
 });

@@ -1,11 +1,13 @@
 "use client";
 
-import type { ExtractField, Target } from "@step-by-step/api-client";
+import type { ExtractField, Target, Variable } from "@step-by-step/api-client";
 import type { ReactNode } from "react";
 
 import { targetHealth } from "./badges";
 import type { Step } from "./steps";
 import { targetToken } from "./summary";
+import { ValueField } from "./value-field";
+import type { Span } from "./variables";
 
 import { Callout } from "@/components/primitives/callout";
 import { Button } from "@/components/ui/button";
@@ -31,37 +33,50 @@ import { cn } from "@/lib/utils";
 export function StepForm({
   step,
   workflowDefaultMs,
+  variables,
   onChange,
+  onConvert,
 }: {
   step: Step;
   workflowDefaultMs: number;
+  variables: Variable[];
   onChange: (step: Step) => void;
+  onConvert: (variable: Variable, span: Span) => void;
 }) {
   return (
     <div className="mt-3 flex flex-col gap-4 rounded-md border border-line bg-bg/60 p-3">
-      <Payload step={step} onChange={onChange} />
+      <Payload step={step} variables={variables} onChange={onChange} onConvert={onConvert} />
       <Envelope step={step} workflowDefaultMs={workflowDefaultMs} onChange={onChange} />
     </div>
   );
 }
 
 /** What this Step does — the half of the form that differs between the eight. */
-function Payload({ step, onChange }: { step: Step; onChange: (step: Step) => void }) {
+function Payload({
+  step,
+  variables,
+  onChange,
+  onConvert,
+}: {
+  step: Step;
+  variables: Variable[];
+  onChange: (step: Step) => void;
+  onConvert: (variable: Variable, span: Span) => void;
+}) {
   switch (step.type) {
     case "navigate":
       return (
-        <Field
+        <ValueField
           label="URL"
-          hint="{{name}} inserts a Variable; literal text and Variables mix freely."
-        >
-          <Input
-            value={step.payload.url}
-            placeholder="https://example.com/invoices"
-            onChange={(typed) => {
-              onChange({ ...step, payload: { ...step.payload, url: typed.target.value } });
-            }}
-          />
-        </Field>
+          hint="Literal text and Variables mix freely — {{name}} is filled in per Run."
+          placeholder="https://example.com/invoices"
+          value={step.payload.url}
+          variables={variables}
+          onChange={(url) => {
+            onChange({ ...step, payload: { ...step.payload, url } });
+          }}
+          onConvert={onConvert}
+        />
       );
     case "click":
       return (
@@ -80,14 +95,16 @@ function Payload({ step, onChange }: { step: Step; onChange: (step: Step) => voi
       return (
         <>
           <TargetField target={step.payload.target} step={step} />
-          <Field label="Value" hint="{{name}} inserts a Variable — a secret one never lands here.">
-            <Input
-              value={step.payload.value}
-              onChange={(typed) => {
-                onChange({ ...step, payload: { ...step.payload, value: typed.target.value } });
-              }}
-            />
-          </Field>
+          <ValueField
+            label="Value"
+            hint="A secret Variable never lands here — {{name}} is all the Step keeps."
+            value={step.payload.value}
+            variables={variables}
+            onChange={(value) => {
+              onChange({ ...step, payload: { ...step.payload, value } });
+            }}
+            onConvert={onConvert}
+          />
         </>
       );
     case "select":

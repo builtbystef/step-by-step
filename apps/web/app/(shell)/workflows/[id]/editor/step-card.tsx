@@ -1,12 +1,15 @@
 "use client";
 
+import type { Variable } from "@step-by-step/api-client";
 import { Camera, ChevronDown, ChevronUp, Eye, EyeOff, Trash2 } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 import { stepBadges } from "./badges";
 import { Sentence } from "./sentence";
 import { StepForm } from "./step-form";
 import type { Step } from "./steps";
 import { summarize } from "./summary";
+import type { Span } from "./variables";
 
 import { AttributeBadge } from "@/components/primitives/attribute-badge";
 import { cn } from "@/lib/utils";
@@ -33,9 +36,13 @@ export function StepCard({
   position,
   count,
   workflowDefaultMs,
+  variables,
+  secrets,
+  highlighted,
   expanded,
   onExpand,
   onChange,
+  onConvert,
   onMove,
   onDelete,
 }: {
@@ -43,17 +50,36 @@ export function StepCard({
   position: number;
   count: number;
   workflowDefaultMs: number;
+  variables: Variable[];
+  secrets: ReadonlySet<string>;
+  highlighted: boolean;
   expanded: boolean;
   onExpand: (expanded: boolean) => void;
   onChange: (step: Step) => void;
+  onConvert: (variable: Variable, span: Span) => void;
   onMove: (direction: "up" | "down") => void;
   onDelete: () => void;
 }) {
   const badges = stepBadges(step, workflowDefaultMs);
   const off = step.disabled === true;
+  const card = useRef<HTMLLIElement>(null);
+
+  // A drawer row that says "used by 3 steps" has to be able to show them, and
+  // three cards among ninety are off the screen more often than not.
+  useEffect(() => {
+    if (highlighted) {
+      card.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [highlighted]);
 
   return (
-    <li className="group flex gap-3 border-b border-line px-3 py-3 last:border-b-0">
+    <li
+      ref={card}
+      className={cn(
+        "group flex gap-3 border-b border-line px-3 py-3 last:border-b-0",
+        highlighted && "bg-human-bg/50 ring-2 ring-human/40 ring-inset",
+      )}
+    >
       <span className="mt-2 w-5 shrink-0 text-right text-micro text-mut">{position + 1}</span>
 
       <div className={cn("flex min-w-0 flex-1 flex-col gap-1", off && "opacity-60")}>
@@ -73,10 +99,16 @@ export function StepCard({
             onExpand(!expanded);
           }}
         >
-          <Sentence segments={summarize(step)} />
+          <Sentence segments={summarize(step)} secrets={secrets} />
         </button>
         {expanded ? (
-          <StepForm step={step} workflowDefaultMs={workflowDefaultMs} onChange={onChange} />
+          <StepForm
+            step={step}
+            workflowDefaultMs={workflowDefaultMs}
+            variables={variables}
+            onChange={onChange}
+            onConvert={onConvert}
+          />
         ) : null}
       </div>
 
