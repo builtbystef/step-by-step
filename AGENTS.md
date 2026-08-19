@@ -14,9 +14,10 @@ One command vocabulary covers both languages: root pnpm scripts fan out through 
 Host ports are shifted off the defaults (Postgres 5433, Redis 6380, Garage 3910, the containerised backend 8001) because another project on the same machine holds 5432, 6379, 3900, and 8000. The Workers publish nothing at all — their VNC servers must stay on the compose network.
 
 - Integration test tier: `pnpm test:integration` (needs the stack up and `.env` loaded)
+- Browser test tier: `pnpm test:browser` (needs Playwright's Chromium: `uv run playwright install chromium`)
 - Rebuild the images after changing a Dockerfile or a Python dependency: `docker compose build api worker`
 
-`pnpm test` is the fast tier and stays green with no services running.
+`pnpm test` is the fast tier and stays green with no services and no browser installed.
 
 `pnpm check` deliberately runs format + lint + typecheck as one pass. After changing an endpoint, `pnpm build` regenerates the OpenAPI schema and typed client — commit them (CI fails on drift). `pnpm run ci` is check + test + build.
 

@@ -92,6 +92,27 @@ jobs:
 
       - run: uv run pytest -m integration
 
+  # The browser tier: the selector-resolution tests, which need a real browser
+  # and nothing else. Playwright's Chromium is not part of `uv sync`, so this
+  # job installs it; the fast tier stays installable and green without one.
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+
+      - run: uv sync --locked --all-packages
+
+      - run: uv run playwright install --with-deps chromium
+
+      - run: uv run pytest -m browser
+
   # The committed openapi.json and generated client must match the FastAPI app.
   contract:
     runs-on: ubuntu-latest

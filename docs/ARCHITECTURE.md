@@ -194,6 +194,8 @@ They are the same value on a developer's host and different in a real deployment
 
 Openbox rather than fluxbox: it manages windows and nothing else. Fluxbox insists on setting a root wallpaper and, finding no wallpaper setter installed, parks an error dialog on the display — a window that would sit in every VNC frame and every screenshot Artifact.
 
+`selectors.py` is the replay half of the selector contract — `resolve(page, target, deadline)`, the module the executor will call for every targeting Step. It walks a Target's candidates in recorded order and takes the first that matches **exactly one** element: zero matches and several matches are the same answer, so nothing here uses `.first()`, `.nth()`, or `or_()`, and a page that grew a second Save button fails rather than guesses. A failed walk is repeated until the deadline — the Step's timeout _is_ the retry budget, and there is no separate retry counter — and each walk is announced through `on_walk`, which is where a Run checks whether it has been cancelled or paused, the one moment in a resolution when nothing has been clicked yet. What comes back carries the matching candidate's rank, which is the Selector Drift signal a Step Result records. The Target it takes is read from the stored Step document with `Target.from_document`; the Worker cannot import the backend's Pydantic contract, and `packages/core` holds no document models yet (`xkfmw8`).
+
 At startup the Worker proves it can reach everything a Run needs — Redis, Postgres, its display, its VNC server, and the Artifact store, the last by a real write-read-delete round trip — logs what each check found, and refuses to start if any failed. Every check runs even after one fails, so one boot shows an operator every problem rather than one problem per boot. Then it idles: there is no dispatch and no executor yet.
 
 The VNC server takes no password today. It is unreachable from anywhere but the compose network, and the view-only and control credentials the backend proxy authenticates with arrive with `5yu03g`, which owns the proxy that uses them.
@@ -236,10 +238,12 @@ Both typecheckers run at full strict, set at scaffold time. TypeScript: the flag
 
 ## Test tiers
 
-Two tiers, split by a pytest marker.
+Three tiers, split by pytest markers.
 
-**Fast (the default).** `pnpm test` runs Vitest and pytest with no services — hermetic, nothing to start. The pytest side deselects `-m integration` through `addopts`, so the tier stays fast by default rather than by anyone remembering a flag.
+**Fast (the default).** `pnpm test` runs Vitest and pytest with no services — hermetic, nothing to start. The pytest side deselects `-m 'not integration and not browser'` through `addopts`, so the tier stays fast by default rather than by anyone remembering a flag.
 
 **Integration.** `pnpm test:integration` runs the tests marked `@pytest.mark.integration` against the real Postgres, Redis, and Garage, with the URLs from `.env.example` in the environment. It lives in `apps/api/tests/integration/` and `packages/core/tests/integration/`. CI runs it in its own `integration` job, which starts the same three services with `docker compose up -d --wait` rather than with service containers — Garage needs its mounted config, and a service container starts before the checkout that would provide it.
+
+**Browser.** `pnpm test:browser` runs the tests marked `@pytest.mark.browser` — the selector resolution module against local fixture pages, and later the recorder's capture pipeline. They need a Playwright browser and nothing else: no Postgres, no Redis, no compose. It is a tier of its own because the browser binary does not arrive with `uv sync` — `uv run playwright install chromium` puts it there, and CI's `browser` job does the same before running `pytest -m browser`. It lives in `apps/worker/tests/browser/`, where a session-scoped Chromium and a loopback HTTP server over `pages/` are the whole harness.
 
 The integration tier owns its state, because the stack is long-lived and shared: no test may assume a fresh one, and two runs never collide. The api tier's session fixture creates a database of its own on the running Postgres, migrates it to head, and drops it at the end; the core tier's store tests either read without writing or write under a key of their own and remove it afterwards.

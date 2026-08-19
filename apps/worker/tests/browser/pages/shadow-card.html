@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>A Save button two open shadow roots deep</title>
+<main>
+  <button id="page-save">Save</button>
+  <user-card></user-card>
+</main>
+<script>
+  const card = document.querySelector("user-card");
+  const cardRoot = card.attachShadow({ mode: "open" });
+  cardRoot.innerHTML = '<button id="card-save">Save</button><address-panel></address-panel>';
+
+  const panel = cardRoot.querySelector("address-panel");
+  const panelRoot = panel.attachShadow({ mode: "open" });
+  panelRoot.innerHTML = '<button id="address-save">Save</button>';
+</script>

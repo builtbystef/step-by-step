@@ -1,0 +1,14 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>A page that fills itself in after loading</title>
+<main>
+  <p id="pending">Loading the invoice…</p>
+</main>
+<script>
+  setTimeout(() => {
+    const button = document.createElement("button");
+    button.id = "save-invoice";
+    button.textContent = "Save";
+    document.querySelector("main").append(button);
+  }, 2000);
+</script>
