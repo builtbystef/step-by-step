@@ -1053,11 +1053,50 @@ export type WorkflowDocument = {
 };
 
 /**
- * WorkflowSummary
+ * WorkflowNamed
  *
- * A Workflow without its document — what a screen shows before opening it.
+ * A Workflow and what it is called: what renaming and duplicating answer.
  */
-export type WorkflowSummary = {
+export type WorkflowNamed = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+};
+
+/**
+ * WorkflowPage
+ *
+ * One page of the list, and where the next one starts.
+ *
+ * `next_cursor` is absent on the last page, which is how a caller knows it
+ * has reached the end: an empty page would be one request too many, and a
+ * count would be a second query nobody asked for.
+ */
+export type WorkflowPage = {
+    /**
+     * Items
+     */
+    items: Array<WorkflowSummary>;
+    /**
+     * Next Cursor
+     */
+    next_cursor?: string | null;
+};
+
+/**
+ * WorkflowRecord
+ *
+ * The Workflow row itself, without its document.
+ *
+ * What creating one answers with. The list has a summary of its own, richer
+ * and joined against the Draft and the Versions; this is the plain row.
+ */
+export type WorkflowRecord = {
     /**
      * Id
      */
@@ -1078,6 +1117,57 @@ export type WorkflowSummary = {
      * Created At
      */
     created_at: string;
+};
+
+/**
+ * WorkflowRename
+ *
+ * Everything renaming asks for. A name is all a row shows of a Workflow.
+ */
+export type WorkflowRename = {
+    /**
+     * Name
+     */
+    name: string;
+};
+
+/**
+ * WorkflowSort
+ *
+ * The three orders the list offers, and nothing else.
+ *
+ * Three rather than a free-form order-by: every one of them is a keyset the
+ * cursor can be built on, and a fourth would have to earn its index first.
+ */
+export type WorkflowSort = 'activity' | 'name' | 'created';
+
+/**
+ * WorkflowSummary
+ *
+ * A Workflow as a list row: everything the row draws, and no document.
+ */
+export type WorkflowSummary = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Last Activity At
+     */
+    last_activity_at: string;
+    draft_state: DraftState;
+    /**
+     * Published Version
+     */
+    published_version?: number | null;
 };
 
 export type GetInstanceData = {
@@ -1829,6 +1919,63 @@ export type ConnectExtensionResponses = {
 
 export type ConnectExtensionResponse = ConnectExtensionResponses[keyof ConnectExtensionResponses];
 
+export type ListWorkflowsData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Q
+         */
+        q?: string;
+        sort?: WorkflowSort;
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Cursor
+         */
+        cursor?: string | null;
+    };
+    url: '/api/workflows';
+};
+
+export type ListWorkflowsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListWorkflowsError = ListWorkflowsErrors[keyof ListWorkflowsErrors];
+
+export type ListWorkflowsResponses = {
+    /**
+     * Successful Response
+     */
+    200: WorkflowPage;
+};
+
+export type ListWorkflowsResponse = ListWorkflowsResponses[keyof ListWorkflowsResponses];
+
 export type CreateWorkflowData = {
     body: WorkflowCreation;
     headers?: {
@@ -1867,7 +2014,7 @@ export type CreateWorkflowResponses = {
     /**
      * Successful Response
      */
-    201: WorkflowSummary;
+    201: WorkflowRecord;
 };
 
 export type CreateWorkflowResponse = CreateWorkflowResponses[keyof CreateWorkflowResponses];
@@ -2245,6 +2392,214 @@ export type SaveWorkflowDraftResponses = {
 };
 
 export type SaveWorkflowDraftResponse = SaveWorkflowDraftResponses[keyof SaveWorkflowDraftResponses];
+
+export type DeleteWorkflowData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+    };
+    query?: never;
+    url: '/api/workflows/{workflow_id}';
+};
+
+export type DeleteWorkflowErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteWorkflowError = DeleteWorkflowErrors[keyof DeleteWorkflowErrors];
+
+export type DeleteWorkflowResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteWorkflowResponse = DeleteWorkflowResponses[keyof DeleteWorkflowResponses];
+
+export type GetWorkflowData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+    };
+    query?: never;
+    url: '/api/workflows/{workflow_id}';
+};
+
+export type GetWorkflowErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetWorkflowError = GetWorkflowErrors[keyof GetWorkflowErrors];
+
+export type GetWorkflowResponses = {
+    /**
+     * Successful Response
+     */
+    200: WorkflowSummary;
+};
+
+export type GetWorkflowResponse = GetWorkflowResponses[keyof GetWorkflowResponses];
+
+export type RenameWorkflowData = {
+    body: WorkflowRename;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+    };
+    query?: never;
+    url: '/api/workflows/{workflow_id}';
+};
+
+export type RenameWorkflowErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RenameWorkflowError = RenameWorkflowErrors[keyof RenameWorkflowErrors];
+
+export type RenameWorkflowResponses = {
+    /**
+     * Successful Response
+     */
+    200: WorkflowNamed;
+};
+
+export type RenameWorkflowResponse = RenameWorkflowResponses[keyof RenameWorkflowResponses];
+
+export type DuplicateWorkflowData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+    };
+    query?: never;
+    url: '/api/workflows/{workflow_id}/duplicate';
+};
+
+export type DuplicateWorkflowErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DuplicateWorkflowError = DuplicateWorkflowErrors[keyof DuplicateWorkflowErrors];
+
+export type DuplicateWorkflowResponses = {
+    /**
+     * Successful Response
+     */
+    201: WorkflowNamed;
+};
+
+export type DuplicateWorkflowResponse = DuplicateWorkflowResponses[keyof DuplicateWorkflowResponses];
 
 export type GetHealthData = {
     body?: never;

@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AcceptInvitationData, AcceptInvitationErrors, AcceptInvitationResponses, ChangeMemberRoleData, ChangeMemberRoleErrors, ChangeMemberRoleResponses, ConnectExtensionData, ConnectExtensionErrors, ConnectExtensionResponses, CreateExtensionConnectCodeData, CreateExtensionConnectCodeErrors, CreateExtensionConnectCodeResponses, CreateInvitationData, CreateInvitationErrors, CreateInvitationResponses, CreateOrganizationData, CreateOrganizationErrors, CreateOrganizationResponses, CreateWorkflowData, CreateWorkflowErrors, CreateWorkflowResponses, DeleteAccountData, DeleteAccountErrors, DeleteAccountResponses, DeleteOrganizationData, DeleteOrganizationErrors, DeleteOrganizationResponses, GetCurrentAccountData, GetCurrentAccountErrors, GetCurrentAccountResponses, GetExtensionVersionData, GetExtensionVersionErrors, GetExtensionVersionResponses, GetGreetingData, GetGreetingErrors, GetGreetingResponses, GetHealthData, GetHealthResponses, GetInstanceData, GetInstanceResponses, GetWorkflowDraftData, GetWorkflowDraftDiffData, GetWorkflowDraftDiffErrors, GetWorkflowDraftDiffResponses, GetWorkflowDraftErrors, GetWorkflowDraftResponses, GetWorkflowVersionData, GetWorkflowVersionErrors, GetWorkflowVersionResponses, ListInvitationsData, ListInvitationsErrors, ListInvitationsResponses, ListMembersData, ListMembersErrors, ListMembersResponses, ListWorkflowVersionsData, ListWorkflowVersionsErrors, ListWorkflowVersionsResponses, PublishWorkflowVersionData, PublishWorkflowVersionErrors, PublishWorkflowVersionResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, RenameOrganizationData, RenameOrganizationErrors, RenameOrganizationResponses, RequestSigninCodeData, RequestSigninCodeErrors, RequestSigninCodeResponses, RestoreWorkflowVersionData, RestoreWorkflowVersionErrors, RestoreWorkflowVersionResponses, RevokeInvitationData, RevokeInvitationErrors, RevokeInvitationResponses, SaveWorkflowDraftData, SaveWorkflowDraftErrors, SaveWorkflowDraftResponses, SignOutData, SignOutErrors, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, TransferOwnershipData, TransferOwnershipErrors, TransferOwnershipResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, VerifySigninCodeData, VerifySigninCodeErrors, VerifySigninCodeResponses } from './types.gen';
+import type { AcceptInvitationData, AcceptInvitationErrors, AcceptInvitationResponses, ChangeMemberRoleData, ChangeMemberRoleErrors, ChangeMemberRoleResponses, ConnectExtensionData, ConnectExtensionErrors, ConnectExtensionResponses, CreateExtensionConnectCodeData, CreateExtensionConnectCodeErrors, CreateExtensionConnectCodeResponses, CreateInvitationData, CreateInvitationErrors, CreateInvitationResponses, CreateOrganizationData, CreateOrganizationErrors, CreateOrganizationResponses, CreateWorkflowData, CreateWorkflowErrors, CreateWorkflowResponses, DeleteAccountData, DeleteAccountErrors, DeleteAccountResponses, DeleteOrganizationData, DeleteOrganizationErrors, DeleteOrganizationResponses, DeleteWorkflowData, DeleteWorkflowErrors, DeleteWorkflowResponses, DuplicateWorkflowData, DuplicateWorkflowErrors, DuplicateWorkflowResponses, GetCurrentAccountData, GetCurrentAccountErrors, GetCurrentAccountResponses, GetExtensionVersionData, GetExtensionVersionErrors, GetExtensionVersionResponses, GetGreetingData, GetGreetingErrors, GetGreetingResponses, GetHealthData, GetHealthResponses, GetInstanceData, GetInstanceResponses, GetWorkflowData, GetWorkflowDraftData, GetWorkflowDraftDiffData, GetWorkflowDraftDiffErrors, GetWorkflowDraftDiffResponses, GetWorkflowDraftErrors, GetWorkflowDraftResponses, GetWorkflowErrors, GetWorkflowResponses, GetWorkflowVersionData, GetWorkflowVersionErrors, GetWorkflowVersionResponses, ListInvitationsData, ListInvitationsErrors, ListInvitationsResponses, ListMembersData, ListMembersErrors, ListMembersResponses, ListWorkflowsData, ListWorkflowsErrors, ListWorkflowsResponses, ListWorkflowVersionsData, ListWorkflowVersionsErrors, ListWorkflowVersionsResponses, PublishWorkflowVersionData, PublishWorkflowVersionErrors, PublishWorkflowVersionResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, RenameOrganizationData, RenameOrganizationErrors, RenameOrganizationResponses, RenameWorkflowData, RenameWorkflowErrors, RenameWorkflowResponses, RequestSigninCodeData, RequestSigninCodeErrors, RequestSigninCodeResponses, RestoreWorkflowVersionData, RestoreWorkflowVersionErrors, RestoreWorkflowVersionResponses, RevokeInvitationData, RevokeInvitationErrors, RevokeInvitationResponses, SaveWorkflowDraftData, SaveWorkflowDraftErrors, SaveWorkflowDraftResponses, SignOutData, SignOutErrors, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, TransferOwnershipData, TransferOwnershipErrors, TransferOwnershipResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, VerifySigninCodeData, VerifySigninCodeErrors, VerifySigninCodeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -304,6 +304,20 @@ export const connectExtension = <ThrowOnError extends boolean = false>(options: 
 });
 
 /**
+ * List Workflows
+ *
+ * The acting Organization's Workflows, narrowed by what was typed.
+ *
+ * Activity by default, because a list of automations is a list of what has
+ * been happening; the other two orders are for finding one by hand.
+ *
+ * One row more than was asked for is read, and dropped: whether a next page
+ * exists is a fact about the data, and asking for it as a count would be a
+ * second query over the same rows.
+ */
+export const listWorkflows = <ThrowOnError extends boolean = false>(options?: Options<ListWorkflowsData, ThrowOnError>): RequestResult<ListWorkflowsResponses, ListWorkflowsErrors, ThrowOnError> => (options?.client ?? client).get<ListWorkflowsResponses, ListWorkflowsErrors, ThrowOnError>({ url: '/api/workflows', ...options });
+
+/**
  * Create Workflow
  *
  * Make an empty Workflow in the acting Organization.
@@ -397,6 +411,59 @@ export const saveWorkflowDraft = <ThrowOnError extends boolean = false>(options:
         ...options.headers
     }
 });
+
+/**
+ * Delete Workflow
+ *
+ * Delete a Workflow, and everything that only existed because of it.
+ *
+ * Its Draft and its Versions go with it, on the foreign keys that already say
+ * so — there is no orphan half of a Workflow, and nothing is left behind to
+ * be found by a later query. The Schedules, Batches, and Runs the confirm
+ * dialog will also name are the follow-up slice's, once those objects exist.
+ */
+export const deleteWorkflow = <ThrowOnError extends boolean = false>(options: Options<DeleteWorkflowData, ThrowOnError>): RequestResult<DeleteWorkflowResponses, DeleteWorkflowErrors, ThrowOnError> => (options.client ?? client).delete<DeleteWorkflowResponses, DeleteWorkflowErrors, ThrowOnError>({ url: '/api/workflows/{workflow_id}', ...options });
+
+/**
+ * Get Workflow
+ *
+ * One Workflow, as the same row the list would have drawn.
+ *
+ * The Workflow page needs it: opened by its address rather than by a click,
+ * it has no row to have carried the name and the draft state across. The
+ * same query answers it, so the header a reload draws is the header the row
+ * promised.
+ */
+export const getWorkflow = <ThrowOnError extends boolean = false>(options: Options<GetWorkflowData, ThrowOnError>): RequestResult<GetWorkflowResponses, GetWorkflowErrors, ThrowOnError> => (options.client ?? client).get<GetWorkflowResponses, GetWorkflowErrors, ThrowOnError>({ url: '/api/workflows/{workflow_id}', ...options });
+
+/**
+ * Rename Workflow
+ *
+ * Change what a Workflow is called, and nothing else about it.
+ *
+ * The name is the only field a row shows and the only one housekeeping
+ * touches; the timeouts and the document have their own routes.
+ */
+export const renameWorkflow = <ThrowOnError extends boolean = false>(options: Options<RenameWorkflowData, ThrowOnError>): RequestResult<RenameWorkflowResponses, RenameWorkflowErrors, ThrowOnError> => (options.client ?? client).patch<RenameWorkflowResponses, RenameWorkflowErrors, ThrowOnError>({
+    url: '/api/workflows/{workflow_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Duplicate Workflow
+ *
+ * A second Workflow holding a copy of this one's Draft.
+ *
+ * The Draft and nothing else. Versions are not copied — a Version is what a
+ * Schedule and a Batch execute, and a copy that arrived already published
+ * would be an automation nobody has looked at that is ready to act on a real
+ * website. The copy starts never-published, which is exactly true of it.
+ */
+export const duplicateWorkflow = <ThrowOnError extends boolean = false>(options: Options<DuplicateWorkflowData, ThrowOnError>): RequestResult<DuplicateWorkflowResponses, DuplicateWorkflowErrors, ThrowOnError> => (options.client ?? client).post<DuplicateWorkflowResponses, DuplicateWorkflowErrors, ThrowOnError>({ url: '/api/workflows/{workflow_id}/duplicate', ...options });
 
 /**
  * Get Health

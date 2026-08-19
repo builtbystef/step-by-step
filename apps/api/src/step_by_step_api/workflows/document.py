@@ -19,7 +19,7 @@ whole, and lives in `validated`.
 import re
 from enum import StrEnum
 from typing import Annotated, Any, Literal
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
@@ -373,6 +373,22 @@ def stored(document: WorkflowDocument) -> dict[str, Any]:
     return document.model_dump(mode="json", by_alias=True, exclude_none=True)
 
 
+def with_fresh_step_ids(document: dict[str, Any]) -> dict[str, Any]:
+    """The same document, with every Step under an id of its own.
+
+    A copy is the same automation and not the same Steps. The id is the thread
+    that ties a Step to its Step Results and its Selector Drift across every
+    Version it appears in, and a copy that kept them would tie the copy's
+    history to the original's.
+
+    Everything else is carried across untouched, including the order: nothing
+    in this document refers to a Step by id, so re-minting them changes what a
+    Step is called internally and nothing about what it does.
+    """
+    steps = [{**step, "id": str(uuid4())} for step in document.get("steps", [])]
+    return {**document, "steps": steps}
+
+
 class DraftState(StrEnum):
     """Where a Draft stands against what has been published, in three words."""
 
@@ -393,11 +409,21 @@ def draft_state(draft: dict[str, Any], published: dict[str, Any] | None) -> Draf
     Variable renamed or a secret flag flipped changes what a Run does, so a
     Draft that differs by nothing else is still ahead of its Version.
     """
-    if published is None:
+    return standing(published is not None, draft == published)
+
+
+def standing(published: bool, matches: bool) -> DraftState:
+    """The three words, from the two facts they are made of.
+
+    Split out because the Workflows list asks the same question of a hundred
+    rows at once, and answering it the way `draft_state` does would drag every
+    Draft and every Version document across the wire to compare them here. It
+    compares them in the database instead and brings back the boolean — so the
+    comparison moves, and the rule that turns it into a word does not.
+    """
+    if not published:
         return DraftState.NEVER_PUBLISHED
-    if draft == published:
-        return DraftState.IN_SYNC
-    return DraftState.UNPUBLISHED_CHANGES
+    return DraftState.IN_SYNC if matches else DraftState.UNPUBLISHED_CHANGES
 
 
 class StepRef(BaseModel):

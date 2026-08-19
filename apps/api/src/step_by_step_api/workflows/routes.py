@@ -67,8 +67,12 @@ class WorkflowCreation(BaseModel):
     name: str = Field(min_length=1, max_length=NAME_LENGTH)
 
 
-class WorkflowSummary(BaseModel):
-    """A Workflow without its document — what a screen shows before opening it."""
+class WorkflowRecord(BaseModel):
+    """The Workflow row itself, without its document.
+
+    What creating one answers with. The list has a summary of its own, richer
+    and joined against the Draft and the Versions; this is the plain row.
+    """
 
     id: UUID
     name: str
@@ -85,7 +89,7 @@ class WorkflowSummary(BaseModel):
 )
 def create_workflow(
     asked: WorkflowCreation, member: ActiveMembership, db: SessionDep
-) -> WorkflowSummary:
+) -> WorkflowRecord:
     """Make an empty Workflow in the acting Organization.
 
     Its Draft exists from this moment, empty: a recorder or an editor opening
@@ -100,9 +104,9 @@ def create_workflow(
     return summary(workflow)
 
 
-def summary(workflow: Workflow) -> WorkflowSummary:
+def summary(workflow: Workflow) -> WorkflowRecord:
     """The Workflow as every route that answers with one renders it."""
-    return WorkflowSummary(
+    return WorkflowRecord(
         id=workflow.id,
         name=workflow.name,
         default_step_timeout_ms=workflow.default_step_timeout_ms,

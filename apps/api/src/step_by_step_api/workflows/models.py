@@ -48,6 +48,12 @@ class Workflow(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+    """When the Workflow itself was last touched — a rename, and nothing else
+    so far. Editing the document moves the Draft's stamp rather than this one,
+    so a list sorting by activity reads the later of the two."""
 
 
 class WorkflowDraft(Base):
