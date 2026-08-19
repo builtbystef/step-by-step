@@ -10,7 +10,7 @@ from datetime import timedelta
 from uuid import UUID, uuid4
 
 import pytest
-from conftest import Account, code_sent_to
+from conftest import Account, code_sent_to, join
 from fastapi.testclient import TestClient
 from httpx import Response
 from sqlalchemy.orm import Session
@@ -117,19 +117,6 @@ def test_an_invitation_is_not_another_accounts_to_accept(
     assert offered_to(invitee) != []
 
 
-def joined(owner: Account, invitee: Account, role: str) -> Account:
-    """The invitee, now in the owner's Organization with that role.
-
-    The only way in — there is no instance administrator and no other route
-    that makes a Membership — so every permission test builds its cast here.
-    """
-    assert invite(owner, invitee.email, role=role).status_code == 201
-    offer_id = offered_to(invitee)[0]["id"]
-    accepted = invitee.client.post(f"/api/invitations/{offer_id}/accept")
-    assert accepted.status_code == 204, accepted.text
-    return Account(client=invitee.client, email=invitee.email, org_id=owner.org_id)
-
-
 def an_address() -> str:
     """An address nobody has been offered yet, for an offer to be made to."""
     return f"grace-{uuid4().hex[:12]}@example.com"
@@ -137,8 +124,8 @@ def an_address() -> str:
 
 def test_an_admin_invites_and_a_member_may_not(new_account: NewAccount) -> None:
     owner = new_account()
-    admin = joined(owner, new_account(), role="admin")
-    member = joined(owner, new_account(), role="member")
+    admin = join(owner, new_account(), role="admin")
+    member = join(owner, new_account(), role="member")
 
     invited = invite(admin, an_address())
     refused = invite(member, an_address())
@@ -177,7 +164,7 @@ def test_an_address_already_in_the_organization_cannot_be_invited(
 ) -> None:
     """Any casing: the address is the identity, and it is one identity."""
     owner = new_account()
-    member = joined(owner, new_account(), role="member")
+    member = join(owner, new_account(), role="member")
 
     refused = invite(owner, member.email.upper())
 
@@ -211,8 +198,8 @@ def test_owners_and_admins_list_the_standing_invitations(
     new_account: NewAccount,
 ) -> None:
     owner = new_account()
-    admin = joined(owner, new_account(), role="admin")
-    member = joined(owner, new_account(), role="member")
+    admin = join(owner, new_account(), role="admin")
+    member = join(owner, new_account(), role="member")
     address = an_address()
     invite(owner, address, role="admin")
 

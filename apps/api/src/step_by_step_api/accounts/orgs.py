@@ -7,8 +7,10 @@ and it is checked on every one (ADR 0005).
 
 The Organization's own routes name it in the path instead, because they are
 about one Organization rather than acting inside the active one — and there
-the Membership has to carry a role as well: managing who is in a team is the
-owner's and the admins', while the work itself is every role's.
+the Membership has to carry a role as well, so the gate comes in three widths.
+Being in an Organization is enough to read who else is in it and to leave;
+managing who is in a team is the owner's and the admins'; handing the
+Organization on is the owner's alone. The work itself is every role's.
 """
 
 from typing import Annotated
@@ -17,7 +19,7 @@ from uuid import UUID
 from fastapi import Depends, Header
 from sqlalchemy import select
 
-from step_by_step_api.accounts.models import Membership, Role, User
+from step_by_step_api.accounts.models import Membership, Organization, Role, User
 from step_by_step_api.accounts.sessions import CurrentUser
 from step_by_step_api.db import SessionDep
 from step_by_step_api.errors import ApiError
@@ -60,6 +62,18 @@ def membership_in(db: SessionDep, user: User, org_id: UUID) -> Membership | None
     ).scalar_one_or_none()
 
 
+def path_membership(db: SessionDep, user: CurrentUser, org_id: UUID) -> Membership:
+    """The caller's Membership in the Organization a path names, any role.
+
+    What every role may do in an Organization it belongs to: reading who else
+    is in it, and leaving.
+    """
+    membership = membership_in(db, user, org_id)
+    if membership is None:
+        raise no_membership()
+    return membership
+
+
 def managing_membership(db: SessionDep, user: CurrentUser, org_id: UUID) -> Membership:
     """The caller's Membership in the Organization a path names, with a role
     that lets them manage who is in it.
@@ -68,12 +82,41 @@ def managing_membership(db: SessionDep, user: CurrentUser, org_id: UUID) -> Memb
     member: they are in this Organization, and hiding that from them would be
     hiding a fact they already hold.
     """
-    membership = membership_in(db, user, org_id)
-    if membership is None:
-        raise no_membership()
+    membership = path_membership(db, user, org_id)
     if membership.role is Role.MEMBER:
-        raise ApiError(403, "not_an_admin", "only an owner or an admin may manage this")
+        raise not_an_admin()
     return membership
+
+
+def owning_membership(db: SessionDep, user: CurrentUser, org_id: UUID) -> Membership:
+    """The caller's Membership in the Organization a path names, and it is theirs.
+
+    The narrowest gate there is, for the two acts an Organization has exactly
+    one person for: handing it on, and — with a later slice — ending it.
+    """
+    membership = path_membership(db, user, org_id)
+    if membership.role is not Role.OWNER:
+        raise not_the_owner()
+    return membership
+
+
+def create(db: SessionDep, user: User, name: str) -> Organization:
+    """A new Organization, with the person who asked for it as its owner.
+
+    The one way an Organization comes into being besides a signup's — and it is
+    the same way: whoever makes one owns it, because an Organization with no
+    owner would be one nobody could hand on or end.
+    """
+    organization = Organization(name=name)
+    db.add(organization)
+    db.flush()
+    db.add(Membership(org_id=organization.id, user_id=user.id, role=Role.OWNER))
+    return organization
+
+
+def not_the_owner() -> ApiError:
+    """The refusal on the acts an Organization has exactly one person for."""
+    return ApiError(403, "not_the_owner", "only the owner may do that")
 
 
 def no_membership() -> ApiError:
@@ -81,9 +124,22 @@ def no_membership() -> ApiError:
     return ApiError(403, "not_a_member", "you are not a member of that Organization")
 
 
+def not_an_admin() -> ApiError:
+    """The refusal a member meets on the controls that manage a team."""
+    return ApiError(403, "not_an_admin", "only an owner or an admin may manage this")
+
+
 ActiveMembership = Annotated[Membership, Depends(active_membership)]
 """A route parameter of this type is a route that acts inside one Organization."""
+
+PathMembership = Annotated[Membership, Depends(path_membership)]
+"""A route parameter of this type is every member's, on a path that names its
+Organization as `{org_id}`."""
 
 ManagingMembership = Annotated[Membership, Depends(managing_membership)]
 """A route parameter of this type is an owner's and an admin's, on a path that
 names its Organization as `{org_id}`."""
+
+OwningMembership = Annotated[Membership, Depends(owning_membership)]
+"""A route parameter of this type is the owner's alone, on a path that names
+its Organization as `{org_id}`."""

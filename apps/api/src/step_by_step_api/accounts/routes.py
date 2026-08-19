@@ -10,11 +10,21 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Request, Response
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 
-from step_by_step_api.accounts import invitations, service, sessions
-from step_by_step_api.accounts.models import Invitation, Organization, Role, User
-from step_by_step_api.accounts.orgs import ManagingMembership
+from step_by_step_api.accounts import invitations, members, orgs, service, sessions
+from step_by_step_api.accounts.models import (
+    Invitation,
+    Membership,
+    Organization,
+    Role,
+    User,
+)
+from step_by_step_api.accounts.orgs import (
+    ManagingMembership,
+    OwningMembership,
+    PathMembership,
+)
 from step_by_step_api.accounts.service import SignupMode, signup_mode
 from step_by_step_api.accounts.sessions import CurrentUser
 from step_by_step_api.db import SessionDep
@@ -214,11 +224,12 @@ def sign_out_everywhere(user: CurrentUser, db: SessionDep) -> Response:
     return answer
 
 
-class InvitedRole(StrEnum):
-    """The two roles an Invitation may carry.
+class AssignableRole(StrEnum):
+    """The two roles a Membership may be given.
 
-    Not owner: an Organization has exactly one, and it changes hands by
-    transfer rather than by an offer somebody might never take up.
+    Not owner: an Organization has exactly one, and it changes hands by the
+    transfer that replaces its holder — never by an offer somebody might never
+    take up, and never by a role change that would leave two.
     """
 
     ADMIN = "admin"
@@ -229,7 +240,7 @@ class InvitationRequest(BaseModel):
     """An offer to make: the address, and what it may do once it is taken."""
 
     email: Email
-    role: InvitedRole
+    role: AssignableRole
 
 
 class PendingInvitation(BaseModel):
@@ -320,5 +331,164 @@ def accept_invitation(
     signing in is proof of the address the offer was made to.
     """
     invitations.accept(db, user, invitation_id)
+    db.commit()
+    return Response(status_code=204)
+
+
+class OrganizationRequest(BaseModel):
+    """What an Organization is made and renamed with: a name people read."""
+
+    name: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
+    ]
+
+
+@router.post(
+    "/api/orgs",
+    operation_id="createOrganization",
+    status_code=201,
+    responses=errors(401),
+)
+def create_organization(
+    asked: OrganizationRequest, user: CurrentUser, db: SessionDep
+) -> OrganizationMembership:
+    """Start a further Organization, owned by whoever asked for it.
+
+    Signing up makes the first one; this is every one after it — a second team,
+    a client's work kept apart from another's — and it answers with the same
+    shape the current-user view lists, because that is where it turns up next.
+    """
+    organization = orgs.create(db, user, asked.name)
+    db.commit()
+    return OrganizationMembership(
+        id=organization.id, name=organization.name, role=Role.OWNER
+    )
+
+
+@router.patch(
+    "/api/orgs/{org_id}",
+    operation_id="renameOrganization",
+    responses=errors(401, 403),
+)
+def rename_organization(
+    org_id: UUID,
+    asked: OrganizationRequest,
+    managing: ManagingMembership,
+    db: SessionDep,
+) -> OrganizationMembership:
+    """Rename the Organization, which an owner and the admins may both do.
+
+    The name a signup made is the local part of an address, so the first thing
+    a team does with an Organization is give it their own name for it.
+    """
+    organization = db.get_one(Organization, org_id)
+    organization.name = asked.name
+    db.commit()
+    return OrganizationMembership(
+        id=organization.id, name=organization.name, role=managing.role
+    )
+
+
+class Member(BaseModel):
+    """One person in an Organization, as its members screen shows them."""
+
+    user_id: UUID
+    email: str
+    display_name: str | None
+    role: Role
+    joined_at: datetime
+
+
+class RoleChange(BaseModel):
+    """The one thing about a Membership that changes: what it lets them do."""
+
+    role: AssignableRole
+
+
+class OwnershipTransfer(BaseModel):
+    """Who the Organization is being handed to."""
+
+    user_id: UUID
+
+
+def rendered(membership: Membership, user: User) -> Member:
+    """The Membership as every route that answers with one renders it."""
+    return Member(
+        user_id=user.id,
+        email=user.email,
+        display_name=user.display_name,
+        role=membership.role,
+        joined_at=membership.created_at,
+    )
+
+
+@router.get(
+    "/api/orgs/{org_id}/members",
+    operation_id="listMembers",
+    responses=errors(401, 403),
+)
+def list_members(
+    org_id: UUID, membership: PathMembership, db: SessionDep
+) -> list[Member]:
+    """Who else is here — a question every role in an Organization may ask.
+
+    Knowing who you work with is not managing them: the roles that gate this
+    screen's controls do not gate the screen.
+    """
+    return [rendered(member, user) for member, user in members.listing(db, org_id)]
+
+
+@router.patch(
+    "/api/orgs/{org_id}/members/{user_id}",
+    operation_id="changeMemberRole",
+    responses=errors(401, 403, 404),
+)
+def change_member_role(
+    org_id: UUID,
+    user_id: UUID,
+    asked: RoleChange,
+    managing: ManagingMembership,
+    db: SessionDep,
+) -> Member:
+    """Move somebody between member and admin, which owners and admins both do."""
+    membership = members.set_role(db, org_id, user_id, Role(asked.role))
+    user = db.get_one(User, user_id)
+    db.commit()
+    return rendered(membership, user)
+
+
+@router.delete(
+    "/api/orgs/{org_id}/members/{user_id}",
+    operation_id="removeMember",
+    status_code=204,
+    response_class=Response,
+    responses=errors(401, 403, 404),
+)
+def remove_member(
+    org_id: UUID, user_id: UUID, membership: PathMembership, db: SessionDep
+) -> Response:
+    """End a Membership — an owner's or an admin's removal, or anyone's leaving.
+
+    Access ends with the row: the next request naming this Organization has no
+    Membership behind it, and the gate refuses it. The session is untouched,
+    because it is the account's and not this Organization's.
+    """
+    members.remove(db, membership, user_id)
+    db.commit()
+    return Response(status_code=204)
+
+
+@router.post(
+    "/api/orgs/{org_id}/transfer-ownership",
+    operation_id="transferOwnership",
+    status_code=204,
+    response_class=Response,
+    responses=errors(401, 403, 404),
+)
+def transfer_ownership(
+    org_id: UUID, asked: OwnershipTransfer, owner: OwningMembership, db: SessionDep
+) -> Response:
+    """Hand the Organization to another of its members, and stay on as an admin."""
+    members.transfer_ownership(db, owner, asked.user_id)
     db.commit()
     return Response(status_code=204)

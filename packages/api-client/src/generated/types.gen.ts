@@ -45,6 +45,17 @@ export type AccountUpdate = {
 };
 
 /**
+ * AssignableRole
+ *
+ * The two roles a Membership may be given.
+ *
+ * Not owner: an Organization has exactly one, and it changes hands by the
+ * transfer that replaces its holder — never by an offer somebody might never
+ * take up, and never by a role change that would leave two.
+ */
+export type AssignableRole = 'admin' | 'member';
+
+/**
  * CandidateKind
  *
  * The ways of finding an element, in the order the recorder ranks them.
@@ -417,18 +428,8 @@ export type InvitationRequest = {
      * Email
      */
     email: string;
-    role: InvitedRole;
+    role: AssignableRole;
 };
-
-/**
- * InvitedRole
- *
- * The two roles an Invitation may carry.
- *
- * Not owner: an Organization has exactly one, and it changes hands by
- * transfer rather than by an offer somebody might never take up.
- */
-export type InvitedRole = 'admin' | 'member';
 
 /**
  * ListExtractPayload
@@ -449,6 +450,31 @@ export type ListExtractPayload = {
      * Fields
      */
     fields: Array<ExtractField>;
+};
+
+/**
+ * Member
+ *
+ * One person in an Organization, as its members screen shows them.
+ */
+export type Member = {
+    /**
+     * User Id
+     */
+    user_id: string;
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Display Name
+     */
+    display_name: string | null;
+    role: Role;
+    /**
+     * Joined At
+     */
+    joined_at: string;
 };
 
 /**
@@ -531,6 +557,30 @@ export type OrganizationMembership = {
 };
 
 /**
+ * OrganizationRequest
+ *
+ * What an Organization is made and renamed with: a name people read.
+ */
+export type OrganizationRequest = {
+    /**
+     * Name
+     */
+    name: string;
+};
+
+/**
+ * OwnershipTransfer
+ *
+ * Who the Organization is being handed to.
+ */
+export type OwnershipTransfer = {
+    /**
+     * User Id
+     */
+    user_id: string;
+};
+
+/**
  * PendingInvitation
  *
  * An offer an Organization has out, as its owner and admins see it.
@@ -564,6 +614,15 @@ export type PendingInvitation = {
  * membership and lifecycle actions only — every role does the domain work.
  */
 export type Role = 'owner' | 'admin' | 'member';
+
+/**
+ * RoleChange
+ *
+ * The one thing about a Membership that changes: what it lets them do.
+ */
+export type RoleChange = {
+    role: AssignableRole;
+};
 
 /**
  * ScalarExtractPayload
@@ -1338,6 +1397,247 @@ export type AcceptInvitationResponses = {
 };
 
 export type AcceptInvitationResponse = AcceptInvitationResponses[keyof AcceptInvitationResponses];
+
+export type CreateOrganizationData = {
+    body: OrganizationRequest;
+    path?: never;
+    query?: never;
+    url: '/api/orgs';
+};
+
+export type CreateOrganizationErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateOrganizationError = CreateOrganizationErrors[keyof CreateOrganizationErrors];
+
+export type CreateOrganizationResponses = {
+    /**
+     * Successful Response
+     */
+    201: OrganizationMembership;
+};
+
+export type CreateOrganizationResponse = CreateOrganizationResponses[keyof CreateOrganizationResponses];
+
+export type RenameOrganizationData = {
+    body: OrganizationRequest;
+    path: {
+        /**
+         * Org Id
+         */
+        org_id: string;
+    };
+    query?: never;
+    url: '/api/orgs/{org_id}';
+};
+
+export type RenameOrganizationErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RenameOrganizationError = RenameOrganizationErrors[keyof RenameOrganizationErrors];
+
+export type RenameOrganizationResponses = {
+    /**
+     * Successful Response
+     */
+    200: OrganizationMembership;
+};
+
+export type RenameOrganizationResponse = RenameOrganizationResponses[keyof RenameOrganizationResponses];
+
+export type ListMembersData = {
+    body?: never;
+    path: {
+        /**
+         * Org Id
+         */
+        org_id: string;
+    };
+    query?: never;
+    url: '/api/orgs/{org_id}/members';
+};
+
+export type ListMembersErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListMembersError = ListMembersErrors[keyof ListMembersErrors];
+
+export type ListMembersResponses = {
+    /**
+     * Response Listmembers
+     *
+     * Successful Response
+     */
+    200: Array<Member>;
+};
+
+export type ListMembersResponse = ListMembersResponses[keyof ListMembersResponses];
+
+export type RemoveMemberData = {
+    body?: never;
+    path: {
+        /**
+         * Org Id
+         */
+        org_id: string;
+        /**
+         * User Id
+         */
+        user_id: string;
+    };
+    query?: never;
+    url: '/api/orgs/{org_id}/members/{user_id}';
+};
+
+export type RemoveMemberErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RemoveMemberError = RemoveMemberErrors[keyof RemoveMemberErrors];
+
+export type RemoveMemberResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type RemoveMemberResponse = RemoveMemberResponses[keyof RemoveMemberResponses];
+
+export type ChangeMemberRoleData = {
+    body: RoleChange;
+    path: {
+        /**
+         * Org Id
+         */
+        org_id: string;
+        /**
+         * User Id
+         */
+        user_id: string;
+    };
+    query?: never;
+    url: '/api/orgs/{org_id}/members/{user_id}';
+};
+
+export type ChangeMemberRoleErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ChangeMemberRoleError = ChangeMemberRoleErrors[keyof ChangeMemberRoleErrors];
+
+export type ChangeMemberRoleResponses = {
+    /**
+     * Successful Response
+     */
+    200: Member;
+};
+
+export type ChangeMemberRoleResponse = ChangeMemberRoleResponses[keyof ChangeMemberRoleResponses];
+
+export type TransferOwnershipData = {
+    body: OwnershipTransfer;
+    path: {
+        /**
+         * Org Id
+         */
+        org_id: string;
+    };
+    query?: never;
+    url: '/api/orgs/{org_id}/transfer-ownership';
+};
+
+export type TransferOwnershipErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type TransferOwnershipError = TransferOwnershipErrors[keyof TransferOwnershipErrors];
+
+export type TransferOwnershipResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type TransferOwnershipResponse = TransferOwnershipResponses[keyof TransferOwnershipResponses];
 
 export type GetExtensionVersionData = {
     body?: never;

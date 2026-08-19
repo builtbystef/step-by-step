@@ -18,7 +18,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DbSession
 
 from step_by_step_api import mail
-from step_by_step_api.accounts import codes, invitations
+from step_by_step_api.accounts import codes, invitations, orgs
 from step_by_step_api.accounts.models import Membership, Organization, Role, User
 from step_by_step_api.errors import ApiError
 
@@ -147,10 +147,7 @@ def create_account(db: DbSession, email: str, *, with_organization: bool) -> Use
     db.add(user)
     db.flush()
     if with_organization:
-        organization = Organization(name=entered.split("@", 1)[0])
-        db.add(organization)
-        db.flush()
-        db.add(Membership(org_id=organization.id, user_id=user.id, role=Role.OWNER))
+        orgs.create(db, user, entered.split("@", 1)[0])
     return user
 
 

@@ -138,3 +138,20 @@ def code_sent_to(address: str) -> str:
             assert digits is not None, f"no 6-digit code in: {message.text}"
             return digits.group(1)
     raise AssertionError(f"no mail was sent to {address}")
+
+
+def join(owner: Account, invitee: Account, role: str = "member") -> Account:
+    """The invitee, now in the owner's Organization with that role.
+
+    An Invitation is the only way in — there is no instance administrator and
+    no other route that makes a Membership — so every test that needs a second
+    person in an Organization builds them here.
+    """
+    invited = owner.client.post(
+        f"/api/orgs/{owner.org_id}/invitations",
+        json={"email": invitee.email, "role": role},
+    )
+    assert invited.status_code == 201, invited.text
+    accepted = invitee.client.post(f"/api/invitations/{invited.json()['id']}/accept")
+    assert accepted.status_code == 204, accepted.text
+    return Account(client=invitee.client, email=invitee.email, org_id=owner.org_id)

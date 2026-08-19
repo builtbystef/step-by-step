@@ -6,7 +6,7 @@ import {
   listInvitations,
   revokeInvitation,
   type Account,
-  type InvitedRole,
+  type AssignableRole,
   type OrganizationMembership,
 } from "@step-by-step/api-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -114,7 +114,7 @@ function PendingOffers({ me }: { me: Account }) {
 function OrganizationPanel({ org }: { org: OrganizationMembership }) {
   const cache = useQueryClient();
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<InvitedRole>("member");
+  const [role, setRole] = useState<AssignableRole>("member");
 
   const standing = useQuery({
     queryKey: invitationsKey(org.id),
@@ -182,7 +182,7 @@ function OrganizationPanel({ org }: { org: OrganizationMembership }) {
               className="h-9 rounded-md border border-line bg-panel px-2 text-half text-ink"
               value={role}
               onChange={(chosen) => {
-                setRole(chosen.target.value as InvitedRole);
+                setRole(chosen.target.value as AssignableRole);
               }}
             >
               <option value="member">member</option>
