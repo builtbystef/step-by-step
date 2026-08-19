@@ -4,14 +4,17 @@ Every route here is under the one app origin, and every refusal is JSON with a
 machine-readable code.
 """
 
+from datetime import datetime
+from enum import StrEnum
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel, Field
 
-from step_by_step_api.accounts import service, sessions
-from step_by_step_api.accounts.models import Role, User
+from step_by_step_api.accounts import invitations, service, sessions
+from step_by_step_api.accounts.models import Invitation, Organization, Role, User
+from step_by_step_api.accounts.orgs import ManagingMembership
 from step_by_step_api.accounts.service import SignupMode, signup_mode
 from step_by_step_api.accounts.sessions import CurrentUser
 from step_by_step_api.db import SessionDep
@@ -91,6 +94,14 @@ class OrganizationMembership(BaseModel):
     role: Role
 
 
+class OfferedMembership(BaseModel):
+    """An Invitation as the person invited sees it: whose team, and as what."""
+
+    id: UUID
+    org_name: str
+    role: Role
+
+
 class Account(BaseModel):
     """Who the caller is. The email is theirs as they typed it."""
 
@@ -98,6 +109,7 @@ class Account(BaseModel):
     email: str
     display_name: str | None
     orgs: list[OrganizationMembership]
+    invitations: list[OfferedMembership]
 
 
 class AccountUpdate(BaseModel):
@@ -115,6 +127,12 @@ def account_of(db: SessionDep, user: User) -> Account:
         orgs=[
             OrganizationMembership(id=org.id, name=org.name, role=role)
             for org, role in service.organizations_of(db, user)
+        ],
+        invitations=[
+            OfferedMembership(
+                id=invitation.id, org_name=organization.name, role=invitation.role
+            )
+            for invitation, organization in invitations.pending_for(db, user.email)
         ],
     )
 
@@ -173,3 +191,113 @@ def sign_out(request: Request, user: CurrentUser, db: SessionDep) -> Response:
     answer = Response(status_code=204)
     sessions.drop(answer)
     return answer
+
+
+class InvitedRole(StrEnum):
+    """The two roles an Invitation may carry.
+
+    Not owner: an Organization has exactly one, and it changes hands by
+    transfer rather than by an offer somebody might never take up.
+    """
+
+    ADMIN = "admin"
+    MEMBER = "member"
+
+
+class InvitationRequest(BaseModel):
+    """An offer to make: the address, and what it may do once it is taken."""
+
+    email: Email
+    role: InvitedRole
+
+
+class PendingInvitation(BaseModel):
+    """An offer an Organization has out, as its owner and admins see it."""
+
+    id: UUID
+    email: str
+    role: Role
+    created_at: datetime
+    expires_at: datetime
+
+
+def pending(invitation: Invitation) -> PendingInvitation:
+    """The Invitation as every route that answers with one renders it."""
+    return PendingInvitation(
+        id=invitation.id,
+        email=invitation.email,
+        role=invitation.role,
+        created_at=invitation.created_at,
+        expires_at=invitation.expires_at,
+    )
+
+
+@router.get(
+    "/api/orgs/{org_id}/invitations",
+    operation_id="listInvitations",
+    responses=errors(401, 403),
+)
+def list_invitations(
+    org_id: UUID, managing: ManagingMembership, db: SessionDep
+) -> list[PendingInvitation]:
+    """The offers this Organization has standing — never the spent ones.
+
+    An Invitation that was accepted, revoked, or has run out is not a thing
+    anyone can act on, so it is not on a list whose every row has actions.
+    """
+    return [pending(invitation) for invitation in invitations.pending_in(db, org_id)]
+
+
+@router.post(
+    "/api/orgs/{org_id}/invitations",
+    operation_id="createInvitation",
+    status_code=201,
+    responses=errors(401, 403, 409),
+)
+def create_invitation(
+    org_id: UUID, asked: InvitationRequest, managing: ManagingMembership, db: SessionDep
+) -> PendingInvitation:
+    """Invite an address into this Organization, and mail it the offer."""
+    organization = db.get_one(Organization, org_id)
+    invitation = invitations.offer(db, organization, asked.email, Role(asked.role))
+    db.commit()
+    return pending(invitation)
+
+
+@router.delete(
+    "/api/orgs/{org_id}/invitations/{invitation_id}",
+    operation_id="revokeInvitation",
+    status_code=204,
+    response_class=Response,
+    responses=errors(401, 403, 404),
+)
+def revoke_invitation(
+    org_id: UUID,
+    invitation_id: UUID,
+    managing: ManagingMembership,
+    db: SessionDep,
+) -> Response:
+    """Withdraw an offer: the invitee stops seeing it and cannot take it up."""
+    invitations.revoke(db, org_id, invitation_id)
+    db.commit()
+    return Response(status_code=204)
+
+
+@router.post(
+    "/api/invitations/{invitation_id}/accept",
+    operation_id="acceptInvitation",
+    status_code=204,
+    response_class=Response,
+    responses=errors(401, 404),
+)
+def accept_invitation(
+    invitation_id: UUID, user: CurrentUser, db: SessionDep
+) -> Response:
+    """Take up an offer made to this account's address, which joins the team.
+
+    Being signed in as the invited address is the whole of the proof, because
+    signing in is proof of the address the offer was made to.
+    """
+    invitations.accept(db, user, invitation_id)
+    db.commit()
+    return Response(status_code=204)

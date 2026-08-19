@@ -26,6 +26,10 @@ export type Account = {
      * Orgs
      */
     orgs: Array<OrganizationMembership>;
+    /**
+     * Invitations
+     */
+    invitations: Array<OfferedMembership>;
 };
 
 /**
@@ -347,6 +351,29 @@ export type Instance = {
 };
 
 /**
+ * InvitationRequest
+ *
+ * An offer to make: the address, and what it may do once it is taken.
+ */
+export type InvitationRequest = {
+    /**
+     * Email
+     */
+    email: string;
+    role: InvitedRole;
+};
+
+/**
+ * InvitedRole
+ *
+ * The two roles an Invitation may carry.
+ *
+ * Not owner: an Organization has exactly one, and it changes hands by
+ * transfer rather than by an offer somebody might never take up.
+ */
+export type InvitedRole = 'admin' | 'member';
+
+/**
  * ListExtractPayload
  *
  * A flat list of records. There is no nesting, by decision.
@@ -413,6 +440,23 @@ export type NavigateStep = {
 };
 
 /**
+ * OfferedMembership
+ *
+ * An Invitation as the person invited sees it: whose team, and as what.
+ */
+export type OfferedMembership = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Org Name
+     */
+    org_name: string;
+    role: Role;
+};
+
+/**
  * OrganizationMembership
  *
  * One Organization a user acts in, and what they may do there.
@@ -427,6 +471,31 @@ export type OrganizationMembership = {
      */
     name: string;
     role: Role;
+};
+
+/**
+ * PendingInvitation
+ *
+ * An offer an Organization has out, as its owner and admins see it.
+ */
+export type PendingInvitation = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Email
+     */
+    email: string;
+    role: Role;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Expires At
+     */
+    expires_at: string;
 };
 
 /**
@@ -1021,6 +1090,172 @@ export type SignOutResponses = {
 };
 
 export type SignOutResponse = SignOutResponses[keyof SignOutResponses];
+
+export type ListInvitationsData = {
+    body?: never;
+    path: {
+        /**
+         * Org Id
+         */
+        org_id: string;
+    };
+    query?: never;
+    url: '/api/orgs/{org_id}/invitations';
+};
+
+export type ListInvitationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListInvitationsError = ListInvitationsErrors[keyof ListInvitationsErrors];
+
+export type ListInvitationsResponses = {
+    /**
+     * Response Listinvitations
+     *
+     * Successful Response
+     */
+    200: Array<PendingInvitation>;
+};
+
+export type ListInvitationsResponse = ListInvitationsResponses[keyof ListInvitationsResponses];
+
+export type CreateInvitationData = {
+    body: InvitationRequest;
+    path: {
+        /**
+         * Org Id
+         */
+        org_id: string;
+    };
+    query?: never;
+    url: '/api/orgs/{org_id}/invitations';
+};
+
+export type CreateInvitationErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Conflict
+     */
+    409: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateInvitationError = CreateInvitationErrors[keyof CreateInvitationErrors];
+
+export type CreateInvitationResponses = {
+    /**
+     * Successful Response
+     */
+    201: PendingInvitation;
+};
+
+export type CreateInvitationResponse = CreateInvitationResponses[keyof CreateInvitationResponses];
+
+export type RevokeInvitationData = {
+    body?: never;
+    path: {
+        /**
+         * Org Id
+         */
+        org_id: string;
+        /**
+         * Invitation Id
+         */
+        invitation_id: string;
+    };
+    query?: never;
+    url: '/api/orgs/{org_id}/invitations/{invitation_id}';
+};
+
+export type RevokeInvitationErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RevokeInvitationError = RevokeInvitationErrors[keyof RevokeInvitationErrors];
+
+export type RevokeInvitationResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type RevokeInvitationResponse = RevokeInvitationResponses[keyof RevokeInvitationResponses];
+
+export type AcceptInvitationData = {
+    body?: never;
+    path: {
+        /**
+         * Invitation Id
+         */
+        invitation_id: string;
+    };
+    query?: never;
+    url: '/api/invitations/{invitation_id}/accept';
+};
+
+export type AcceptInvitationErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AcceptInvitationError = AcceptInvitationErrors[keyof AcceptInvitationErrors];
+
+export type AcceptInvitationResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type AcceptInvitationResponse = AcceptInvitationResponses[keyof AcceptInvitationResponses];
 
 export type CreateWorkflowData = {
     body: WorkflowCreation;

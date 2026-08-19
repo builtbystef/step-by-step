@@ -18,7 +18,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DbSession
 
 from step_by_step_api import mail
-from step_by_step_api.accounts import codes
+from step_by_step_api.accounts import codes, invitations
 from step_by_step_api.accounts.models import Membership, Organization, Role, User
 from step_by_step_api.errors import ApiError
 
@@ -80,19 +80,31 @@ def find_user(db: DbSession, email: str) -> User | None:
     ).scalar_one_or_none()
 
 
+def may_sign_up(db: DbSession, address: str) -> bool:
+    """Whether verifying a code for an address nobody has would make an account.
+
+    Open instances take anyone. An invite-only instance takes exactly the
+    addresses somebody has invited: a standing Invitation is the permit, which
+    is what lets a team grow on an instance that is closed to the world.
+    """
+    return signup_mode() is SignupMode.OPEN or bool(
+        invitations.pending_for(db, address)
+    )
+
+
 def request_code(db: DbSession, email: str) -> None:
     """Issue a Sign-in Code for an address and mail it.
 
     The caller answers 202 whether or not the address is anybody, so this must
     behave the same either way; only the wording of the email differs, and it
-    differs by what entering the code will do rather than by what exists. An
-    unknown address on an invite-only instance is therefore told nothing about
-    invitations — it gets the sign-in wording, and the refusal it will meet is
-    `signup_closed` at verification.
+    differs by what entering the code will do rather than by what exists. That
+    wording reaches the mailbox and nobody else, so it can say the truth an
+    answer must not: an invited address on a closed instance is told the code
+    creates its account, and an uninvited one is not.
     """
     address = normalized(email)
     code = codes.issue(db, address)
-    signing_up = find_user(db, address) is None and signup_mode() is SignupMode.OPEN
+    signing_up = find_user(db, address) is None and may_sign_up(db, address)
     mail.send(
         to=email.strip(),
         subject=SIGNUP_SUBJECT if signing_up else SIGNIN_SUBJECT,
@@ -116,20 +128,29 @@ def code_email(code: str, signing_up: bool) -> str:
     )
 
 
-def create_account(db: DbSession, email: str) -> User:
-    """The account, and the Organization it starts with.
+def create_account(db: DbSession, email: str, *, with_organization: bool) -> User:
+    """The account, and — for someone who came on their own — the Organization
+    it starts with.
 
     Signing up auto-creates an Organization owned by the new user, named after
     the address's local part (ADR 0005), so that a first workflow has a tenant
     to belong to before anyone has thought about tenancy. It is renameable, and
     it is the reason every user who signs up has at least one Membership.
+
+    Someone whose account exists only because a team invited them to an
+    invite-only instance gets none: they came to join an Organization that is
+    already there, and an empty one named after their address would be an
+    Organization nobody asked for.
     """
     entered = email.strip()
     user = User(email=entered)
-    organization = Organization(name=entered.split("@", 1)[0])
-    db.add_all([user, organization])
+    db.add(user)
     db.flush()
-    db.add(Membership(org_id=organization.id, user_id=user.id, role=Role.OWNER))
+    if with_organization:
+        organization = Organization(name=entered.split("@", 1)[0])
+        db.add(organization)
+        db.flush()
+        db.add(Membership(org_id=organization.id, user_id=user.id, role=Role.OWNER))
     return user
 
 
@@ -167,11 +188,14 @@ def verify_code(db: DbSession, email: str, code: str) -> Verification:
     user = find_user(db, address)
     if user is not None:
         return Verification(Verdict.SIGNED_IN, user=user)
-    if signup_mode() is SignupMode.INVITE_ONLY:
-        # The invited path — a pending Invitation as the signup permit — is
-        # the Invitations slice's; until it lands, invite-only takes nobody new.
+    if not may_sign_up(db, address):
         return Verification(Verdict.SIGNUP_CLOSED)
-    return Verification(Verdict.SIGNED_IN, user=create_account(db, email), created=True)
+    opened = signup_mode() is SignupMode.OPEN
+    return Verification(
+        Verdict.SIGNED_IN,
+        user=create_account(db, email, with_organization=opened),
+        created=True,
+    )
 
 
 def refusal(verdict: Verdict) -> ApiError:

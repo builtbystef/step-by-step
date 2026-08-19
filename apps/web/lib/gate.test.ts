@@ -13,6 +13,7 @@ const SIGNED_IN: Account = {
   email: "ada@example.com",
   display_name: "Ada",
   orgs: [{ id: "3f0d7c1e-0000-4000-8000-000000000002", name: "ada", role: "member" }],
+  invitations: [],
 };
 
 describe("resolveGate", () => {
