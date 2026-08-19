@@ -153,6 +153,12 @@ def accept(db: DbSession, user: User, invitation_id: UUID) -> None:
     An offer to another address is not this user's to accept, and it answers
     404 rather than 403 — an id someone else holds is not a fact they may
     confirm by guessing at it.
+
+    Accepting an offer you have already taken up is spending it, not an error:
+    `offer()` refuses a second standing Invitation by reading first, so two
+    admins inviting one address in the same instant can leave two rows for one
+    decision, and the second is a Membership this user already holds. It goes,
+    and the role of the offer that was accepted stands.
     """
     invitation = db.execute(
         select(Invitation).where(Invitation.id == invitation_id).with_for_update()
@@ -164,6 +170,8 @@ def accept(db: DbSession, user: User, invitation_id: UUID) -> None:
     ):
         raise unknown_invitation()
     db.delete(invitation)
+    if member_by_email(db, invitation.org_id, user.email) is not None:
+        return
     db.add(Membership(org_id=invitation.org_id, user_id=user.id, role=invitation.role))
 
 

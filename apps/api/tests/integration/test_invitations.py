@@ -7,14 +7,17 @@ message that came back, rather than out of the table that holds the row.
 
 from collections.abc import Callable
 from datetime import timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from conftest import Account, code_sent_to
 from fastapi.testclient import TestClient
 from httpx import Response
+from sqlalchemy.orm import Session
 from step_by_step_api import clock
+from step_by_step_api.accounts.models import Invitation
 from step_by_step_api.accounts.service import SIGNUP_MODE_VARIABLE
+from step_by_step_api.db import get_engine
 from step_by_step_api.mail import outbox
 from step_by_step_api.main import app
 
@@ -253,6 +256,48 @@ def test_only_the_inviting_organization_revokes_its_invitation(
 
     assert refused.status_code == 404, refused.text
     assert len(pending_in(owner)) == 1
+
+
+def raced_duplicate_of(offer: dict[str, object]) -> str:
+    """A second Invitation row for the address one already stands for.
+
+    `offer()` refuses a second standing offer by reading the pending list
+    first, so two admins inviting one address in the same instant both pass
+    that check and both insert. No route makes the second row, which is why
+    this test writes it: the state is reachable, and accepting it must not be
+    a database error.
+    """
+    with Session(get_engine()) as db:
+        first = db.get_one(Invitation, UUID(str(offer["id"])))
+        second = Invitation(
+            org_id=first.org_id,
+            email=first.email,
+            role=first.role,
+            expires_at=first.expires_at,
+        )
+        db.add(second)
+        db.commit()
+        return str(second.id)
+
+
+def test_accepting_a_second_invitation_you_have_already_taken_up_changes_nothing(
+    new_account: NewAccount,
+) -> None:
+    """The offer is spent rather than refused: two rows were one decision, and
+    the role of the one that was accepted stands."""
+    owner = new_account()
+    invitee = new_account()
+    offered = invite(owner, invitee.email, role="member")
+    duplicate_id = raced_duplicate_of(offered.json())
+    first_id = offered.json()["id"]
+    assert invitee.client.post(f"/api/invitations/{first_id}/accept").status_code == 204
+
+    again = invitee.client.post(f"/api/invitations/{duplicate_id}/accept")
+
+    assert again.status_code == 204, again.text
+    assert organizations_of(invitee).count((owner.org_id, "member")) == 1
+    assert offered_to(invitee) == []
+    assert pending_in(owner) == []
 
 
 def test_an_invitation_older_than_fourteen_days_is_no_longer_an_offer(
