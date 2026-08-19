@@ -182,11 +182,32 @@ def update_account(change: AccountUpdate, user: CurrentUser, db: SessionDep) -> 
 def sign_out(request: Request, user: CurrentUser, db: SessionDep) -> Response:
     """End this session — the row goes, and the browser stops carrying its key.
 
-    Other sessions of the same user are untouched; ending all of them is the
-    session-expiry slice's `logout-all`.
+    Other sessions of the same user are untouched; `logout-all` is the one
+    that reaches them.
     """
     token = request.cookies.get(sessions.SESSION_COOKIE, "")
     sessions.end(db, token)
+    db.commit()
+    answer = Response(status_code=204)
+    sessions.drop(answer)
+    return answer
+
+
+@router.post(
+    "/api/auth/logout-all",
+    operation_id="signOutEverywhere",
+    status_code=204,
+    response_class=Response,
+    responses=errors(401),
+)
+def sign_out_everywhere(user: CurrentUser, db: SessionDep) -> Response:
+    """End every session this account has, this one included.
+
+    The action for a browser the person no longer has — a phone left in a taxi,
+    a machine at an old job — so it deliberately reaches the sessions this
+    request cannot see, and takes the asking one with them.
+    """
+    sessions.end_all(db, user)
     db.commit()
     answer = Response(status_code=204)
     sessions.drop(answer)

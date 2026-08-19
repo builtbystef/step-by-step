@@ -1091,6 +1091,31 @@ export type SignOutResponses = {
 
 export type SignOutResponse = SignOutResponses[keyof SignOutResponses];
 
+export type SignOutEverywhereData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/auth/logout-all';
+};
+
+export type SignOutEverywhereErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+};
+
+export type SignOutEverywhereError = SignOutEverywhereErrors[keyof SignOutEverywhereErrors];
+
+export type SignOutEverywhereResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type SignOutEverywhereResponse = SignOutEverywhereResponses[keyof SignOutEverywhereResponses];
+
 export type ListInvitationsData = {
     body?: never;
     path: {

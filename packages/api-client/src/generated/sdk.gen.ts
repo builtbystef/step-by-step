@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AcceptInvitationData, AcceptInvitationErrors, AcceptInvitationResponses, CreateInvitationData, CreateInvitationErrors, CreateInvitationResponses, CreateWorkflowData, CreateWorkflowErrors, CreateWorkflowResponses, GetCurrentAccountData, GetCurrentAccountErrors, GetCurrentAccountResponses, GetGreetingData, GetGreetingErrors, GetGreetingResponses, GetHealthData, GetHealthResponses, GetInstanceData, GetInstanceResponses, GetWorkflowDraftData, GetWorkflowDraftDiffData, GetWorkflowDraftDiffErrors, GetWorkflowDraftDiffResponses, GetWorkflowDraftErrors, GetWorkflowDraftResponses, GetWorkflowVersionData, GetWorkflowVersionErrors, GetWorkflowVersionResponses, ListInvitationsData, ListInvitationsErrors, ListInvitationsResponses, ListWorkflowVersionsData, ListWorkflowVersionsErrors, ListWorkflowVersionsResponses, PublishWorkflowVersionData, PublishWorkflowVersionErrors, PublishWorkflowVersionResponses, RequestSigninCodeData, RequestSigninCodeErrors, RequestSigninCodeResponses, RestoreWorkflowVersionData, RestoreWorkflowVersionErrors, RestoreWorkflowVersionResponses, RevokeInvitationData, RevokeInvitationErrors, RevokeInvitationResponses, SaveWorkflowDraftData, SaveWorkflowDraftErrors, SaveWorkflowDraftResponses, SignOutData, SignOutErrors, SignOutResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, VerifySigninCodeData, VerifySigninCodeErrors, VerifySigninCodeResponses } from './types.gen';
+import type { AcceptInvitationData, AcceptInvitationErrors, AcceptInvitationResponses, CreateInvitationData, CreateInvitationErrors, CreateInvitationResponses, CreateWorkflowData, CreateWorkflowErrors, CreateWorkflowResponses, GetCurrentAccountData, GetCurrentAccountErrors, GetCurrentAccountResponses, GetGreetingData, GetGreetingErrors, GetGreetingResponses, GetHealthData, GetHealthResponses, GetInstanceData, GetInstanceResponses, GetWorkflowDraftData, GetWorkflowDraftDiffData, GetWorkflowDraftDiffErrors, GetWorkflowDraftDiffResponses, GetWorkflowDraftErrors, GetWorkflowDraftResponses, GetWorkflowVersionData, GetWorkflowVersionErrors, GetWorkflowVersionResponses, ListInvitationsData, ListInvitationsErrors, ListInvitationsResponses, ListWorkflowVersionsData, ListWorkflowVersionsErrors, ListWorkflowVersionsResponses, PublishWorkflowVersionData, PublishWorkflowVersionErrors, PublishWorkflowVersionResponses, RequestSigninCodeData, RequestSigninCodeErrors, RequestSigninCodeResponses, RestoreWorkflowVersionData, RestoreWorkflowVersionErrors, RestoreWorkflowVersionResponses, RevokeInvitationData, RevokeInvitationErrors, RevokeInvitationResponses, SaveWorkflowDraftData, SaveWorkflowDraftErrors, SaveWorkflowDraftResponses, SignOutData, SignOutErrors, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, VerifySigninCodeData, VerifySigninCodeErrors, VerifySigninCodeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -83,10 +83,21 @@ export const updateAccount = <ThrowOnError extends boolean = false>(options: Opt
  *
  * End this session — the row goes, and the browser stops carrying its key.
  *
- * Other sessions of the same user are untouched; ending all of them is the
- * session-expiry slice's `logout-all`.
+ * Other sessions of the same user are untouched; `logout-all` is the one
+ * that reaches them.
  */
 export const signOut = <ThrowOnError extends boolean = false>(options?: Options<SignOutData, ThrowOnError>): RequestResult<SignOutResponses, SignOutErrors, ThrowOnError> => (options?.client ?? client).post<SignOutResponses, SignOutErrors, ThrowOnError>({ url: '/api/auth/logout', ...options });
+
+/**
+ * Sign Out Everywhere
+ *
+ * End every session this account has, this one included.
+ *
+ * The action for a browser the person no longer has — a phone left in a taxi,
+ * a machine at an old job — so it deliberately reaches the sessions this
+ * request cannot see, and takes the asking one with them.
+ */
+export const signOutEverywhere = <ThrowOnError extends boolean = false>(options?: Options<SignOutEverywhereData, ThrowOnError>): RequestResult<SignOutEverywhereResponses, SignOutEverywhereErrors, ThrowOnError> => (options?.client ?? client).post<SignOutEverywhereResponses, SignOutEverywhereErrors, ThrowOnError>({ url: '/api/auth/logout-all', ...options });
 
 /**
  * List Invitations

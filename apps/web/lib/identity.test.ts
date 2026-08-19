@@ -2,7 +2,7 @@ import { client } from "@step-by-step/api-client";
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { IDENTITY_KEY, signOutAndLeave } from "./identity";
+import { IDENTITY_KEY, signOutAndLeave, signOutEverywhereAndLeave } from "./identity";
 
 /**
  * Signing out is two things, and both have to happen: the session ends on the
@@ -44,5 +44,34 @@ describe("signing out", () => {
 
     expect(cache.getQueryData(IDENTITY_KEY)).toBeUndefined();
     expect(went).toEqual(["/signin"]);
+  });
+});
+
+describe("signing out everywhere", () => {
+  it("leaves this browser exactly where signing out here does", async () => {
+    instanceAnswering(204);
+    const cache = new QueryClient();
+    cache.setQueryData(IDENTITY_KEY, { email: "ada@example.com" });
+    const went: string[] = [];
+
+    await signOutEverywhereAndLeave(cache, (to) => went.push(to));
+
+    expect(cache.getQueryData(IDENTITY_KEY)).toBeUndefined();
+    expect(went).toEqual(["/signin"]);
+  });
+
+  it("asks the instance to end every session and not just this one", async () => {
+    const asked: string[] = [];
+    client.setConfig({
+      baseUrl: "http://api.test",
+      fetch: (asking: URL | RequestInfo) => {
+        asked.push(new URL(asking instanceof Request ? asking.url : asking.toString()).pathname);
+        return Promise.resolve(new Response(null, { status: 204 }));
+      },
+    });
+
+    await signOutEverywhereAndLeave(new QueryClient(), () => {});
+
+    expect(asked).toEqual(["/api/auth/logout-all"]);
   });
 });

@@ -196,8 +196,30 @@
     "/api/auth/logout": {
       "post": {
         "summary": "Sign Out",
-        "description": "End this session \u2014 the row goes, and the browser stops carrying its key.\n\nOther sessions of the same user are untouched; ending all of them is the\nsession-expiry slice's `logout-all`.",
+        "description": "End this session \u2014 the row goes, and the browser stops carrying its key.\n\nOther sessions of the same user are untouched; `logout-all` is the one\nthat reaches them.",
         "operationId": "signOut",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/logout-all": {
+      "post": {
+        "summary": "Sign Out Everywhere",
+        "description": "End every session this account has, this one included.\n\nThe action for a browser the person no longer has \u2014 a phone left in a taxi,\na machine at an old job \u2014 so it deliberately reaches the sessions this\nrequest cannot see, and takes the asking one with them.",
+        "operationId": "signOutEverywhere",
         "responses": {
           "204": {
             "description": "Successful Response"

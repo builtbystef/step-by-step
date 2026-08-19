@@ -1,4 +1,9 @@
-import { getCurrentAccount, signOut, type Account } from "@step-by-step/api-client";
+import {
+  getCurrentAccount,
+  signOut,
+  signOutEverywhere,
+  type Account,
+} from "@step-by-step/api-client";
 import type { QueryClient } from "@tanstack/react-query";
 
 import { SIGN_IN_PATH } from "./gate";
@@ -42,6 +47,27 @@ export async function signOutAndLeave(
   // The answer is a value, not an exception: a session that had already ended
   // leaves the same visitor in the same place as one that ended just now.
   await signOut();
+  letGo(cache, navigate);
+}
+
+/**
+ * End every session this account has — this browser's among them — and land
+ * here the same way.
+ *
+ * The two are one action from where the visitor stands, which is why they end
+ * identically: what differs is how far the revocation reaches, and that is the
+ * instance's business rather than this browser's.
+ */
+export async function signOutEverywhereAndLeave(
+  cache: QueryClient,
+  navigate: (to: string) => void,
+): Promise<void> {
+  await signOutEverywhere();
+  letGo(cache, navigate);
+}
+
+/** What a browser with no session keeps: nothing, and the sign-in screen. */
+function letGo(cache: QueryClient, navigate: (to: string) => void): void {
   cache.clear();
   navigate(SIGN_IN_PATH);
 }

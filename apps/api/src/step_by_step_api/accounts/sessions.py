@@ -30,7 +30,20 @@ TOKEN_BYTES = 32
 """256 bits — comfortably past the 128 the design calls for, and free."""
 
 SESSION_LIFETIME = timedelta(days=30)
-"""How long a session may go unused. Sliding it is the session-expiry slice's."""
+"""How long a session may go unused before it is over.
+
+Sliding rather than fixed: being used is what buys the next thirty days, so
+somebody who visits weekly never signs in again and somebody who walks away
+from a borrowed machine is signed out of it within the month.
+"""
+
+TOUCH_INTERVAL = timedelta(hours=1)
+"""How stale `last_seen_at` may get before a request writes it again.
+
+Every request would otherwise write a row, which is a write per read of every
+screen for no gain: what the column is for is measuring silence in days, and
+an hour of resolution measures that exactly as well.
+"""
 
 
 def token_digest(token: str) -> str:
@@ -49,6 +62,16 @@ def begin(db: DbSession, user: User) -> str:
 def end(db: DbSession, token: str) -> None:
     """Revoke one session, which is deleting its row and nothing else."""
     db.execute(delete(Session).where(Session.token_hash == token_digest(token)))
+
+
+def end_all(db: DbSession, user: User) -> None:
+    """Revoke every session this user has, including the one asking.
+
+    Signing out everywhere is for a browser somebody no longer has, so it must
+    reach the sessions this request cannot see. Keeping the current one would
+    make the action a lie on the one machine that can read it.
+    """
+    db.execute(delete(Session).where(Session.user_id == user.id))
 
 
 def carry(request: Request, response: Response, token: str) -> None:
@@ -75,30 +98,59 @@ def drop(response: Response) -> None:
     response.delete_cookie(SESSION_COOKIE, path="/")
 
 
-def signed_in_user(request: Request, db: DbSession) -> User:
+def signed_in_user(request: Request, response: Response, db: DbSession) -> User:
     """The user this request is acting as, or a refusal.
 
     One code for every way a request can fail to be signed in — no cookie, a
-    token that matches no row, a session that was revoked — because a client
-    does the same thing about all of them, and telling them apart would say
-    which tokens once existed.
+    token that matches no row, a session that was revoked, a session nobody
+    used for a month — because a client does the same thing about all of them,
+    and telling them apart would say which tokens once existed.
+
+    This commits, which no other dependency does. Both writes it can make —
+    the slide and the reaping of an expired row — are the session layer's own
+    bookkeeping rather than the handler's work, and both must survive an answer
+    the handler then refuses to give.
     """
     token = request.cookies.get(SESSION_COOKIE)
     if not token:
         raise ApiError(401, "unauthenticated", "no session")
-    user = db.execute(
-        select(User)
-        .join(Session, Session.user_id == User.id)
+    found = db.execute(
+        select(Session, User)
+        .join(User, User.id == Session.user_id)
         .where(Session.token_hash == token_digest(token))
-    ).scalar_one_or_none()
-    if user is None:
+    ).one_or_none()
+    if found is None:
         raise ApiError(401, "unauthenticated", "no session")
+    session, user = found
+    now = clock.now()
+    if now - session.last_seen_at >= SESSION_LIFETIME:
+        # Deleted rather than merely refused: the row is dead weight from here
+        # on, and reaping it where it is found is the whole of the cleanup this
+        # table needs.
+        db.delete(session)
+        db.commit()
+        raise ApiError(401, "unauthenticated", "no session")
+    if now - session.last_seen_at >= TOUCH_INTERVAL:
+        session.last_seen_at = now
+        db.commit()
+        # And the cookie slides with the row. It carries a 30-day lifetime of
+        # its own, so a browser told nothing more would drop it 30 days after
+        # signing in and leave a live session nobody could reach — extending
+        # in the store alone extends nothing anybody can use.
+        carry(request, response, token)
     return user
 
 
-def current_user(request: Request, db: SessionDep) -> User:
-    """The dependency a route declares to be signed-in-only."""
-    return signed_in_user(request, db)
+def current_user(request: Request, response: Response, db: SessionDep) -> User:
+    """The dependency a route declares to be signed-in-only.
+
+    The `Response` is FastAPI's own for this request, and what a dependency
+    writes on it reaches a handler's answer — for the handlers that answer with
+    a model, which is every read the app makes. A handler returning a `Response`
+    of its own replaces it wholesale, and the two that do are `logout` and
+    `logout-all`, which are taking the cookie away rather than renewing it.
+    """
+    return signed_in_user(request, response, db)
 
 
 CurrentUser = Annotated[User, Depends(current_user)]
