@@ -1,9 +1,10 @@
 """The accounts tables.
 
-Six of them, and they land together even though this slice animates only the
-first four: a column a later slice fills is cheaper than a migration a later
-slice writes. `attempts` is the throttling slice's, and `invitations` is the
-Invitations slice's.
+Six of them landed together with the accounts tracer, even though it animated
+only the first four: a column a later slice fills is cheaper than a migration
+a later slice writes. `signin_code_issuance` came later, with the throttling
+the spec left to its own slice, because counting what one address has been
+sent is state no column of an outstanding code could hold.
 
 The tenant is the Organization (ADR 0005). Ownership cascades: rows an
 Organization owns go with it, and the rows a user owns go with the user.
@@ -116,6 +117,24 @@ class SigninCode(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+class CodeIssuance(Base):
+    """How many Sign-in Codes one address has been sent in its current window.
+
+    A counter and the moment its window opened, rather than a row per request:
+    the limit only ever asks how many, and a log of every request anybody made
+    for any address would be a table that grows with the spraying it exists to
+    stop. Its own row, and not a column on `signin_codes`, because the count
+    has to outlive the code — a code is deleted the moment it is spent, and a
+    limit that a successful sign-in reset would be no limit at all.
+    """
+
+    __tablename__ = "signin_code_issuance"
+
+    email: Mapped[str] = mapped_column(String(EMAIL_LENGTH), primary_key=True)
+    issued: Mapped[int] = mapped_column(Integer)
+    window_started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class Organization(Base):

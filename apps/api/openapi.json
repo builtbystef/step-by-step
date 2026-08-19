@@ -27,7 +27,7 @@
     "/api/auth/request-code": {
       "post": {
         "summary": "Request Signin Code",
-        "description": "Mail a Sign-in Code to an address \u2014 202 whether or not it is anybody.\n\nThe answer must not vary with whether an account exists, or it becomes a\nway to ask which addresses are on this instance. So there is nothing in\nthe body to differ, and the caller learns what happened by entering a code.",
+        "description": "Mail a Sign-in Code to an address \u2014 202 whether or not it is anybody.\n\nThe answer must not vary with whether an account exists, or it becomes a\nway to ask which addresses are on this instance. So there is nothing in\nthe body to differ, and the caller learns what happened by entering a code.\nThe issuance limit is the one refusal this route has, and it is about how\noften the caller has asked rather than about who the address is.",
         "operationId": "requestSigninCode",
         "requestBody": {
           "content": {
@@ -42,6 +42,16 @@
         "responses": {
           "202": {
             "description": "Successful Response"
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -94,6 +104,16 @@
           },
           "403": {
             "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
             "content": {
               "application/json": {
                 "schema": {

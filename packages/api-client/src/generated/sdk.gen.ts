@@ -33,6 +33,8 @@ export const getInstance = <ThrowOnError extends boolean = false>(options?: Opti
  * The answer must not vary with whether an account exists, or it becomes a
  * way to ask which addresses are on this instance. So there is nothing in
  * the body to differ, and the caller learns what happened by entering a code.
+ * The issuance limit is the one refusal this route has, and it is about how
+ * often the caller has asked rather than about who the address is.
  */
 export const requestSigninCode = <ThrowOnError extends boolean = false>(options: Options<RequestSigninCodeData, ThrowOnError>): RequestResult<RequestSigninCodeResponses, RequestSigninCodeErrors, ThrowOnError> => (options.client ?? client).post<RequestSigninCodeResponses, RequestSigninCodeErrors, ThrowOnError>({
     url: '/api/auth/request-code',

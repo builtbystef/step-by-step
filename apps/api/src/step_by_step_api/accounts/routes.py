@@ -66,6 +66,7 @@ class CodeRequest(BaseModel):
     operation_id="requestSigninCode",
     status_code=202,
     response_class=Response,
+    responses=errors(429),
 )
 def request_signin_code(asked: CodeRequest, db: SessionDep) -> Response:
     """Mail a Sign-in Code to an address — 202 whether or not it is anybody.
@@ -73,6 +74,8 @@ def request_signin_code(asked: CodeRequest, db: SessionDep) -> Response:
     The answer must not vary with whether an account exists, or it becomes a
     way to ask which addresses are on this instance. So there is nothing in
     the body to differ, and the caller learns what happened by entering a code.
+    The issuance limit is the one refusal this route has, and it is about how
+    often the caller has asked rather than about who the address is.
     """
     service.request_code(db, asked.email)
     db.commit()
@@ -150,7 +153,7 @@ def account_of(db: SessionDep, user: User) -> Account:
 @router.post(
     "/api/auth/verify-code",
     operation_id="verifySigninCode",
-    responses=errors(401, 403),
+    responses=errors(401, 403, 429),
 )
 def verify_signin_code(
     asked: VerificationRequest, request: Request, response: Response, db: SessionDep

@@ -59,6 +59,9 @@ def signup_mode() -> SignupMode:
         ) from None
 
 
+RATE_LIMITED = "rate_limited"
+"""The refusal an address that has been asked for too many codes meets."""
+
 SIGNIN_SUBJECT = "Your Step by Step sign-in code"
 SIGNUP_SUBJECT = "Your Step by Step sign-up code"
 
@@ -101,8 +104,20 @@ def request_code(db: DbSession, email: str) -> None:
     wording reaches the mailbox and nobody else, so it can say the truth an
     answer must not: an invited address on a closed instance is told the code
     creates its account, and an uninvited one is not.
+
+    The issuance limit is the one thing that does break the 202, and it has to:
+    an address being sprayed with codes is a mailbox being used as a weapon,
+    and there is no way to stop sending without saying so. It reveals nothing
+    an attacker did not already know, because they are the one making the
+    requests being counted.
     """
     address = normalized(email)
+    if codes.count_issuance(db, address) > codes.ISSUANCE_LIMIT:
+        raise ApiError(
+            429,
+            RATE_LIMITED,
+            "too many codes have been requested for this address",
+        )
     code = codes.issue(db, address)
     signing_up = find_user(db, address) is None and may_sign_up(db, address)
     mail.send(
@@ -160,6 +175,14 @@ class Verdict(StrEnum):
     """Wrong, expired, already spent, or never issued — one answer for all
     four, because telling them apart would tell a guesser how close they are."""
 
+    CODE_EXHAUSTED = "code_exhausted"
+    """The code has taken its wrong guesses and is dead; ask for another.
+
+    Told apart from `bad_code` on purpose, even though the two look alike to a
+    guesser: the person at the screen has to know that trying harder is now
+    pointless and that a fresh code is what they need.
+    """
+
     SIGNUP_CLOSED = "signup_closed"
     """The code was right, and this instance does not take new accounts."""
 
@@ -180,7 +203,10 @@ def verify_code(db: DbSession, email: str, code: str) -> Verification:
     guess, and a created account are all things that must survive the answer.
     """
     address = normalized(email)
-    if not codes.claim(db, address, code):
+    attempt = codes.claim(db, address, code)
+    if attempt is codes.Attempt.EXHAUSTED:
+        return Verification(Verdict.CODE_EXHAUSTED)
+    if attempt is not codes.Attempt.ACCEPTED:
         return Verification(Verdict.BAD_CODE)
     user = find_user(db, address)
     if user is not None:
@@ -199,6 +225,8 @@ def refusal(verdict: Verdict) -> ApiError:
     """The refusal a verdict other than `signed_in` becomes on the wire."""
     if verdict is Verdict.SIGNUP_CLOSED:
         return ApiError(403, verdict, "this instance does not accept new accounts")
+    if verdict is Verdict.CODE_EXHAUSTED:
+        return ApiError(429, verdict, "that code has taken too many wrong guesses")
     return ApiError(401, verdict, "that code is not usable")
 
 

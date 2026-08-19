@@ -1084,6 +1084,10 @@ export type RequestSigninCodeErrors = {
      * Validation Error
      */
     422: HttpValidationError;
+    /**
+     * Too Many Requests
+     */
+    429: ErrorBody;
 };
 
 export type RequestSigninCodeError = RequestSigninCodeErrors[keyof RequestSigninCodeErrors];
@@ -1115,6 +1119,10 @@ export type VerifySigninCodeErrors = {
      * Validation Error
      */
     422: HttpValidationError;
+    /**
+     * Too Many Requests
+     */
+    429: ErrorBody;
 };
 
 export type VerifySigninCodeError = VerifySigninCodeErrors[keyof VerifySigninCodeErrors];
