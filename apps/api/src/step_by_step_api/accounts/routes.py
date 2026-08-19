@@ -12,7 +12,14 @@ from uuid import UUID
 from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel, Field, StringConstraints
 
-from step_by_step_api.accounts import invitations, members, orgs, service, sessions
+from step_by_step_api.accounts import (
+    deletion,
+    invitations,
+    members,
+    orgs,
+    service,
+    sessions,
+)
 from step_by_step_api.accounts.models import (
     Invitation,
     Membership,
@@ -183,6 +190,36 @@ def update_account(change: AccountUpdate, user: CurrentUser, db: SessionDep) -> 
     user.display_name = change.display_name
     db.commit()
     return account_of(db, user)
+
+
+class AccountDeletion(BaseModel):
+    """The account's own address, typed by the person ending it."""
+
+    email_confirmation: str = Field(max_length=320)
+
+
+@router.delete(
+    "/api/account",
+    operation_id="deleteAccount",
+    status_code=204,
+    response_class=Response,
+    responses=errors(400, 401, 403),
+)
+def delete_account(
+    asked: AccountDeletion, user: CurrentUser, db: SessionDep
+) -> Response:
+    """End this account, behind typing its address — hard, and for good.
+
+    Every session goes with it, so the browser asking is signed out by the
+    answer it gets, and the cookie it still carries is taken back here. An
+    account that owns an Organization is refused: leaving must not leave a
+    team with nobody who can act for it.
+    """
+    deletion.end_account(db, user, asked.email_confirmation)
+    db.commit()
+    answer = Response(status_code=204)
+    sessions.drop(answer)
+    return answer
 
 
 @router.post(
@@ -366,6 +403,39 @@ def create_organization(
     return OrganizationMembership(
         id=organization.id, name=organization.name, role=Role.OWNER
     )
+
+
+class OrganizationDeletion(BaseModel):
+    """The Organization's own name, typed by the owner who is ending it."""
+
+    name_confirmation: str = Field(max_length=200)
+
+
+@router.delete(
+    "/api/orgs/{org_id}",
+    operation_id="deleteOrganization",
+    status_code=204,
+    response_class=Response,
+    responses=errors(400, 401, 403),
+)
+def delete_organization(
+    org_id: UUID,
+    asked: OrganizationDeletion,
+    owner: OwningMembership,
+    db: SessionDep,
+) -> Response:
+    """End the Organization, and everything that belonged to it.
+
+    The owner's alone, and behind typing the name: the Memberships, the
+    Invitations, and every piece of work the Organization owns go with it, and
+    nothing brings them back. Its people keep their accounts and their other
+    Organizations — what ends is the team, not the members.
+    """
+    deletion.end_organization(
+        db, db.get_one(Organization, org_id), asked.name_confirmation
+    )
+    db.commit()
+    return Response(status_code=204)
 
 
 @router.patch(

@@ -1,4 +1,5 @@
 import {
+  deleteAccount,
   getCurrentAccount,
   signOut,
   signOutEverywhere,
@@ -63,6 +64,28 @@ export async function signOutEverywhereAndLeave(
   navigate: (to: string) => void,
 ): Promise<void> {
   await signOutEverywhere();
+  letGo(cache, navigate);
+}
+
+/**
+ * End the account itself, and leave the same way signing out does.
+ *
+ * The address is passed in rather than read from the identity this browser
+ * holds: what confirms the deletion is what the person typed, and a screen
+ * that sent the address it already knew would be confirming nothing.
+ *
+ * A refusal is thrown rather than swallowed — a sole owner has something to do
+ * about it, and this browser keeps its session and its identity while they do.
+ */
+export async function deleteAccountAndLeave(
+  cache: QueryClient,
+  navigate: (to: string) => void,
+  typedEmail: string,
+): Promise<void> {
+  const { error } = await deleteAccount({ body: { email_confirmation: typedEmail } });
+  if (error) {
+    throw error;
+  }
   letGo(cache, navigate);
 }
 

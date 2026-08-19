@@ -2,9 +2,12 @@ import type { Member, Role } from "@step-by-step/api-client";
 import { describe, expect, it } from "vitest";
 
 import {
+  endingConsequence,
+  mayEnd,
   mayRename,
   memberControls,
   memberLabel,
+  nameConfirms,
   refusalMessage,
   transferConsequence,
 } from "./messages";
@@ -14,7 +17,14 @@ import {
  * which control each row of the member list offers whom.
  */
 
-const REFUSALS = ["not_a_member", "not_an_admin", "not_the_owner", "is_owner", "member_not_found"];
+const REFUSALS = [
+  "not_a_member",
+  "not_an_admin",
+  "not_the_owner",
+  "is_owner",
+  "member_not_found",
+  "confirmation_mismatch",
+];
 
 const ADA = "3f0d7c1e-0000-4000-8000-000000000001";
 const GRACE = "3f0d7c1e-0000-4000-8000-000000000002";
@@ -99,5 +109,37 @@ describe("what the transfer says before it happens", () => {
 
     expect(said).toMatch(/grace@example\.com becomes the owner of Acme/);
     expect(said).toMatch(/you become an admin/);
+  });
+});
+
+describe("who may end the Organization", () => {
+  it("is the owner alone", () => {
+    expect(mayEnd("owner")).toBe(true);
+    expect(mayEnd("admin")).toBe(false);
+    expect(mayEnd("member")).toBe(false);
+  });
+});
+
+describe("when the typed name means it", () => {
+  it("takes the name, and the whitespace a paste carries with it", () => {
+    expect(nameConfirms("Bell Labs", "Bell Labs")).toBe(true);
+    expect(nameConfirms("  Bell Labs  ", "Bell Labs")).toBe(true);
+  });
+
+  it("takes nothing else — reading the name off the screen is the act", () => {
+    expect(nameConfirms("", "Bell Labs")).toBe(false);
+    expect(nameConfirms("bell labs", "Bell Labs")).toBe(false);
+    expect(nameConfirms("Bell Lab", "Bell Labs")).toBe(false);
+  });
+});
+
+describe("what ending the Organization takes with it", () => {
+  it("names it, says the work goes, and says the people keep their accounts", () => {
+    const said = endingConsequence("Bell Labs");
+
+    expect(said).toMatch(/Bell Labs/);
+    expect(said).toMatch(/member|Membership/i);
+    expect(said).toMatch(/account/i);
+    expect(said).toMatch(/cannot be undone|permanent|forever/i);
   });
 });

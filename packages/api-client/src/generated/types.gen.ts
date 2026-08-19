@@ -33,6 +33,18 @@ export type Account = {
 };
 
 /**
+ * AccountDeletion
+ *
+ * The account's own address, typed by the person ending it.
+ */
+export type AccountDeletion = {
+    /**
+     * Email Confirmation
+     */
+    email_confirmation: string;
+};
+
+/**
  * AccountUpdate
  *
  * The one thing about an account its owner may change here.
@@ -537,6 +549,18 @@ export type OfferedMembership = {
      */
     org_name: string;
     role: Role;
+};
+
+/**
+ * OrganizationDeletion
+ *
+ * The Organization's own name, typed by the owner who is ending it.
+ */
+export type OrganizationDeletion = {
+    /**
+     * Name Confirmation
+     */
+    name_confirmation: string;
 };
 
 /**
@@ -1161,6 +1185,43 @@ export type GetCurrentAccountResponses = {
 
 export type GetCurrentAccountResponse = GetCurrentAccountResponses[keyof GetCurrentAccountResponses];
 
+export type DeleteAccountData = {
+    body: AccountDeletion;
+    path?: never;
+    query?: never;
+    url: '/api/account';
+};
+
+export type DeleteAccountErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteAccountError = DeleteAccountErrors[keyof DeleteAccountErrors];
+
+export type DeleteAccountResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteAccountResponse = DeleteAccountResponses[keyof DeleteAccountResponses];
+
 export type UpdateAccountData = {
     body: AccountUpdate;
     path?: never;
@@ -1434,6 +1495,48 @@ export type CreateOrganizationResponses = {
 };
 
 export type CreateOrganizationResponse = CreateOrganizationResponses[keyof CreateOrganizationResponses];
+
+export type DeleteOrganizationData = {
+    body: OrganizationDeletion;
+    path: {
+        /**
+         * Org Id
+         */
+        org_id: string;
+    };
+    query?: never;
+    url: '/api/orgs/{org_id}';
+};
+
+export type DeleteOrganizationErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteOrganizationError = DeleteOrganizationErrors[keyof DeleteOrganizationErrors];
+
+export type DeleteOrganizationResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteOrganizationResponse = DeleteOrganizationResponses[keyof DeleteOrganizationResponses];
 
 export type RenameOrganizationData = {
     body: OrganizationRequest;

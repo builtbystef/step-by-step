@@ -165,6 +165,66 @@
       }
     },
     "/api/account": {
+      "delete": {
+        "summary": "Delete Account",
+        "description": "End this account, behind typing its address \u2014 hard, and for good.\n\nEvery session goes with it, so the browser asking is signed out by the\nanswer it gets, and the cookie it still carries is taken back here. An\naccount that owns an Organization is refused: leaving must not leave a\nteam with nobody who can act for it.",
+        "operationId": "deleteAccount",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountDeletion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "patch": {
         "summary": "Update Account",
         "description": "Change the display name. The email is the identity and is not editable.",
@@ -579,6 +639,78 @@
       }
     },
     "/api/orgs/{org_id}": {
+      "delete": {
+        "summary": "Delete Organization",
+        "description": "End the Organization, and everything that belonged to it.\n\nThe owner's alone, and behind typing the name: the Memberships, the\nInvitations, and every piece of work the Organization owns go with it, and\nnothing brings them back. Its people keep their accounts and their other\nOrganizations \u2014 what ends is the team, not the members.",
+        "operationId": "deleteOrganization",
+        "parameters": [
+          {
+            "name": "org_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Org Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrganizationDeletion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "patch": {
         "summary": "Rename Organization",
         "description": "Rename the Organization, which an owner and the admins may both do.\n\nThe name a signup made is the local part of an address, so the first thing\na team does with an Organization is give it their own name for it.",
@@ -1960,6 +2092,21 @@
         "title": "Account",
         "description": "Who the caller is. The email is theirs as they typed it."
       },
+      "AccountDeletion": {
+        "properties": {
+          "email_confirmation": {
+            "type": "string",
+            "maxLength": 320,
+            "title": "Email Confirmation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email_confirmation"
+        ],
+        "title": "AccountDeletion",
+        "description": "The account's own address, typed by the person ending it."
+      },
       "AccountUpdate": {
         "properties": {
           "display_name": {
@@ -2731,6 +2878,21 @@
         ],
         "title": "OfferedMembership",
         "description": "An Invitation as the person invited sees it: whose team, and as what."
+      },
+      "OrganizationDeletion": {
+        "properties": {
+          "name_confirmation": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Name Confirmation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name_confirmation"
+        ],
+        "title": "OrganizationDeletion",
+        "description": "The Organization's own name, typed by the owner who is ending it."
       },
       "OrganizationMembership": {
         "properties": {

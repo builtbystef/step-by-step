@@ -16,6 +16,7 @@ const REFUSALS: Record<string, string> = {
   not_the_owner: "Only the owner can hand the Organization on.",
   is_owner: "The owner's place cannot be changed or ended — hand it on first.",
   member_not_found: "That person is no longer in this Organization.",
+  confirmation_mismatch: "That is not this Organization's name.",
 };
 
 const UNKNOWN_REFUSAL = "Something went wrong. Try again in a moment.";
@@ -30,6 +31,36 @@ export function refusalMessage(error: unknown): string {
 /** Renaming an Organization is the owner's and the admins', never a member's. */
 export function mayRename(viewerRole: Role): boolean {
   return viewerRole !== "member";
+}
+
+/** Ending an Organization is the owner's alone, like handing it on. */
+export function mayEnd(viewerRole: Role): boolean {
+  return viewerRole === "owner";
+}
+
+/**
+ * Whether what was typed is the Organization's name.
+ *
+ * The whitespace around it is forgiven and the case is not, exactly as the
+ * backend compares it: a confirmation that took what the route would refuse —
+ * or refused what it would take — would be the screen inventing a rule.
+ */
+export function nameConfirms(typed: string, name: string): boolean {
+  return typed.trim() === name.trim();
+}
+
+/**
+ * What ending the Organization will do, said before it is done.
+ *
+ * Both halves again, and the second is the one that makes the first bearable:
+ * everything the team made goes, and the people themselves do not.
+ */
+export function endingConsequence(orgName: string): string {
+  return (
+    `Everything in ${orgName} goes with it: every Workflow and Run, every pending Invitation, ` +
+    "and everybody's Membership. The people keep their accounts and their other Organizations. " +
+    "This cannot be undone."
+  );
 }
 
 /** The controls one row offers the person reading it. */

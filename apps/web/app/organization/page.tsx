@@ -2,6 +2,7 @@
 
 import {
   changeMemberRole,
+  deleteOrganization,
   listMembers,
   removeMember,
   renameOrganization,
@@ -15,9 +16,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import {
+  endingConsequence,
+  mayEnd,
   mayRename,
   memberControls,
   memberLabel,
+  nameConfirms,
   refusalMessage,
   transferConsequence,
 } from "./messages";
@@ -67,6 +71,7 @@ function OrganizationPanel({ me, org }: { me: Account; org: OrganizationMembersh
   const cache = useQueryClient();
   const [name, setName] = useState(org.name);
   const [handingTo, setHandingTo] = useState<Member | null>(null);
+  const [typedName, setTypedName] = useState("");
 
   const members = useQuery({
     queryKey: membersKey(org.id),
@@ -128,8 +133,21 @@ function OrganizationPanel({ me, org }: { me: Account; org: OrganizationMembersh
     },
   });
 
+  const finish = useMutation({
+    mutationFn: async () => {
+      const { error } = await deleteOrganization({
+        path: { org_id: org.id },
+        body: { name_confirmation: typedName },
+      });
+      if (error) throw error;
+    },
+    // Nothing to reset afterwards: the identity comes back without this
+    // Organization in it, and the panel this form sits in goes with it.
+    onSuccess: refresh,
+  });
+
   // One refusal at a time: only one of these was the last thing that happened.
-  const refused = rename.error ?? setRole.error ?? end.error ?? hand.error;
+  const refused = rename.error ?? setRole.error ?? end.error ?? hand.error ?? finish.error;
   const viewer = { role: org.role, userId: me.id };
 
   return (
@@ -256,6 +274,37 @@ function OrganizationPanel({ me, org }: { me: Account; org: OrganizationMembersh
             );
           })}
         </ul>
+        {mayEnd(org.role) ? (
+          <form
+            className="flex flex-col gap-3 border-t border-line pt-4"
+            onSubmit={(submitted) => {
+              submitted.preventDefault();
+              finish.mutate();
+            }}
+          >
+            <Callout tone="bad" title="Delete this Organization">
+              {endingConsequence(org.name)}
+            </Callout>
+            <Label htmlFor={`confirm-${org.id}`}>Type {org.name} to confirm</Label>
+            <div className="flex items-end gap-2">
+              <Input
+                id={`confirm-${org.id}`}
+                value={typedName}
+                autoComplete="off"
+                onChange={(typed) => {
+                  setTypedName(typed.target.value);
+                }}
+              />
+              <Button
+                type="submit"
+                variant="destructive"
+                disabled={finish.isPending || !nameConfirms(typedName, org.name)}
+              >
+                Delete Organization
+              </Button>
+            </div>
+          </form>
+        ) : null}
       </CardContent>
     </Card>
   );
