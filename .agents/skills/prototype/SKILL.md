@@ -11,8 +11,8 @@ A prototype is disposable code that answers a question. The question decides the
 ## Steps
 
 1. **Pin the question, and select the shape.** If the argument is an issue reference, fetch the issue and claim it before you start work. The issue body is the brief. Then select the shape:
-   - _"Is this logic or state model correct?"_ → one self-contained HTML page, with the CSS and the JavaScript inline. Buttons and controls push the state machine through the cases that are hard to examine on paper.
-   - _"What must this look like?"_ → several very different variations of the UI on one route. The user switches between them in the browser, without a rebuild.
+   - *"Is this logic or state model correct?"* → one self-contained HTML page, with the CSS and the JavaScript inline. Buttons and controls push the state machine through the cases that are hard to examine on paper.
+   - *"What must this look like?"* → several very different variations of the UI on one route. The user switches between them in the browser, without a rebuild.
    - Neither (pure feasibility: "is X fast enough?", "does library Y do Z?") → the smallest script or benchmark that produces the number or the behavior that the verdict needs. The same rules below apply.
 
    A wrong shape wastes the full prototype. Confirm the question and the shape with the user. This step is complete when the user agrees.

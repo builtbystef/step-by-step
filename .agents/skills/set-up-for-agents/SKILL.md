@@ -43,13 +43,13 @@ Append [assets/templates/entry-file-block.md](assets/templates/entry-file-block.
 
 Each file below starts from a template in [assets/templates/](assets/templates/). Copy the template. Then fill it with real content from steps 1–2 — however small the content. Where nothing is known yet, keep the template's header, which describes itself, and add nothing invented.
 
-| Destination                | Template                                                    | Seed content                                                                |
-| -------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `docs/GLOSSARY.md`         | [GLOSSARY.md](assets/templates/GLOSSARY.md)                 | the terms the user used to describe the project, under the Language section |
-| `docs/CODING_STANDARDS.md` | [CODING_STANDARDS.md](assets/templates/CODING_STANDARDS.md) | the standards the user stated, grouped by area                              |
-| `docs/ARCHITECTURE.md`     | [ARCHITECTURE.md](assets/templates/ARCHITECTURE.md)         | the modules named or intended so far                                        |
-| `docs/adr/README.md`       | [adr-README.md](assets/templates/adr-README.md)             | — (copy without changes)                                                    |
+| Destination                | Template                                                    | Seed content                                                                 |
+| -------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `docs/GLOSSARY.md`         | [GLOSSARY.md](assets/templates/GLOSSARY.md)                 | the terms the user used to describe the project, under the Language section  |
+| `docs/CODING_STANDARDS.md` | [CODING_STANDARDS.md](assets/templates/CODING_STANDARDS.md) | the standards the user stated, grouped by area                               |
+| `docs/ARCHITECTURE.md`     | [ARCHITECTURE.md](assets/templates/ARCHITECTURE.md)         | the modules named or intended so far                                         |
+| `docs/adr/README.md`       | [adr-README.md](assets/templates/adr-README.md)             | — (copy without changes)                                                     |
 
 `docs/TRACKER.md` — the selected file from [references/trackers/](references/trackers/), with the placeholders resolved (team, repository). For freeform: the user's workflow paragraph, under a `# Tracker: {{name}}` heading.
 
-A second run of this skill on a grown project is safe and expected. It fills only what is missing, checks that the stack now supports, CI when a remote exists, and it never recreates what is there.
+A second run of this skill on a grown project is safe and expected. It fills only what is missing, checks that the stack now supports, CI when a remote exists,  and it never recreates what is there.
