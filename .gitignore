@@ -38,3 +38,6 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 *.egg-info/
+
+# implement-loop operator state
+.implement-loop/
