@@ -509,6 +509,113 @@
         }
       }
     },
+    "/api/extension/version": {
+      "get": {
+        "summary": "Get Extension Version",
+        "description": "What this instance serves, and the oldest it will record with.\n\nUnauthenticated: the app shows an out-of-date banner before a recording is\nattempted, and the extension has no session of its own to ask with.",
+        "operationId": "getExtensionVersion",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtensionVersion"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/extension/connect-codes": {
+      "post": {
+        "summary": "Create Connect Code",
+        "description": "Take a code to read out to the extension.\n\nAuthenticated, because the code is this person authorizing the pairing:\nwhat spending it proves to the extension is that somebody signed into this\ninstance meant to connect.",
+        "operationId": "createExtensionConnectCode",
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectCode"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/extension/connect": {
+      "post": {
+        "summary": "Connect Extension",
+        "description": "Spend a connect code.\n\nUnauthenticated: the extension has no session, which is the whole point of\nthe code. The commit happens before the refusal for the same reason the\nSign-in Code's does \u2014 a spent code must stay spent whatever the answer is.",
+        "operationId": "connectExtension",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConnectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Connected"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/workflows": {
       "post": {
         "summary": "Create Workflow",
@@ -1538,6 +1645,48 @@
         "title": "CodeRequest",
         "description": "Step one of the sign-in screen: the address to send a code to."
       },
+      "ConnectCode": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "expires_at"
+        ],
+        "title": "ConnectCode",
+        "description": "A one-time code the app shows, for the extension's popup to take."
+      },
+      "ConnectRequest": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "ConnectRequest",
+        "description": "What the extension presents: the code, however it was pasted."
+      },
+      "Connected": {
+        "properties": {},
+        "type": "object",
+        "title": "Connected",
+        "description": "Nothing \u2014 and deliberately.\n\nThe extension learns that the address it was given is a live instance that\naccepted the pairing. Anything else here would be something an unauthenticated\ncaller could ask this endpoint for."
+      },
       "DownloadPayload": {
         "properties": {
           "target": {
@@ -1726,6 +1875,25 @@
         ],
         "title": "ErrorBody",
         "description": "What every refusal this application raises looks like."
+      },
+      "ExtensionVersion": {
+        "properties": {
+          "current": {
+            "type": "string",
+            "title": "Current"
+          },
+          "minimum_supported": {
+            "type": "string",
+            "title": "Minimum Supported"
+          }
+        },
+        "type": "object",
+        "required": [
+          "current",
+          "minimum_supported"
+        ],
+        "title": "ExtensionVersion",
+        "description": "The two versions an instance and its extension have to agree about."
       },
       "ExtractField": {
         "properties": {

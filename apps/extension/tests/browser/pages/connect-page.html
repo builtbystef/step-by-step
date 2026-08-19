@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>The app's connect page, as far as the extension can tell</title>
+  </head>
+  <body>
+    <h1 id="state">Connecting…</h1>
+    <script type="module">
+      // What `apps/web/app/connect/connect-screen.tsx` does, in the twenty
+      // lines of it the extension can see: post the nonce this page was opened
+      // with, again when the bridge announces itself, and show what came back.
+      const nonce = new URLSearchParams(window.location.search).get("nonce");
+      const own = window.location.origin;
+      const handOver = () =>
+        window.postMessage(
+          { channel: "step-by-step", type: "connect-handshake", nonce, instanceOrigin: own },
+          own,
+        );
+
+      window.addEventListener("message", (event) => {
+        if (event.source !== window || event.origin !== own) return;
+        const said = event.data;
+        if (!said || said.channel !== "step-by-step") return;
+        if (said.type === "extension-ready") handOver();
+        if (said.type === "connect-accepted") {
+          window.connectedVersion = said.version;
+          document.querySelector("#state").textContent = "Your extension is connected";
+        }
+      });
+
+      handOver();
+    </script>
+  </body>
+</html>

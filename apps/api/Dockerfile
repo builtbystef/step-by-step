@@ -30,6 +30,13 @@ COPY packages/core packages/core
 COPY apps/api apps/api
 RUN uv sync --locked --package step-by-step-api --no-dev
 
+# The extension the backend serves as its own paired build. It is plain MV3
+# files with no build step, so the source directory is the artifact; the
+# variable is set rather than left to the default because the default is a
+# path relative to this module's source, which an image need not keep.
+COPY apps/extension/src apps/extension/src
+ENV EXTENSION_DIR=/app/apps/extension/src
+
 ENV PATH="/opt/venv/bin:${PATH}"
 EXPOSE 8000
 CMD ["uvicorn", "step_by_step_api.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,0 +1,12 @@
+{
+  // The extension is plain JavaScript that Chrome loads unpacked, so nothing
+  // here is compiled. This exists so the workspace's one check command reads
+  // the package with the browser's globals in scope.
+  "extends": "../../tsconfig/browser.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true
+  },
+  "include": ["src/**/*.js", "tests/**/*.js"]
+}

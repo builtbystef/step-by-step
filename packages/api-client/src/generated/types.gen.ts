@@ -110,6 +110,47 @@ export type CodeRequest = {
 };
 
 /**
+ * ConnectCode
+ *
+ * A one-time code the app shows, for the extension's popup to take.
+ */
+export type ConnectCode = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Expires At
+     */
+    expires_at: string;
+};
+
+/**
+ * ConnectRequest
+ *
+ * What the extension presents: the code, however it was pasted.
+ */
+export type ConnectRequest = {
+    /**
+     * Code
+     */
+    code: string;
+};
+
+/**
+ * Connected
+ *
+ * Nothing — and deliberately.
+ *
+ * The extension learns that the address it was given is a live instance that
+ * accepted the pairing. Anything else here would be something an unauthenticated
+ * caller could ask this endpoint for.
+ */
+export type Connected = {
+    [key: string]: unknown;
+};
+
+/**
  * DownloadPayload
  */
 export type DownloadPayload = {
@@ -227,6 +268,22 @@ export type ErrorBody = {
      * Message
      */
     message: string;
+};
+
+/**
+ * ExtensionVersion
+ *
+ * The two versions an instance and its extension have to agree about.
+ */
+export type ExtensionVersion = {
+    /**
+     * Current
+     */
+    current: string;
+    /**
+     * Minimum Supported
+     */
+    minimum_supported: string;
 };
 
 /**
@@ -1281,6 +1338,85 @@ export type AcceptInvitationResponses = {
 };
 
 export type AcceptInvitationResponse = AcceptInvitationResponses[keyof AcceptInvitationResponses];
+
+export type GetExtensionVersionData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/extension/version';
+};
+
+export type GetExtensionVersionErrors = {
+    /**
+     * Service Unavailable
+     */
+    503: ErrorBody;
+};
+
+export type GetExtensionVersionError = GetExtensionVersionErrors[keyof GetExtensionVersionErrors];
+
+export type GetExtensionVersionResponses = {
+    /**
+     * Successful Response
+     */
+    200: ExtensionVersion;
+};
+
+export type GetExtensionVersionResponse = GetExtensionVersionResponses[keyof GetExtensionVersionResponses];
+
+export type CreateExtensionConnectCodeData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/extension/connect-codes';
+};
+
+export type CreateExtensionConnectCodeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+};
+
+export type CreateExtensionConnectCodeError = CreateExtensionConnectCodeErrors[keyof CreateExtensionConnectCodeErrors];
+
+export type CreateExtensionConnectCodeResponses = {
+    /**
+     * Successful Response
+     */
+    201: ConnectCode;
+};
+
+export type CreateExtensionConnectCodeResponse = CreateExtensionConnectCodeResponses[keyof CreateExtensionConnectCodeResponses];
+
+export type ConnectExtensionData = {
+    body: ConnectRequest;
+    path?: never;
+    query?: never;
+    url: '/api/extension/connect';
+};
+
+export type ConnectExtensionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ConnectExtensionError = ConnectExtensionErrors[keyof ConnectExtensionErrors];
+
+export type ConnectExtensionResponses = {
+    /**
+     * Successful Response
+     */
+    200: Connected;
+};
+
+export type ConnectExtensionResponse = ConnectExtensionResponses[keyof ConnectExtensionResponses];
 
 export type CreateWorkflowData = {
     body: WorkflowCreation;

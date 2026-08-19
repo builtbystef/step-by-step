@@ -55,7 +55,7 @@ select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 [tool.pytest.ini_options]
 # The default run is the fast tier: no services, no browser, nothing to start.
 addopts = "-q -m 'not integration and not browser'"
-testpaths = ["apps/api/tests", "apps/worker/tests", "packages/core/tests"]
+testpaths = ["apps/api/tests", "apps/extension/tests", "apps/worker/tests", "packages/core/tests"]
 markers = [
   "integration: needs the compose stack; run with `pnpm test:integration`",
   "browser: needs a Playwright browser; run with `pnpm test:browser`",

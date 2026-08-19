@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AcceptInvitationData, AcceptInvitationErrors, AcceptInvitationResponses, CreateInvitationData, CreateInvitationErrors, CreateInvitationResponses, CreateWorkflowData, CreateWorkflowErrors, CreateWorkflowResponses, GetCurrentAccountData, GetCurrentAccountErrors, GetCurrentAccountResponses, GetGreetingData, GetGreetingErrors, GetGreetingResponses, GetHealthData, GetHealthResponses, GetInstanceData, GetInstanceResponses, GetWorkflowDraftData, GetWorkflowDraftDiffData, GetWorkflowDraftDiffErrors, GetWorkflowDraftDiffResponses, GetWorkflowDraftErrors, GetWorkflowDraftResponses, GetWorkflowVersionData, GetWorkflowVersionErrors, GetWorkflowVersionResponses, ListInvitationsData, ListInvitationsErrors, ListInvitationsResponses, ListWorkflowVersionsData, ListWorkflowVersionsErrors, ListWorkflowVersionsResponses, PublishWorkflowVersionData, PublishWorkflowVersionErrors, PublishWorkflowVersionResponses, RequestSigninCodeData, RequestSigninCodeErrors, RequestSigninCodeResponses, RestoreWorkflowVersionData, RestoreWorkflowVersionErrors, RestoreWorkflowVersionResponses, RevokeInvitationData, RevokeInvitationErrors, RevokeInvitationResponses, SaveWorkflowDraftData, SaveWorkflowDraftErrors, SaveWorkflowDraftResponses, SignOutData, SignOutErrors, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, VerifySigninCodeData, VerifySigninCodeErrors, VerifySigninCodeResponses } from './types.gen';
+import type { AcceptInvitationData, AcceptInvitationErrors, AcceptInvitationResponses, ConnectExtensionData, ConnectExtensionErrors, ConnectExtensionResponses, CreateExtensionConnectCodeData, CreateExtensionConnectCodeErrors, CreateExtensionConnectCodeResponses, CreateInvitationData, CreateInvitationErrors, CreateInvitationResponses, CreateWorkflowData, CreateWorkflowErrors, CreateWorkflowResponses, GetCurrentAccountData, GetCurrentAccountErrors, GetCurrentAccountResponses, GetExtensionVersionData, GetExtensionVersionErrors, GetExtensionVersionResponses, GetGreetingData, GetGreetingErrors, GetGreetingResponses, GetHealthData, GetHealthResponses, GetInstanceData, GetInstanceResponses, GetWorkflowDraftData, GetWorkflowDraftDiffData, GetWorkflowDraftDiffErrors, GetWorkflowDraftDiffResponses, GetWorkflowDraftErrors, GetWorkflowDraftResponses, GetWorkflowVersionData, GetWorkflowVersionErrors, GetWorkflowVersionResponses, ListInvitationsData, ListInvitationsErrors, ListInvitationsResponses, ListWorkflowVersionsData, ListWorkflowVersionsErrors, ListWorkflowVersionsResponses, PublishWorkflowVersionData, PublishWorkflowVersionErrors, PublishWorkflowVersionResponses, RequestSigninCodeData, RequestSigninCodeErrors, RequestSigninCodeResponses, RestoreWorkflowVersionData, RestoreWorkflowVersionErrors, RestoreWorkflowVersionResponses, RevokeInvitationData, RevokeInvitationErrors, RevokeInvitationResponses, SaveWorkflowDraftData, SaveWorkflowDraftErrors, SaveWorkflowDraftResponses, SignOutData, SignOutErrors, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, VerifySigninCodeData, VerifySigninCodeErrors, VerifySigninCodeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -139,6 +139,45 @@ export const revokeInvitation = <ThrowOnError extends boolean = false>(options: 
  * signing in is proof of the address the offer was made to.
  */
 export const acceptInvitation = <ThrowOnError extends boolean = false>(options: Options<AcceptInvitationData, ThrowOnError>): RequestResult<AcceptInvitationResponses, AcceptInvitationErrors, ThrowOnError> => (options.client ?? client).post<AcceptInvitationResponses, AcceptInvitationErrors, ThrowOnError>({ url: '/api/invitations/{invitation_id}/accept', ...options });
+
+/**
+ * Get Extension Version
+ *
+ * What this instance serves, and the oldest it will record with.
+ *
+ * Unauthenticated: the app shows an out-of-date banner before a recording is
+ * attempted, and the extension has no session of its own to ask with.
+ */
+export const getExtensionVersion = <ThrowOnError extends boolean = false>(options?: Options<GetExtensionVersionData, ThrowOnError>): RequestResult<GetExtensionVersionResponses, GetExtensionVersionErrors, ThrowOnError> => (options?.client ?? client).get<GetExtensionVersionResponses, GetExtensionVersionErrors, ThrowOnError>({ url: '/api/extension/version', ...options });
+
+/**
+ * Create Connect Code
+ *
+ * Take a code to read out to the extension.
+ *
+ * Authenticated, because the code is this person authorizing the pairing:
+ * what spending it proves to the extension is that somebody signed into this
+ * instance meant to connect.
+ */
+export const createExtensionConnectCode = <ThrowOnError extends boolean = false>(options?: Options<CreateExtensionConnectCodeData, ThrowOnError>): RequestResult<CreateExtensionConnectCodeResponses, CreateExtensionConnectCodeErrors, ThrowOnError> => (options?.client ?? client).post<CreateExtensionConnectCodeResponses, CreateExtensionConnectCodeErrors, ThrowOnError>({ url: '/api/extension/connect-codes', ...options });
+
+/**
+ * Connect Extension
+ *
+ * Spend a connect code.
+ *
+ * Unauthenticated: the extension has no session, which is the whole point of
+ * the code. The commit happens before the refusal for the same reason the
+ * Sign-in Code's does — a spent code must stay spent whatever the answer is.
+ */
+export const connectExtension = <ThrowOnError extends boolean = false>(options: Options<ConnectExtensionData, ThrowOnError>): RequestResult<ConnectExtensionResponses, ConnectExtensionErrors, ThrowOnError> => (options.client ?? client).post<ConnectExtensionResponses, ConnectExtensionErrors, ThrowOnError>({
+    url: '/api/extension/connect',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Create Workflow

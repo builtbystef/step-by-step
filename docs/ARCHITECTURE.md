@@ -11,6 +11,8 @@ A two-language monorepo, scaffolded from the user's `alloy` template (issue `ymz
 │   ├── api/            # FastAPI backend (Python package: step_by_step_api)
 │   │   ├── alembic/    # migrations
 │   │   └── Dockerfile  # the backend's compose image
+│   ├── extension/      # the MV3 recording extension (plain JavaScript)
+│   │   └── src/        # the package Chrome loads unpacked, and the zip's contents
 │   ├── worker/         # the Worker (Python package: step_by_step_worker)
 │   │   ├── Dockerfile  # Playwright + Chromium + Xvfb + x11vnc + openbox
 │   │   └── entrypoint.sh
@@ -26,9 +28,7 @@ A two-language monorepo, scaffolded from the user's `alloy` template (issue `ymz
 
 The Python packages register in the root `pyproject.toml`'s `[tool.uv.workspace]` and each carries a `package.json` with the four check scripts, which is how `vp` fans the one command vocabulary out over both languages.
 
-One package is decided but not yet built:
-
-- `apps/extension` — the MV3 recording extension. The workspace globs and `vp check`/`vp test` cover it the moment it exists.
+`apps/extension` has no build step and no Python of its own: it is the files Chrome loads. The pnpm workspace globs give it `vp check` and `vp test`, and its `package.json` carries the one script the fan-out cannot infer — `test:browser`, which is pytest.
 
 The deployment shape (settled in `px25yw`): one docker compose stack — backend, Workers, Postgres, Redis, Garage. `compose.yaml` at the root holds all five; `docker compose up -d` starts them. `pnpm dev` still runs FastAPI and Next.js on the host for day-to-day frontend work, reaching the stack over its published host ports; the containerised backend is what a Worker and the VNC path talk to.
 
@@ -50,7 +50,7 @@ It runs as a single self-bootstrapping node: `garage server --single-node --defa
 
 ### The dev proxy
 
-In dev the browser only talks to Next.js: `apps/web/next.config.ts` rewrites `/api/*` to `http://localhost:8000` (override with `API_URL`). No CORS setup exists, deliberately.
+In dev the browser only talks to Next.js: `apps/web/next.config.ts` rewrites `/api/*` to `http://localhost:8000` (override with `API_URL`), and `/extension` and `/extension.zip` with it — the install page and the build are the backend's, and a download that only worked in the container would be found by the first person to follow the link. No CORS setup exists, deliberately: the extension reaches the backend from a granted origin, where an extension's fetch is not a cross-origin request at all.
 
 ### The shared internal library
 
@@ -77,9 +77,9 @@ SQLAlchemy 2 + Alembic, on psycopg 3 (`postgresql+psycopg://`). The connection U
 
 `step_by_step_api.db` adds only what is FastAPI's: `SessionDep`, the annotated dependency a route handler declares to receive its request's session. The session opens when the request starts and closes when it ends, rolling back whatever the handler did not commit. Handlers commit for themselves.
 
-Tables are declared in the backend, not in core: `step_by_step_api.accounts.models` holds the six accounts tables and `step_by_step_api.workflows.models` the three Workflow tables, and `alembic/env.py` imports both so that `Base.metadata` knows them before autogenerate compares. Core owns the connection, never the schema.
+Tables are declared in the backend, not in core: `step_by_step_api.accounts.models` holds the six accounts tables, `step_by_step_api.workflows.models` the three Workflow tables, and `step_by_step_api.extension.models` the connect codes; `alembic/env.py` imports all three so that `Base.metadata` knows them before autogenerate compares. Core owns the connection, never the schema.
 
-Migrations run with `pnpm --filter api run migrate` (`alembic upgrade head`). Four revisions exist: the empty baseline that gives the runner a head to reach, the accounts schema, the Workflow document store, and its Versions.
+Migrations run with `pnpm --filter api run migrate` (`alembic upgrade head`). Five revisions exist: the empty baseline that gives the runner a head to reach, the accounts schema, the Workflow document store, its Versions, and the extension's connect codes.
 
 `env.py`'s `include_object` hides one thing from autogenerate: the check constraint a non-native `Enum` column writes, which alembic reflects but does not compare, and would otherwise propose dropping in every revision. The names come from the metadata each run, so a column a model really drops takes its constraint out of the filter and the drop is proposed as it should be; `tests/integration/test_migrations.py` holds both halves.
 
@@ -169,6 +169,25 @@ Publishing copies the Draft's stored JSONB across as it is rather than re-serial
 
 Another Organization's Workflow answers 404 and never 403. A refusal that admitted the id exists would let anyone map another tenant's Workflows one guess at a time.
 
+### The extension, and how it reaches an instance
+
+`apps/extension` is the recorder: plain MV3 JavaScript, no framework and no build step, so the directory Chrome loads unpacked is also the artifact the backend serves. The manifest pins a `key` — the extension id then follows the package rather than the directory it was installed from, which is what an enterprise-policy install and any later Web Store continuity need — declares `minimum_chrome_version: "118"` (from 118 an attached `chrome.debugger` session resets the service worker's idle timer), and asks for broad host access as an **optional** permission only. An install grants `storage` and `scripting` and reaches no site until somebody names one.
+
+**Distribution is unpacked (n52g83).** There is no Web Store listing and no self-hosted `.crx` with an update feed, because an off-store `.crx` installs on Linux alone. `step_by_step_api.extension.package` serves the paired build instead: `GET /extension.zip` zips the directory with the manifest at its root, and `GET /extension` is the install page beside it — unzip, `chrome://extensions`, Developer mode, Load unpacked. Both are unauthenticated, because somebody who cannot sign in yet still has to be able to install the thing that records, and both are outside `/api` and outside the generated client: they are documents a browser is pointed at. A Windows or macOS fleet can force-install the same package through enterprise policy; nothing is built for that, and the install page says so in one sentence. The image carries the package at `EXTENSION_DIR`, and an instance without one answers 503 `extension_unavailable` on those three routes rather than failing at boot — what is missing is the download, not the instance.
+
+`GET /api/extension/version` reports `{current, minimum_supported}`, unauthenticated. `current` is the served build's own manifest version, so an instance cannot claim a build it does not have; `minimum_supported` lives beside it in `package.py` because two readers need the same number — the app's out-of-date banner, and the refusal a recording session gives an extension that is too old.
+
+**The extension opens the channel, never the app.** `externally_connectable.matches` cannot express an arbitrary self-hosted origin — wildcards over effective TLDs are rejected — so one shared build cannot be messaged by an app whose origin is unknown at build time. Connecting is therefore the extension's move, once per instance:
+
+- The popup is the only place a permission can be asked for, because Chrome grants an optional host permission from a user gesture alone. `chrome.permissions.request` is called from the click itself, before anything is awaited.
+- On the grant, `service-worker.js` mints a 256-bit nonce, opens `<origin>/connect?nonce=…`, and injects `pageBridge` into that tab. The bridge is a function rather than a file: a content script cannot import a module, and the protocol's names would otherwise be written twice with nothing to keep them the same.
+- The page posts the nonce back into its own window; the bridge forwards it only if it came from that window at that origin; and the worker acts on it only if the sender is this extension, in the top frame of the tab the attempt opened, at the attempt's origin, carrying the attempt's nonce. A refusal names its reason to the worker's log and never to the tab.
+- The fallback, when that handshake does not happen: the app's connect screen shows a one-time code (`POST /api/extension/connect-codes`, authenticated, single-use, ten minutes), and the popup spends it (`POST /api/extension/connect`, unauthenticated, 401 `bad_code`). A spent code proves exactly what the handshake proves — a live instance whose signed-in user authorized this pairing — and nothing else, which is why the answer is an empty body. The code path asks for the same origin from its own click, because a fetch to an origin Chrome has not granted is a cross-origin request the backend deliberately does not answer.
+
+The service worker is a restartable coordinator: the connection lives in `storage.local`, the attempt in `storage.session`, every listener is registered at the top level, and nothing is held in a variable that has to survive Chrome's 30-second idle kill.
+
+On the app's side, `apps/web/app/connect/` is the page the extension opens and `apps/web/lib/extension-protocol.ts` is the app's half of the message names. The extension has no build step and nothing importable from a Next app, so `extension-protocol.test.ts` reads `apps/extension/src/lib/handshake.js` and asserts the names are the same in both — a rename on one side that missed the other would break connecting with nothing to show for it.
+
 ### Errors
 
 `step_by_step_api.errors` is the one refusal shape: `{code, message}`, raised as `ApiError` from anywhere in a request. A client decides what to do from `code` and never from prose — the sign-in screen tells a wrong code from a closed instance by that field alone. `errors(401, 403)` on a route is what puts the model in the OpenAPI schema, so the generated client types what the frontend reads.
@@ -244,6 +263,8 @@ Three tiers, split by pytest markers.
 
 **Integration.** `pnpm test:integration` runs the tests marked `@pytest.mark.integration` against the real Postgres, Redis, and Garage, with the URLs from `.env.example` in the environment. It lives in `apps/api/tests/integration/` and `packages/core/tests/integration/`. CI runs it in its own `integration` job, which starts the same three services with `docker compose up -d --wait` rather than with service containers — Garage needs its mounted config, and a service container starts before the checkout that would provide it.
 
-**Browser.** `pnpm test:browser` runs the tests marked `@pytest.mark.browser` — the selector resolution module against local fixture pages, and later the recorder's capture pipeline. They need a Playwright browser and nothing else: no Postgres, no Redis, no compose. It is a tier of its own because the browser binary does not arrive with `uv sync` — `uv run playwright install chromium` puts it there, and CI's `browser` job does the same before running `pytest -m browser`. It lives in `apps/worker/tests/browser/`, where a session-scoped Chromium and a loopback HTTP server over `pages/` are the whole harness.
+**Browser.** `pnpm test:browser` runs the tests marked `@pytest.mark.browser` — the selector resolution module against local fixture pages, the extension's connect handshake, and later the recorder's capture pipeline. They need a Playwright browser and nothing else: no Postgres, no Redis, no compose. It is a tier of its own because the browser binary does not arrive with `uv sync` — `uv run playwright install chromium` puts it there, and CI's `browser` job does the same before running `pytest -m browser`. It lives in `apps/worker/tests/browser/` and `apps/extension/tests/browser/`, where a session-scoped Chromium and a loopback HTTP server over `pages/` are the whole harness — the extension's copy launching a persistent context with the package loaded unpacked, because an extension has nowhere to live in an incognito one.
+
+One thing that tier cannot reach: the permission grant is a native Chrome dialog raised from a click in the extension's popup, and no automation drives it. What the harness proves is that the package loads under its pinned id and that the handshake is refused unless the tab, the origin, and the nonce are all the attempt's; the grant itself, and the connect flow that follows it, are checked by hand in a real browser.
 
 The integration tier owns its state, because the stack is long-lived and shared: no test may assume a fresh one, and two runs never collide. The api tier's session fixture creates a database of its own on the running Postgres, migrates it to head, and drops it at the end; the core tier's store tests either read without writing or write under a key of their own and remove it afterwards.

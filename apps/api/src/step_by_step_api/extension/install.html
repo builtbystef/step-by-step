@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Install the Step by Step extension</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      body {
+        margin: 0 auto;
+        padding: 3rem 1.25rem 5rem;
+        max-width: 44rem;
+        font:
+          1rem/1.6 system-ui,
+          sans-serif;
+        background: Canvas;
+        color: CanvasText;
+      }
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        margin-top: 2.5rem;
+        font-size: 1.125rem;
+      }
+      code {
+        font-family: ui-monospace, monospace;
+      }
+      .download {
+        display: inline-block;
+        margin: 0.5rem 0 0.25rem;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+        color: ButtonText;
+        background: ButtonFace;
+        border: 1px solid ButtonBorder;
+        border-radius: 0.375rem;
+        text-decoration: none;
+      }
+      .quiet {
+        opacity: 0.75;
+      }
+      li {
+        margin-bottom: 0.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Install the Step by Step extension</h1>
+
+    <p>
+      This instance serves the extension build that came with it. Recording runs in your own Chrome,
+      so the extension is what records — the app cannot.
+    </p>
+
+    <p>
+      <a class="download" href="/extension.zip">Download the extension (version $version)</a>
+    </p>
+    <p class="quiet">Chrome $chrome or newer. The same file works in any Chromium browser.</p>
+
+    <h2>Install it</h2>
+    <ol>
+      <li>
+        Unzip the download. Keep the folder somewhere it can stay — Chrome loads it from where it
+        sits, so moving or deleting it removes the extension.
+      </li>
+      <li>Open <code>chrome://extensions</code> in a new tab.</li>
+      <li>Turn on <strong>Developer mode</strong>, at the top right.</li>
+      <li>Choose <strong>Load unpacked</strong>, and select the folder you unzipped.</li>
+    </ol>
+
+    <h2>Connect it to this instance</h2>
+    <ol>
+      <li>Click the Step by Step icon in the toolbar.</li>
+      <li>Enter this instance's address and choose <strong>Connect</strong>.</li>
+      <li>
+        Chrome asks whether the extension may work on that site. Choose <strong>Allow</strong>: it
+        is how the extension reaches this instance, and recording cannot work without it.
+      </li>
+      <li>
+        The connect page opens and hands the connection over. If it does not, open
+        <a href="/connect">the connect page</a> yourself, show a connect code there, and paste it
+        into the extension instead.
+      </li>
+    </ol>
+
+    <h2>What unpacked means</h2>
+    <p>
+      An unpacked extension does not update itself: when this instance is upgraded, download the
+      build again and choose <strong>Update</strong> on the extensions page. Chrome may also disable
+      an unpacked extension after a browser update or a profile reload — turn it back on there, or
+      load it again from this page.
+    </p>
+    <p class="quiet">
+      Windows and macOS fleets can install this package for everyone through enterprise policy;
+      nothing here is built for that.
+    </p>
+  </body>
+</html>

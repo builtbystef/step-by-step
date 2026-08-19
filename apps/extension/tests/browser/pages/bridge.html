@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A page standing in for the app's connect page</title>
+  </head>
+  <body>
+    <iframe id="other" title="another origin"></iframe>
+    <script type="module">
+      // What the extension would be, seen from the page's isolated world: the
+      // one call the bridge makes, recorded rather than answered by Chrome.
+      window.forwarded = [];
+      window.accepted = [];
+      window.chrome = {
+        runtime: {
+          sendMessage: (message) => {
+            window.forwarded.push(message);
+            return Promise.resolve({ accepted: true, version: "0.1.0" });
+          },
+        },
+      };
+
+      window.addEventListener("message", (event) => {
+        if (event.data && event.data.type === "connect-accepted") {
+          window.accepted.push(event.data);
+        }
+      });
+
+      const { pageBridge } = await import("/ext/lib/page-bridge.js");
+      pageBridge({
+        channel: "step-by-step",
+        handshake: "connect-handshake",
+        ready: "extension-ready",
+        accepted: "connect-accepted",
+        version: "0.1.0",
+      });
+      window.bridgeInstalled = true;
+    </script>
+  </body>
+</html>

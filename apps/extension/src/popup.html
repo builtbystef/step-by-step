@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Step by Step</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Step by Step</h1>
+
+      <section id="connected" hidden>
+        <p>Connected to <strong id="instance"></strong>.</p>
+        <p class="quiet">
+          Recording happens in the app: open a Workflow there and start recording.
+        </p>
+        <button id="disconnect" type="button">Disconnect</button>
+      </section>
+
+      <section id="connect" hidden>
+        <p class="quiet">
+          Enter the address of your Step by Step instance. Chrome will ask whether this extension
+          may work on that site — it needs that access to record.
+        </p>
+        <label for="address">Instance address</label>
+        <input
+          id="address"
+          type="text"
+          placeholder="https://steps.example.com"
+          spellcheck="false"
+        />
+        <button id="connect-button" type="button">Connect</button>
+
+        <details id="code-fallback">
+          <summary>Connect with a code instead</summary>
+          <p class="quiet">
+            If the connect page cannot hand the connection over, open it yourself — your
+            instance&rsquo;s address followed by <code>/connect</code> — show a connect code there,
+            and paste it here.
+          </p>
+          <label for="code">Connect code</label>
+          <input id="code" type="text" spellcheck="false" autocomplete="off" />
+          <button id="code-button" type="button">Connect with code</button>
+        </details>
+      </section>
+
+      <p id="note" role="status"></p>
+      <p class="quiet version">Version <span id="version"></span></p>
+    </main>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

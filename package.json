@@ -10,7 +10,7 @@
     "check:fix": "vp check --fix && vp run -r check:fix",
     "test": "vp test && vp run -r test",
     "test:integration": "pnpm --filter api --filter core run test:integration",
-    "test:browser": "pnpm --filter worker run test:browser",
+    "test:browser": "pnpm --filter worker --filter extension run test:browser",
     "build": "vp run -r build",
     "ci": "pnpm check && pnpm test && pnpm build"
   },

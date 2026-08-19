@@ -1,0 +1,10 @@
+{
+  "name": "extension",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "uv run ruff format --check tests && uv run ruff check tests && uv run ty check tests",
+    "check:fix": "uv run ruff format tests && uv run ruff check --fix tests",
+    "test:browser": "uv run pytest tests -m browser"
+  }
+}

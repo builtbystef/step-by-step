@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Another origin, inside the connect page</title>
+  </head>
+  <body>
+    <script>
+      // Everything a well-formed handshake has, except having come from the
+      // page the extension opened.
+      const parameters = new URLSearchParams(window.location.search);
+      window.parent.postMessage(
+        {
+          channel: "step-by-step",
+          type: "connect-handshake",
+          nonce: parameters.get("nonce"),
+          instanceOrigin: parameters.get("origin"),
+        },
+        "*",
+      );
+    </script>
+  </body>
+</html>

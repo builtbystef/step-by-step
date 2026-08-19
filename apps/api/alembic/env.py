@@ -18,6 +18,7 @@ if config.config_file_name is not None:
 # Autogenerate target: every table inherits step_by_step_core.db.Base, and
 # importing the model modules is what registers them on its metadata.
 import step_by_step_api.accounts.models  # noqa: E402
+import step_by_step_api.extension.models  # noqa: E402
 import step_by_step_api.workflows.models  # noqa: E402, F401
 
 target_metadata = Base.metadata

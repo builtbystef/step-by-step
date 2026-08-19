@@ -1,0 +1,92 @@
+/*
+ * The popup's whole appearance. It borrows the browser's own colours through
+ * the CSS system keywords rather than naming any, so it belongs to the window
+ * it opens in and follows whatever theme that window is in.
+ */
+
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+  width: 22rem;
+  font:
+    0.875rem/1.45 system-ui,
+    sans-serif;
+  background: Canvas;
+  color: CanvasText;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+p {
+  margin: 0;
+}
+
+.quiet {
+  opacity: 0.75;
+}
+
+.version {
+  font-size: 0.75rem;
+}
+
+label {
+  font-weight: 600;
+}
+
+input {
+  padding: 0.375rem 0.5rem;
+  font: inherit;
+  color: FieldText;
+  background: Field;
+  border: 1px solid ButtonBorder;
+  border-radius: 0.25rem;
+}
+
+button {
+  align-self: flex-start;
+  padding: 0.375rem 0.75rem;
+  font: inherit;
+  color: ButtonText;
+  background: ButtonFace;
+  border: 1px solid ButtonBorder;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+summary {
+  cursor: pointer;
+}
+
+#note:empty {
+  display: none;
+}
