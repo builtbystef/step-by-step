@@ -1,4 +1,8 @@
-import { getWorkflowDraft, type WorkflowDocument } from "@step-by-step/api-client";
+import {
+  getWorkflowDraft,
+  getWorkflowVersion,
+  type WorkflowDocument,
+} from "@step-by-step/api-client";
 
 /**
  * The Draft this editor edits: one document, under a key of its own.
@@ -18,6 +22,31 @@ export function draftQuery(orgId: string, workflowId: string) {
     queryKey: draftKey(orgId, workflowId),
     queryFn: async (): Promise<WorkflowDocument> => {
       const { data, error } = await getWorkflowDraft({ path: { workflow_id: workflowId } });
+      if (error) throw error;
+      return data;
+    },
+  };
+}
+
+/**
+ * One published document, for the editor showing a past Version.
+ *
+ * Keyed by its number and never invalidated: a Version is immutable, so the
+ * one thing this cache can never hold is a stale answer.
+ */
+
+export function versionDocumentKey(orgId: string, workflowId: string, version: number) {
+  return ["workflow-version", orgId, workflowId, version] as const;
+}
+
+export function versionDocumentQuery(orgId: string, workflowId: string, version: number | null) {
+  return {
+    queryKey: versionDocumentKey(orgId, workflowId, version ?? 0),
+    enabled: version !== null,
+    queryFn: async (): Promise<WorkflowDocument> => {
+      const { data, error } = await getWorkflowVersion({
+        path: { workflow_id: workflowId, number: version ?? 0 },
+      });
       if (error) throw error;
       return data;
     },

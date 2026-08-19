@@ -30,6 +30,13 @@ import { cn } from "@/lib/utils";
  * screenshot toggle, which the spec puts here beside optional and off. It is
  * lit when it is on and appears with the hover tools when it is not, because
  * a column of eight dormant cameras states nothing.
+ *
+ * A card showing a published Version is read-only: the tools that reorder,
+ * switch off, and delete are gone rather than disabled — a Version has no
+ * tools, and a row of dead buttons would suggest it does — the label is fixed,
+ * the camera states what was recorded instead of offering to change it, and
+ * the form behind the sentence is a disabled fieldset. Expanding still works,
+ * because reading a Version is the whole reason to open one.
  */
 export function StepCard({
   step,
@@ -40,6 +47,7 @@ export function StepCard({
   secrets,
   highlighted,
   expanded,
+  readOnly,
   onExpand,
   onChange,
   onConvert,
@@ -54,6 +62,7 @@ export function StepCard({
   secrets: ReadonlySet<string>;
   highlighted: boolean;
   expanded: boolean;
+  readOnly: boolean;
   onExpand: (expanded: boolean) => void;
   onChange: (step: Step) => void;
   onConvert: (variable: Variable, span: Span) => void;
@@ -85,7 +94,11 @@ export function StepCard({
       <div className={cn("flex min-w-0 flex-1 flex-col gap-1", off && "opacity-60")}>
         <input
           aria-label={`Label of step ${String(position + 1)}`}
-          className="w-full rounded-sm bg-transparent text-half font-semibold text-ink outline-hidden hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+          readOnly={readOnly}
+          className={cn(
+            "w-full rounded-sm bg-transparent text-half font-semibold text-ink outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
+            !readOnly && "hover:bg-muted",
+          )}
           value={step.label}
           onChange={(typed) => {
             onChange({ ...step, label: typed.target.value });
@@ -106,47 +119,50 @@ export function StepCard({
             step={step}
             workflowDefaultMs={workflowDefaultMs}
             variables={variables}
+            readOnly={readOnly}
             onChange={onChange}
             onConvert={onConvert}
           />
         ) : null}
       </div>
 
-      <div className="flex shrink-0 items-start gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-        <Tool
-          label={`Move step ${String(position + 1)} up`}
-          disabled={position === 0}
-          onClick={() => {
-            onMove("up");
-          }}
-        >
-          <ChevronUp className="size-4" />
-        </Tool>
-        <Tool
-          label={`Move step ${String(position + 1)} down`}
-          disabled={position === count - 1}
-          onClick={() => {
-            onMove("down");
-          }}
-        >
-          <ChevronDown className="size-4" />
-        </Tool>
-        <Tool
-          label={
-            off
-              ? `Switch step ${String(position + 1)} on`
-              : `Switch step ${String(position + 1)} off`
-          }
-          onClick={() => {
-            onChange({ ...step, disabled: !off });
-          }}
-        >
-          {off ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-        </Tool>
-        <Tool label={`Delete step ${String(position + 1)}`} destructive onClick={onDelete}>
-          <Trash2 className="size-4" />
-        </Tool>
-      </div>
+      {readOnly ? null : (
+        <div className="flex shrink-0 items-start gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+          <Tool
+            label={`Move step ${String(position + 1)} up`}
+            disabled={position === 0}
+            onClick={() => {
+              onMove("up");
+            }}
+          >
+            <ChevronUp className="size-4" />
+          </Tool>
+          <Tool
+            label={`Move step ${String(position + 1)} down`}
+            disabled={position === count - 1}
+            onClick={() => {
+              onMove("down");
+            }}
+          >
+            <ChevronDown className="size-4" />
+          </Tool>
+          <Tool
+            label={
+              off
+                ? `Switch step ${String(position + 1)} on`
+                : `Switch step ${String(position + 1)} off`
+            }
+            onClick={() => {
+              onChange({ ...step, disabled: !off });
+            }}
+          >
+            {off ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+          </Tool>
+          <Tool label={`Delete step ${String(position + 1)}`} destructive onClick={onDelete}>
+            <Trash2 className="size-4" />
+          </Tool>
+        </div>
+      )}
 
       <div className="flex w-36 shrink-0 flex-wrap items-start justify-end gap-1">
         {badges.map((badge) => (
@@ -154,27 +170,35 @@ export function StepCard({
             <span title={badge.title}>{badge.label}</span>
           </AttributeBadge>
         ))}
-        <button
-          type="button"
-          aria-label={`Screenshot after step ${String(position + 1)}`}
-          aria-pressed={step.screenshot === true}
-          title={
-            step.screenshot === true
-              ? "A screenshot is kept after this Step. A failing Step is captured either way."
-              : "Keep a screenshot after this Step. A failing Step is captured either way."
-          }
-          className={cn(
-            "flex size-5 items-center justify-center rounded-md outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
-            step.screenshot === true
-              ? "bg-accent-bg text-accent"
-              : "text-mut opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:text-accent",
-          )}
-          onClick={() => {
-            onChange({ ...step, screenshot: step.screenshot !== true });
-          }}
-        >
-          <Camera className="size-3.5" />
-        </button>
+        {readOnly ? (
+          step.screenshot === true ? (
+            <AttributeBadge tone="accent">
+              <span title="A screenshot is kept after this Step.">screenshot</span>
+            </AttributeBadge>
+          ) : null
+        ) : (
+          <button
+            type="button"
+            aria-label={`Screenshot after step ${String(position + 1)}`}
+            aria-pressed={step.screenshot === true}
+            title={
+              step.screenshot === true
+                ? "A screenshot is kept after this Step. A failing Step is captured either way."
+                : "Keep a screenshot after this Step. A failing Step is captured either way."
+            }
+            className={cn(
+              "flex size-5 items-center justify-center rounded-md outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
+              step.screenshot === true
+                ? "bg-accent-bg text-accent"
+                : "text-mut opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:text-accent",
+            )}
+            onClick={() => {
+              onChange({ ...step, screenshot: step.screenshot !== true });
+            }}
+          >
+            <Camera className="size-3.5" />
+          </button>
+        )}
       </div>
     </li>
   );

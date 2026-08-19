@@ -1,20 +1,28 @@
 "use client";
 
-import { saveWorkflowDraft, type Variable, type WorkflowDocument } from "@step-by-step/api-client";
+import {
+  restoreWorkflowVersion,
+  saveWorkflowDraft,
+  type Variable,
+  type WorkflowDocument,
+} from "@step-by-step/api-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Braces, Plus } from "lucide-react";
-import { useParams } from "next/navigation";
+import { Braces, History, Plus } from "lucide-react";
+import Link from "next/link";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { withStepAdded, withStepDeleted, withStepMoved, withStepReplaced } from "./edits";
-import { saveRefusal } from "./messages";
-import { draftKey, draftQuery } from "./queries";
+import { readRefusal, saveRefusal } from "./messages";
+import { draftKey, draftQuery, versionDocumentQuery } from "./queries";
+import { RestoreDialog } from "./restore-dialog";
 import { StepCard } from "./step-card";
 import { ADDABLE_STEP_TYPES, STEP_TYPE_LABELS, blankStep, type Step } from "./steps";
 import { VariablesDrawer } from "./variables-drawer";
 import { secretNames, variableRows, withLiteralMadeVariable, type Span } from "./variables";
 
 import { workflowKey, workflowQuery } from "../queries";
+import { restoreConsequence, versionPath, viewedVersion } from "../versions";
 
 import { workflowsKey } from "../../queries";
 
@@ -48,9 +56,15 @@ import {
  * declaration, a rename, and the Steps that use it all travel in the one save
  * — which is also why a rename can rewrite every value that reaches for it.
  *
+ * The same screen shows a published Version, when the address names one: the
+ * card list again, over an immutable document, with everything that edits it
+ * either gone or disabled and one way back into the Draft. A Version is the
+ * same thing as a Draft with the changing stopped, so reading one is not a
+ * second screen about it.
+ *
  * Two things on this tab belong to later slices and are deliberately not
- * here: the selector panel behind a target's badge (`m6s5me`), and
- * recording, test runs, and publishing (`7vuup5`, `2ggmhx`, `fq0wr7`).
+ * here: the selector panel behind a target's badge (`m6s5me`), and recording
+ * and test runs (`7vuup5`, `2ggmhx`).
  */
 export default function EditorTab() {
   const { active } = useActiveOrganization();
@@ -65,12 +79,16 @@ export default function EditorTab() {
 
 function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string }) {
   const cache = useQueryClient();
+  const router = useRouter();
+  const viewing = viewedVersion(useSearchParams().get("version"));
   const draft = useQuery(draftQuery(orgId, workflowId));
+  const version = useQuery(versionDocumentQuery(orgId, workflowId, viewing));
   const workflow = useQuery(workflowQuery(orgId, workflowId));
   const [edited, setEdited] = useState<WorkflowDocument | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [drawer, setDrawer] = useState(false);
   const [highlighted, setHighlighted] = useState<string | null>(null);
+  const [restoring, setRestoring] = useState<number | null>(null);
 
   const save = useMutation({
     mutationFn: async (document: WorkflowDocument) => {
@@ -94,15 +112,44 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
     },
   });
 
+  /**
+   * Restoring writes the Draft and leaves the Version alone, so what has to
+   * be refetched afterwards is everything that reads the Draft: the document
+   * itself, and the two places the chip is drawn from the comparison against
+   * the latest Version. Then back to the Draft — restoring is done in order to
+   * carry on editing.
+   */
+  const restore = useMutation({
+    mutationFn: async (number: number) => {
+      const { error } = await restoreWorkflowVersion({
+        path: { workflow_id: workflowId, number },
+      });
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      setRestoring(null);
+      setEdited(null);
+      await Promise.all([
+        cache.invalidateQueries({ queryKey: draftKey(orgId, workflowId) }),
+        cache.invalidateQueries({ queryKey: workflowKey(orgId, workflowId) }),
+        cache.invalidateQueries({ queryKey: workflowsKey(orgId) }),
+      ]);
+      router.push(versionPath(workflowId, null));
+    },
+  });
+
+  const readOnly = viewing !== null;
   // The edited copy wins while there is one, so a background refetch cannot
-  // take somebody's unsaved work away from under them.
-  const document = edited ?? draft.data ?? null;
+  // take somebody's unsaved work away from under them. It survives a look at a
+  // Version too: reading one is not a reason to lose an hour of editing.
+  const document = readOnly ? (version.data ?? null) : (edited ?? draft.data ?? null);
   const steps = document?.steps ?? [];
   const unsaved = edited !== null;
   const workflowDefaultMs = workflow.data?.default_step_timeout_ms ?? 30_000;
 
   if (document === null) {
-    return draft.error ? <Callout tone="bad">{saveRefusal(draft.error)}</Callout> : null;
+    const failed = readOnly ? version.error : draft.error;
+    return failed ? <Callout tone="bad">{readRefusal(failed)}</Callout> : null;
   }
 
   const variables: Variable[] = document.variables ?? [];
@@ -161,6 +208,37 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
     <>
       {save.error ? <Callout tone="bad">{saveRefusal(save.error)}</Callout> : null}
 
+      {viewing === null ? null : (
+        <Callout
+          tone="info"
+          size="banner"
+          icon={<History className="size-4" />}
+          title={`Reading v${String(viewing)}`}
+          actions={
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setRestoring(viewing);
+                }}
+              >
+                Restore to Draft
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                render={<Link href={versionPath(workflowId, null)} />}
+              >
+                Back to the Draft
+              </Button>
+            </>
+          }
+        >
+          A published Version never changes. Restore it to carry on from it in the Draft.
+        </Callout>
+      )}
+
       <div className="flex justify-end">{variablesButton}</div>
 
       {highlighted === null ? null : (
@@ -188,6 +266,7 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
       <VariablesDrawer
         open={drawer}
         document={document}
+        readOnly={readOnly}
         onOpenChange={setDrawer}
         onChange={setEdited}
         onShowUsages={setHighlighted}
@@ -195,9 +274,13 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
 
       {steps.length === 0 ? (
         <EmptyState
-          absence="This Workflow has no steps yet"
-          whatFillsIt="Record what you do in your own browser, or add a step here by hand."
-          action={addMenu}
+          absence={readOnly ? `v${String(viewing)} has no steps` : "This Workflow has no steps yet"}
+          whatFillsIt={
+            readOnly
+              ? "It was published from a Draft that had none."
+              : "Record what you do in your own browser, or add a step here by hand."
+          }
+          action={readOnly ? undefined : addMenu}
         />
       ) : (
         <>
@@ -214,6 +297,7 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
                   secrets={secrets}
                   highlighted={usages.has(step.id)}
                   expanded={expanded === step.id}
+                  readOnly={readOnly}
                   onExpand={(open) => {
                     setExpanded(open ? step.id : null);
                   }}
@@ -233,11 +317,11 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
               ))}
             </ul>
           </Card>
-          <div className="flex justify-end">{addMenu}</div>
+          {readOnly ? null : <div className="flex justify-end">{addMenu}</div>}
         </>
       )}
 
-      {unsaved ? (
+      {unsaved && !readOnly ? (
         <StickyActionFooter>
           <p className="mr-auto text-small text-mut">
             Unsaved changes — nothing runs from this Draft until you save it.
@@ -261,6 +345,28 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
           </Button>
         </StickyActionFooter>
       ) : null}
+
+      <RestoreDialog
+        version={restoring}
+        consequence={
+          restoring === null
+            ? ""
+            : restoreConsequence(restoring, workflow.data?.draft_state ?? "never-published")
+        }
+        unsaved={unsaved}
+        pending={restore.isPending}
+        refusal={restore.error ? readRefusal(restore.error) : null}
+        onConfirm={() => {
+          if (restoring !== null) {
+            restore.mutate(restoring);
+          }
+        }}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRestoring(null);
+          }
+        }}
+      />
     </>
   );
 }

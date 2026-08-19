@@ -29,25 +29,35 @@ import { cn } from "@/lib/utils";
  * the element on the live page and hand-editing the candidates — are the
  * selector panel's, which arrives with `m6s5me`. Until then this form says
  * what a Step finds its element by, and never pretends the list is empty.
+ *
+ * The whole form is one `fieldset`, which is how a published Version opens
+ * read-only: a disabled fieldset disables every control inside it, so a
+ * Version cannot be edited by a control a later slice forgot to thread a flag
+ * through. Immutability is the platform's here, not a prop's.
  */
 export function StepForm({
   step,
   workflowDefaultMs,
   variables,
+  readOnly,
   onChange,
   onConvert,
 }: {
   step: Step;
   workflowDefaultMs: number;
   variables: Variable[];
+  readOnly: boolean;
   onChange: (step: Step) => void;
   onConvert: (variable: Variable, span: Span) => void;
 }) {
   return (
-    <div className="mt-3 flex flex-col gap-4 rounded-md border border-line bg-bg/60 p-3">
+    <fieldset
+      disabled={readOnly}
+      className="mt-3 flex min-w-0 flex-col gap-4 rounded-md border border-line bg-bg/60 p-3"
+    >
       <Payload step={step} variables={variables} onChange={onChange} onConvert={onConvert} />
       <Envelope step={step} workflowDefaultMs={workflowDefaultMs} onChange={onChange} />
-    </div>
+    </fieldset>
   );
 }
 

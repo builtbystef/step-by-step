@@ -31,3 +31,24 @@ export function saveRefusal(error: unknown): string {
     sentence === UNKNOWN_REFUSAL || typeof said?.message !== "string" ? "" : said.message;
   return detail === "" ? sentence : `${sentence} — ${detail}`;
 }
+
+/**
+ * What the editor says when a document will not load at all.
+ *
+ * Apart from the refusals above, because nothing was being written: a screen
+ * that failed to read the Draft and answered "the Draft was not saved" would
+ * be telling a person about work they had not done.
+ */
+const READ_REFUSALS: Record<string, string> = {
+  version_not_found: "That Version is not here. The version dropdown lists the ones that are.",
+  workflow_not_found: "That Workflow is gone — somebody deleted it, or it was never here.",
+};
+
+const UNKNOWN_READ_REFUSAL = "This document could not be loaded. Try again in a moment.";
+
+export function readRefusal(error: unknown): string {
+  const said = error as { code?: unknown } | null | undefined;
+  return typeof said?.code === "string"
+    ? (READ_REFUSALS[said.code] ?? UNKNOWN_READ_REFUSAL)
+    : UNKNOWN_READ_REFUSAL;
+}

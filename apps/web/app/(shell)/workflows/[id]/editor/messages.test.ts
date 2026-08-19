@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { saveRefusal } from "./messages";
+import { readRefusal, saveRefusal } from "./messages";
 
 /**
  * What the editor says when the Draft API refuses a save.
@@ -40,5 +40,19 @@ describe("a refused save", () => {
     for (const code of ["duplicate_step_id", "undeclared_variable", "malformed_payload"]) {
       expect(saveRefusal({ code, message: "" })).toContain("not saved");
     }
+  });
+});
+
+describe("a document that will not load", () => {
+  it("says a Version that is not here is not here, and where the real ones are", () => {
+    const said = readRefusal({ code: "version_not_found", message: "this Workflow has no v9" });
+
+    expect(said).toContain("Version");
+    expect(said).not.toContain("not saved");
+  });
+
+  it("never says a save failed, because nothing was being saved", () => {
+    expect(readRefusal("a network error")).not.toContain("saved");
+    expect(readRefusal({ code: "workflow_not_found", message: "" })).not.toContain("saved");
   });
 });

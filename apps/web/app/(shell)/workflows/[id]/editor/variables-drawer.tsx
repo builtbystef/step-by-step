@@ -48,16 +48,23 @@ import {
  * Activating a row's usage count closes the drawer, because what it does is
  * highlight the cards behind it — a modal panel over the thing it is pointing
  * at would be pointing at nothing.
+ *
+ * A published Version's Variables are read: the rows sit in a disabled
+ * fieldset, so nothing inside them can be renamed, unmasked, or deleted by a
+ * control somebody forgets, and the form that declares a new one is gone —
+ * declaring into a Version is not a thing to offer and refuse.
  */
 export function VariablesDrawer({
   open,
   document,
+  readOnly,
   onOpenChange,
   onChange,
   onShowUsages,
 }: {
   open: boolean;
   document: WorkflowDocument;
+  readOnly: boolean;
   onOpenChange: (open: boolean) => void;
   onChange: (document: WorkflowDocument) => void;
   onShowUsages: (name: string) => void;
@@ -76,11 +83,15 @@ export function VariablesDrawer({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-4 pb-4">
+        <fieldset
+          disabled={readOnly}
+          className="flex min-w-0 flex-1 flex-col gap-2 overflow-y-auto px-4 pb-4"
+        >
           {rows.length === 0 ? (
             <p className="text-half text-mut">
-              Nothing declared yet. Declare one here, or make one out of a value a recording
-              captured, from the value field on its card.
+              {readOnly
+                ? "This Version declares no Variables."
+                : "Nothing declared yet. Declare one here, or make one out of a value a recording captured, from the value field on its card."}
             </p>
           ) : (
             rows.map((row) => (
@@ -96,11 +107,13 @@ export function VariablesDrawer({
               />
             ))
           )}
-        </div>
+        </fieldset>
 
-        <SheetFooter className="border-t border-line">
-          <DeclareForm document={document} onChange={onChange} />
-        </SheetFooter>
+        {readOnly ? null : (
+          <SheetFooter className="border-t border-line">
+            <DeclareForm document={document} onChange={onChange} />
+          </SheetFooter>
+        )}
       </SheetContent>
     </Sheet>
   );
