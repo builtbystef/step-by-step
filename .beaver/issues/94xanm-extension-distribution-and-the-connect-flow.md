@@ -1,15 +1,13 @@
 ---
 id: 94xanm
 title: Extension distribution and the connect flow
-state: in-progress
+state: done
 priority: medium
-labels:
-    - needs-review
 depends_on:
     - lac27w
 parent: d8ux2s
 created: 2026-08-14T06:02:27Z
-updated: 2026-08-19T05:11:31Z
+updated: 2026-08-19T05:12:38Z
 ---
 
 ## What to build
