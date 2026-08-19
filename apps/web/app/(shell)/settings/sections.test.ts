@@ -1,0 +1,89 @@
+import type { Account, Role } from "@step-by-step/api-client";
+import { describe, expect, it } from "vitest";
+
+import { SETTINGS_GROUPS, settingsNav } from "./sections";
+
+import { ACCOUNT_PATH, resolveGate } from "../../../lib/gate";
+
+/**
+ * Settings' section nav: what each role is offered, and the one section a
+ * member is not. Read back directly, because it is a permission table.
+ */
+
+const SIGNED_IN: Account = {
+  id: "3f0d7c1e-0000-4000-8000-000000000001",
+  email: "ada@example.com",
+  display_name: "Ada",
+  orgs: [{ id: "3f0d7c1e-0000-4000-8000-000000000002", name: "Acme", role: "member" }],
+  invitations: [],
+};
+
+const ROLES: Role[] = ["owner", "admin", "member"];
+
+/** Every section a role is offered, in the order the nav renders them. */
+function paths(role: Role): string[] {
+  return settingsNav(role).flatMap((group) => group.sections.map((section) => section.path));
+}
+
+describe("the section nav", () => {
+  it("opens with Account, groups the Organization's three, and ends with the vault and the extension", () => {
+    expect(settingsNav("owner")).toEqual([
+      { label: null, sections: [{ label: "Account", path: "/settings/account" }] },
+      {
+        label: "Organization",
+        sections: [
+          { label: "General", path: "/settings/organization" },
+          { label: "Members", path: "/settings/organization/members" },
+          { label: "Invitations", path: "/settings/organization/invitations" },
+        ],
+      },
+      {
+        label: null,
+        sections: [
+          { label: "Secrets", path: "/settings/secrets" },
+          { label: "Saved logins", path: "/settings/logins" },
+          { label: "Browser extension", path: "/settings/extension" },
+        ],
+      },
+    ]);
+  });
+
+  it("shows Members to every role — who is in a team is not a secret from it", () => {
+    for (const role of ROLES) {
+      expect(paths(role)).toContain("/settings/organization/members");
+    }
+  });
+
+  it("shows Invitations to an owner and an admin, and not to a member", () => {
+    expect(paths("owner")).toContain("/settings/organization/invitations");
+    expect(paths("admin")).toContain("/settings/organization/invitations");
+    expect(paths("member")).not.toContain("/settings/organization/invitations");
+  });
+
+  it("offers a member every other section, so hiding one hides only the one", () => {
+    const everything = SETTINGS_GROUPS.flatMap((group) =>
+      group.sections.map((section) => section.path),
+    );
+
+    expect(paths("member")).toEqual(
+      everything.filter((path) => path !== "/settings/organization/invitations"),
+    );
+  });
+
+  it("never offers a section the gate would turn away, and turns away the one it hides", () => {
+    for (const role of ROLES) {
+      for (const path of paths(role)) {
+        expect(resolveGate(SIGNED_IN, role, path)).toEqual({ kind: "render" });
+      }
+    }
+
+    expect(resolveGate(SIGNED_IN, "member", "/settings/organization/invitations")).toEqual({
+      kind: "redirect",
+      to: ACCOUNT_PATH,
+    });
+  });
+
+  it("falls back to a member's nav when no Organization is active to have a role in", () => {
+    expect(settingsNav(null)).toEqual(settingsNav("member"));
+  });
+});

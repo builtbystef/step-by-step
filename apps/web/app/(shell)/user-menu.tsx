@@ -1,0 +1,100 @@
+"use client";
+
+import type { Account, OrganizationMembership } from "@step-by-step/api-client";
+import { useQueryClient } from "@tanstack/react-query";
+import { ChevronsUpDown } from "lucide-react";
+import { useRouter } from "next/navigation";
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { chooseOrganization, offersASwitcher } from "@/lib/active-org";
+import { signOutAndLeave } from "@/lib/identity";
+
+/**
+ * The sidebar footer's menu: who you are, which Organization you are acting
+ * in, and the way out.
+ *
+ * The switcher lives here rather than beside the work because the answer it
+ * gives is "where am I", which is the same question the name and the address
+ * above it answer. Sign out lives here too, and not in Settings: leaving is
+ * not a setting.
+ */
+export function UserMenu({ me, active }: { me: Account; active: OrganizationMembership | null }) {
+  const router = useRouter();
+  const cache = useQueryClient();
+  const name = me.display_name ?? me.email;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-md p-2 text-left outline-hidden hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-1!">
+        <span
+          aria-hidden
+          className="flex size-6 shrink-0 items-center justify-center rounded-md bg-accent-bg text-micro font-semibold text-accent uppercase"
+        >
+          {name.slice(0, 1)}
+        </span>
+        <span className="flex min-w-0 flex-col group-data-[collapsible=icon]:hidden">
+          <span className="truncate text-half font-semibold text-ink">{name}</span>
+          <span className="truncate text-micro text-mut">{active?.name ?? me.email}</span>
+        </span>
+        <ChevronsUpDown className="ml-auto size-4 shrink-0 text-mut group-data-[collapsible=icon]:hidden" />
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent side="top" align="start" className="w-60">
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="flex flex-col">
+            <span className="text-half text-ink">{name}</span>
+            <span className="text-micro text-mut">{me.email}</span>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+
+        {offersASwitcher(me) ? (
+          <DropdownMenuRadioGroup
+            value={active?.id ?? ""}
+            onValueChange={(chosen) => {
+              // Everything in the cache was read as somebody acting in the
+              // Organization being left, so none of it survives the switch:
+              // the lists refetch under the new header rather than showing the
+              // old Organization's rows until something happens to invalidate
+              // them.
+              chooseOrganization(chosen);
+              void cache.invalidateQueries();
+            }}
+          >
+            <DropdownMenuLabel>Organization</DropdownMenuLabel>
+            {me.orgs.map((org) => (
+              <DropdownMenuRadioItem key={org.id} value={org.id}>
+                {org.name}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        ) : (
+          // One Organization is not a choice, and a menu of one would be a
+          // question with a single answer. The name is the whole fact.
+          <p className="px-1.5 py-1 text-half text-ink">{active?.name}</p>
+        )}
+
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onClick={() => {
+            void signOutAndLeave(cache, (to) => {
+              router.replace(to);
+            });
+          }}
+        >
+          Sign out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}

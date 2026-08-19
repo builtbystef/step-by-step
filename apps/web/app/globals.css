@@ -66,6 +66,18 @@
   --border: var(--line);
   --input: var(--line);
   --ring: var(--accent);
+
+  /*
+   * The generated Sidebar reaches for a vocabulary of its own. It is mapped
+   * onto the surfaces above rather than given values: the shell is a panel
+   * beside the work, and its highlight is "interactive", which is the accent.
+   */
+  --sidebar: var(--panel);
+  --sidebar-foreground: var(--ink);
+  --sidebar-accent: var(--accent-bg);
+  --sidebar-accent-foreground: var(--accent);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--accent);
 }
 
 @theme inline {
@@ -103,6 +115,13 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 
   /* shadcn's CardTitle reaches for `font-heading`. There is one typeface. */
   --font-heading: var(--font-sans);

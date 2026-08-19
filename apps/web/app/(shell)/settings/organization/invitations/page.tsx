@@ -1,18 +1,18 @@
 "use client";
 
 import {
-  acceptInvitation,
   createInvitation,
   listInvitations,
   revokeInvitation,
-  type Account,
   type AssignableRole,
   type OrganizationMembership,
 } from "@step-by-step/api-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { manageableOrgs, offerSentence, refusalMessage } from "./messages";
+import { refusalMessage } from "./messages";
+
+import { useActiveOrganization } from "../../../use-active-organization";
 
 import { AttributeBadge } from "@/components/primitives/attribute-badge";
 import { Callout } from "@/components/primitives/callout";
@@ -20,98 +20,35 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { IDENTITY_KEY, identityQuery } from "@/lib/identity";
 
 /**
- * Invitations, both halves: the offers standing for this visitor, and the
- * offers each of their Organizations has out.
+ * Settings → Organization → Invitations: the offers the active Organization
+ * has out, and the two things to do about one.
  *
- * A temporary home. The banner belongs in the shell's chrome and the panel
- * inside Settings → Organization, and the shell slice re-homes both; until it
- * exists there is no chrome to hang them in, and an Organization cannot get
- * its second member without them.
+ * An owner's and an admin's section. A member never reaches it — the nav does
+ * not offer it and the gate sends the address to Account — so nothing here
+ * asks again what role is reading it.
  *
- * A signed-out visitor never sees this screen: `GET /api/auth/me` answers 401
- * and the fetch wrapper's one rule sends them to sign-in, carrying this path.
+ * The offers standing for the person rather than for the team are the shell's:
+ * an Invitation you have been sent finds you wherever you are.
  */
 
-/** One key per Organization, so that inviting refreshes only its own panel. */
+/** One key per Organization, so that inviting refreshes only its own list. */
 function invitationsKey(orgId: string) {
   return ["invitations", orgId] as const;
 }
 
 export default function InvitationsPage() {
-  const identity = useQuery(identityQuery());
-  const me = identity.data ?? null;
+  const { active } = useActiveOrganization();
 
-  return (
-    <main className="mx-auto flex w-full max-w-[720px] flex-col gap-6 px-4 py-12">
-      <h1 className="text-page">Invitations</h1>
-      {me === null ? null : (
-        <>
-          <PendingOffers me={me} />
-          {manageableOrgs(me).map((org) => (
-            <OrganizationPanel key={org.id} org={org} />
-          ))}
-        </>
-      )}
-    </main>
-  );
-}
-
-/**
- * The banner: what a visitor has been offered, and the one action on it.
- *
- * Accepting invalidates the identity rather than patching it, because the
- * answer is 204: what the visitor now belongs to is the backend's to say.
- */
-function PendingOffers({ me }: { me: Account }) {
-  const cache = useQueryClient();
-  const accept = useMutation({
-    mutationFn: async (invitationId: string) => {
-      const { error } = await acceptInvitation({ path: { invitation_id: invitationId } });
-      if (error) throw error;
-    },
-    onSuccess: async () => {
-      await cache.invalidateQueries({ queryKey: IDENTITY_KEY });
-    },
-  });
-
-  if (me.invitations.length === 0) {
+  if (active === null) {
     return null;
   }
 
-  return (
-    <div className="flex flex-col gap-2">
-      {accept.error ? <Callout tone="bad">{refusalMessage(accept.error)}</Callout> : null}
-      {me.invitations.map((offer) => (
-        <Callout
-          key={offer.id}
-          tone="info"
-          size="banner"
-          title="You have been invited"
-          actions={
-            <Button
-              size="sm"
-              className="text-small"
-              disabled={accept.isPending}
-              onClick={() => {
-                accept.mutate(offer.id);
-              }}
-            >
-              Accept
-            </Button>
-          }
-        >
-          {offerSentence(offer)}
-        </Callout>
-      ))}
-    </div>
-  );
+  return <Invitations org={active} />;
 }
 
-/** One Organization's standing offers, with the two actions on them. */
-function OrganizationPanel({ org }: { org: OrganizationMembership }) {
+function Invitations({ org }: { org: OrganizationMembership }) {
   const cache = useQueryClient();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<AssignableRole>("member");
@@ -166,10 +103,10 @@ function OrganizationPanel({ org }: { org: OrganizationMembership }) {
             send.mutate();
           }}
         >
-          <Label htmlFor={`invite-${org.id}`}>Invite by email</Label>
+          <Label htmlFor="invite-email">Invite by email</Label>
           <div className="flex items-end gap-2">
             <Input
-              id={`invite-${org.id}`}
+              id="invite-email"
               type="email"
               value={email}
               autoComplete="off"

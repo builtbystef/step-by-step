@@ -1,7 +1,8 @@
 ---
 id: hat4cf
 title: 'The shell: sidebar, the Organization switcher, gated routes, and Settings'
-state: todo
+state: done
+assignee: claude
 priority: high
 depends_on:
     - shurgk
@@ -11,7 +12,7 @@ depends_on:
     - x06w5q
 parent: pc0t8s
 created: 2026-08-14T05:54:51Z
-updated: 2026-08-15T04:11:51Z
+updated: 2026-08-19T11:24:17Z
 ---
 
 ## What to build
@@ -30,3 +31,25 @@ The frame every signed-in screen renders inside. A persistent 216px left sidebar
 - [ ] Role gating inside Settings: Members is visible to every role; Invitations and the management controls appear only for owners and admins; the owner-only controls (transfer, delete) appear only for the owner — and requesting a section a role cannot use redirects to Account.
 - [ ] A pending-invitation banner surfaces in the shell when the current user has Invitations to accept.
 - [ ] Sign out lives in the sidebar user menu, not in Settings.
+
+## Notes
+
+**claude** — 2026-08-19T11:24:17Z
+
+Built the shell: `app/(shell)/` is the route group every signed-in screen renders inside, and `/signin` stays the one route outside it.
+
+**Seams.** The spec's Testing Decisions name two, and only one of them is this slice's: `resolveGate` and its neighbours — pure functions, no DOM, no rendering stack (the spec refuses to add one for presentational code). So the tests are `lib/active-org.test.ts` (which Organization is active, and the choice that survives a reload), `lib/api.test.ts` (the `X-Organization` header and the `403 not_a_member` rule, at the shared client), `app/(shell)/nav.test.ts` (what the nav offers, and which address lights which item), `app/(shell)/settings/sections.test.ts` (the section nav per role, checked against `resolveGate` so the nav and the guard cannot disagree), and `app/(shell)/messages.test.ts`. No backend change: every route this slice needs already exists.
+
+**What landed.**
+- `shell.tsx` resolves `GET /api/auth/me` once and asks the gate before any child renders. The sidebar is shadcn's `Sidebar` at `collapsible="icon"`, 216px with a 60px rail; `open` follows a `(max-width: 1024px)` media query alone — deliberately no toggle, so the rail is always something the window width explains.
+- `lib/active-org.ts` resolves the active Organization from the identity and the remembered choice (a Membership that ended cannot keep scoping the app) and holds the choice with its watchers. `lib/api.ts` gained two rules beside the 401 one: the header, read per request, and the lapsed-Membership rule, which reads the code from a clone so the screen still gets its refusal.
+- Settings is a section nav beside one panel, and it re-homes the accounts slices' screens: `/account`, `/organization`, and `/invitations` are gone as top-level routes. The Organization sections act on the active Organization instead of iterating every Membership.
+- Slots, not guesses: `slots.tsx` holds the attention band and the Runs count badge (`fkgat7`) and the connection pill (`20k5ft`). Nothing renders "not connected" before something has probed.
+
+**Decisions a reviewer should see.**
+- Transfer ownership moved from the member row to Settings → Organization → General, where the spec puts it, as a picker over the members `memberControls().makeOwner` already says are eligible. Members keeps the role change and the removal.
+- The Account panel gained the display name (`PATCH /api/auth/me`) and kept sign out everywhere and the type-the-email delete. Plain sign out is in the sidebar user menu, not here.
+- `globals.css` maps shadcn's `--sidebar-*` onto the existing palette rather than taking the CLI's values, so there is still one palette. The CLI also wrote `sheet`, `tooltip`, `separator`, `skeleton`, and `hooks/use-mobile.ts`, which `sidebar.tsx` imports.
+- The nav item's tooltip is the browser's own `title` rather than a mounted `Tooltip`: in the rail the label is gone and the name has to come from somewhere that needs nothing around it.
+
+**Verified in a real browser** (Playwright against the production build and a stub API, not committed — the spec refuses DOM tests): the sidebar renders in the specified order at 216px and collapses to exactly 60px at 900px; the switcher lists both Organizations and switching moved `X-Organization` onto the very next call and survived a reload; `/settings` redirected to `/settings/account`; as a member the nav dropped Invitations and asking for that address landed on Account; signed out, `/runs`, `/settings/organization/members`, and `/runs?status=failed` each landed on `/signin?next=…` with no shell drawn; the pending-invitation banner surfaced; no console errors.

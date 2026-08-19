@@ -1,7 +1,11 @@
 import { client, getCurrentAccount, getInstance } from "@step-by-step/api-client";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { installUnauthorizedRedirect } from "./api";
+import {
+  installMembershipLapsed,
+  installOrganizationHeader,
+  installUnauthorizedRedirect,
+} from "./api";
 
 /**
  * The one rule the wrapper owns: a 401 is not an error a screen renders, it is
@@ -94,5 +98,109 @@ describe("the fetch wrapper", () => {
     await getCurrentAccount();
 
     expect(went).toEqual([]);
+  });
+});
+
+/** An instance that answers everything the same way, keeping what it was sent. */
+function recording(status: number, body: unknown = {}): { sent: Request[] } {
+  const sent: Request[] = [];
+  const keeping: typeof fetch = (asked) => {
+    // The client always builds a `Request` before it calls fetch, which is the
+    // only reason a header is observable here at all.
+    if (asked instanceof Request) {
+      sent.push(asked);
+    }
+    return Promise.resolve(
+      new Response(JSON.stringify(body), {
+        status,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+  };
+
+  client.setConfig({ baseUrl: "http://api.test", fetch: keeping });
+  return { sent };
+}
+
+describe("the active Organization's header", () => {
+  it("rides on every call, because that is what scopes them", async () => {
+    const { sent } = recording(200);
+    stop = installOrganizationHeader(() => "org-acme");
+
+    await getCurrentAccount();
+    await getInstance();
+
+    expect(sent.map((request) => request.headers.get("X-Organization"))).toEqual([
+      "org-acme",
+      "org-acme",
+    ]);
+  });
+
+  it("is read at the call rather than captured, so switching takes effect at once", async () => {
+    const { sent } = recording(200);
+    let active = "org-acme";
+    stop = installOrganizationHeader(() => active);
+
+    await getCurrentAccount();
+    active = "org-bolt";
+    await getCurrentAccount();
+
+    expect(sent.map((request) => request.headers.get("X-Organization"))).toEqual([
+      "org-acme",
+      "org-bolt",
+    ]);
+  });
+
+  it("is absent when no Organization is active, rather than empty", async () => {
+    const { sent } = recording(200);
+    stop = installOrganizationHeader(() => null);
+
+    await getCurrentAccount();
+
+    expect(sent[0]?.headers.has("X-Organization")).toBe(false);
+  });
+});
+
+describe("a Membership that ended mid-tab", () => {
+  it("gives up the Organization the call named", async () => {
+    recording(403, { code: "not_a_member", message: "you are not a member" });
+    const lapsed: number[] = [];
+    stop = installMembershipLapsed(() => lapsed.push(1));
+
+    await getCurrentAccount();
+
+    expect(lapsed).toEqual([1]);
+  });
+
+  it("leaves the answer readable, so the screen still reads its refusal", async () => {
+    recording(403, { code: "not_a_member", message: "you are not a member" });
+    stop = installMembershipLapsed(() => undefined);
+
+    const { error } = await getCurrentAccount();
+
+    expect(error).toEqual({ code: "not_a_member", message: "you are not a member" });
+  });
+
+  it("says nothing about a refusal that is about a role rather than a Membership", async () => {
+    recording(403, { code: "not_an_admin", message: "only an owner or an admin may manage this" });
+    const lapsed: number[] = [];
+    stop = installMembershipLapsed(() => lapsed.push(1));
+
+    await getCurrentAccount();
+
+    expect(lapsed).toEqual([]);
+  });
+
+  it("says nothing about a refusal it cannot read", async () => {
+    client.setConfig({
+      baseUrl: "http://api.test",
+      fetch: () => Promise.resolve(new Response("<html>gateway</html>", { status: 403 })),
+    });
+    const lapsed: number[] = [];
+    stop = installMembershipLapsed(() => lapsed.push(1));
+
+    await getCurrentAccount();
+
+    expect(lapsed).toEqual([]);
   });
 });

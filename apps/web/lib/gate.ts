@@ -22,7 +22,7 @@ export const SIGN_IN_PATH = "/signin";
 export const HOME_PATH = "/workflows";
 
 /** The panel any visitor may open, and so the fallback for a refused section. */
-const ACCOUNT_PATH = "/settings/account";
+export const ACCOUNT_PATH = "/settings/account";
 
 /** Owners and admins manage Invitations; a member never sees the section. */
 const INVITATIONS_PATH = "/settings/organization/invitations";
