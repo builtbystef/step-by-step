@@ -58,6 +58,10 @@ class WorkflowSummary(BaseModel):
     draft_state: DraftState
     published_version: int | None = None
     """The newest Version's number, absent while the Workflow is unpublished."""
+    default_step_timeout_ms: int
+    """What a Step with no override of its own waits. The editor draws the
+    fallback under every empty timeout field, and a number it knew by heart
+    would be a second truth the moment a Workflow carried another one."""
 
 
 class WorkflowPage(BaseModel):
@@ -264,6 +268,7 @@ def summary(row: Any) -> WorkflowSummary:
             row.published_version is not None, row.matches_published is True
         ),
         published_version=row.published_version,
+        default_step_timeout_ms=workflow.default_step_timeout_ms,
     )
 
 

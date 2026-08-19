@@ -4351,6 +4351,10 @@
               }
             ],
             "title": "Published Version"
+          },
+          "default_step_timeout_ms": {
+            "type": "integer",
+            "title": "Default Step Timeout Ms"
           }
         },
         "type": "object",
@@ -4359,7 +4363,8 @@
           "name",
           "created_at",
           "last_activity_at",
-          "draft_state"
+          "draft_state",
+          "default_step_timeout_ms"
         ],
         "title": "WorkflowSummary",
         "description": "A Workflow as a list row: everything the row draws, and no document."

@@ -418,3 +418,18 @@ def test_another_organizations_workflow_cannot_be_read(new_account: NewAccount) 
 
     assert refused.status_code == 404, refused.text
     assert refused.json()["code"] == "workflow_not_found"
+
+
+def test_a_workflow_says_what_a_step_timeout_falls_back_to(
+    new_account: NewAccount,
+) -> None:
+    """The editor draws a Step with no override of its own as falling back to
+    the Workflow's default, and the number in that sentence is this row's —
+    never a 30 s the frontend knows by heart."""
+    account = new_account()
+    workflow_id = a_workflow(account)
+
+    read = account.client.get(f"/api/workflows/{workflow_id}")
+
+    assert read.status_code == 200, read.text
+    assert read.json()["default_step_timeout_ms"] == 30_000

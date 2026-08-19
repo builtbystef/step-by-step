@@ -411,3 +411,37 @@ def test_a_signed_out_visitor_reaches_no_workflow(new_account: NewAccount) -> No
 
     assert refused.status_code == 401, refused.text
     assert refused.json()["code"] == "unauthenticated"
+
+
+def test_the_editor_clears_a_field_by_writing_it_as_null(
+    new_account: NewAccount,
+) -> None:
+    """The editor edits the document it read and sends it back whole, so a
+    field a person emptied travels as an explicit null rather than vanishing
+    from the object. It is accepted, and it reads back the way absence always
+    reads back here: absent."""
+    account = new_account()
+    workflow_id = a_workflow(account)
+    step_id = str(uuid4())
+
+    saved = save_draft(
+        account,
+        workflow_id,
+        steps=[
+            {
+                "id": step_id,
+                "type": "pause-for-takeover",
+                "label": "Pause for a person",
+                "optional": False,
+                "disabled": False,
+                "timeoutMs": None,
+                "payload": {"message": None, "timeoutMs": None, "successCheck": None},
+            }
+        ],
+    )
+
+    assert saved.status_code == 200, saved.text
+    step = saved.json()["steps"][0]
+    assert step["id"] == step_id
+    assert "timeoutMs" not in step
+    assert step["payload"] == {}

@@ -1168,6 +1168,10 @@ export type WorkflowSummary = {
      * Published Version
      */
     published_version?: number | null;
+    /**
+     * Default Step Timeout Ms
+     */
+    default_step_timeout_ms: number;
 };
 
 export type GetInstanceData = {
