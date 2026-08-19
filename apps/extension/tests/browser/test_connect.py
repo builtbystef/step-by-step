@@ -168,6 +168,8 @@ def test_connecting_from_the_popup_ends_with_the_instance_stored(
     # The popup was open while it happened, and says so without being reopened.
     popup.wait_for_selector("#connected:not([hidden])")
     assert fixture_site in text_of(popup, "#connected")
+    # And says only that: `hidden` has to reach the screen, not just the markup.
+    popup.wait_for_selector("#connect", state="hidden")
 
     disconnect(popup, page)
 
@@ -200,6 +202,98 @@ def test_a_connect_code_is_the_way_in_when_the_page_never_hands_it_over(
     disconnect(popup)
 
 
+def test_an_announced_connect_is_finished_exactly_once(
+    connected_browser: BrowserContext, fixture_site: str
+) -> None:
+    """One grant, two arrivals, one tab.
+
+    Chrome's permission dialog usually closes the popup that opened it, so the
+    grant finishes the connect on its own — and when the popup does survive,
+    both of them ask. Only the first may act: a second connect page, or a
+    one-time code spent twice, is what getting this wrong looks like.
+    """
+    worker = worker_of(connected_browser)
+    popup = open_popup(connected_browser, worker)
+    before = len(connected_browser.pages)
+
+    popup.evaluate(
+        """(origin) => chrome.runtime.sendMessage(
+            {type: 'about-to-connect', origin, how: 'page'})""",
+        fixture_site,
+    )
+    with connected_browser.expect_page() as opened:
+        answers = popup.evaluate(
+            """() => Promise.all([
+                chrome.runtime.sendMessage({type: 'finish-connect'}),
+                chrome.runtime.sendMessage({type: 'finish-connect'}),
+            ])"""
+        )
+    page = opened.value
+
+    # The second arrival joined the first rather than starting its own.
+    assert answers[0] == {"opened": True}
+    assert answers[1] in ({"opened": True}, {"late": True})
+    page.wait_for_function("window.connectedVersion !== undefined", timeout=10_000)
+    assert len(connected_browser.pages) == before + 1
+
+    disconnect(popup, page)
+
+
+def test_a_refused_permission_is_said_by_the_next_popup_to_open(
+    connected_browser: BrowserContext, fixture_site: str
+) -> None:
+    """Chrome fires nothing at all when a grant is declined, and its dialog has
+    usually closed the popup that asked by then. The announcement left
+    unanswered is what the next popup to open reads the refusal from."""
+    worker = worker_of(connected_browser)
+    popup = open_popup(connected_browser, worker)
+    popup.evaluate(
+        """(origin) => chrome.runtime.sendMessage(
+            {type: 'about-to-connect', origin, how: 'page'})""",
+        fixture_site,
+    )
+    popup.close()
+
+    reopened = open_popup(connected_browser, worker)
+    reopened.wait_for_selector("#code-fallback[open]")
+    assert "choose Allow" in text_of(reopened, "#note")
+
+    # And a popup that outlived the dialog answers it, so it is said once.
+    reopened.evaluate("() => chrome.runtime.sendMessage({type: 'declined'})")
+    reopened.close()
+    again = open_popup(connected_browser, worker)
+    assert text_of(again, "#note") == ""
+    assert again.get_attribute("#code-fallback", "open") is None
+    again.close()
+
+
+def test_the_typed_address_outlives_the_popup(
+    connected_browser: BrowserContext, fixture_site: str
+) -> None:
+    """Chrome closes a popup whenever it loses focus, and a connect code has to
+    be fetched from the app — so an address that did not survive that would be
+    typed once for every attempt."""
+    worker = worker_of(connected_browser)
+    popup = open_popup(connected_browser, worker)
+
+    popup.fill("#address", fixture_site)
+    popup.wait_for_function(
+        """async (want) => {
+            const state = await chrome.runtime.sendMessage({type: 'connection'});
+            return state.address === want;
+        }""",
+        arg=fixture_site,
+    )
+    popup.close()
+
+    reopened = open_popup(connected_browser, worker)
+    reopened.wait_for_function(
+        "(want) => document.querySelector('#address').value === want",
+        arg=fixture_site,
+    )
+    reopened.close()
+
+
 def text_of(page: Page, selector: str) -> str:
     """What an element says, once something has waited for it to say anything."""
     found = page.text_content(selector)
@@ -220,6 +314,7 @@ def disconnect(popup: Page, *also: Page) -> None:
     if popup.is_visible("#disconnect"):
         popup.click("#disconnect")
         popup.wait_for_selector("#connect:not([hidden])")
+        popup.wait_for_selector("#connected", state="hidden")
     popup.close()
     for page in also:
         page.close()

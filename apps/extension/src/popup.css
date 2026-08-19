@@ -30,6 +30,16 @@ h1 {
   font-size: 1rem;
 }
 
+/*
+ * `hidden` is how this popup switches between its two panels, and it has to be
+ * said here to mean anything: an author rule beats the browser's own
+ * `[hidden]` whatever its specificity, and the sections below are laid out as
+ * flex — which would leave both of them on screen at once.
+ */
+[hidden] {
+  display: none !important;
+}
+
 section {
   display: flex;
   flex-direction: column;

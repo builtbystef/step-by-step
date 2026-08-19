@@ -9,7 +9,7 @@ depends_on:
     - lac27w
 parent: d8ux2s
 created: 2026-08-14T06:02:27Z
-updated: 2026-08-19T02:47:53Z
+updated: 2026-08-19T05:11:31Z
 ---
 
 ## What to build
@@ -64,3 +64,21 @@ Verified by hand beyond the suite, against a real headless Chromium and the real
 4. Disconnect in the popup: the instance is forgotten and Chrome's site access is handed back (chrome://extensions shows the site permission gone).
 
 Close this issue to approve. If something in that pass is wrong, note the requested changes and remove `needs-review`.
+
+**claude** — 2026-08-19T05:11:31Z
+
+The attended pass found four defects, all in the popup and all invisible to the suite. Fixed, and each now has a test that fails without the fix.
+
+**Chrome's dialog closes the popup that opened it.** A permission prompt is a window of its own and takes focus; a popup that loses focus is destroyed. So the `.then(granted => …)` that was to open the connect page died with the popup and, on the user's desktop, nothing happened after Allow. The click now tells the worker what it is about to do *before* it asks, and `chrome.permissions.onAdded` finishes the connect — the grant is the trigger, not the popup. When the popup does survive it asks too, and both arrivals join one in-flight promise, so one grant opens one tab and spends one code. That last part is testable and is `test_an_announced_connect_is_finished_exactly_once`.
+
+**Chrome fires nothing when a grant is declined.** There is an event for the grant and none for the refusal, and the popup that would have said so is already gone — so criterion 4's "the popup says the permission is required and opens the code section" never reached the user. The announcement is the signal: only a connect that completes consumes one, so an announcement still sitting there when a popup opens is a connect that never got its grant. The popup reads it on open and says so; a popup that outlived the dialog answers the announcement itself, so it is said once rather than on every open until it expires.
+
+**`hidden` never reached the screen.** `popup.css` styled `section { display: flex }`, and an author rule beats the browser's own `[hidden] { display: none }` whatever the specificity — cascade origin is decided first. Both panels were therefore always on screen: Disconnect cleared everything correctly and left "Connected to …" sitting above the address form, which is what made three working fixes look broken. The suite missed it because every assertion was on the `hidden` *attribute*, which the JS was setting faithfully; the waits now assert visibility, and fail on the old CSS with "locator resolved to visible <section hidden>".
+
+**Removing a host permission restarts the worker**, so `disconnect`'s reply was lost in flight and the popup was never told. The worker now clears what it holds, replies, and hands the access back after; the popup flips on the click rather than waiting. A `false` from `permissions.remove` is logged instead of swallowed.
+
+One addition beyond the criteria, folded in on the reviewer's call rather than filed: the popup remembers the typed address, in `storage.session`. Chrome closes the popup on any focus loss and a connect code has to be fetched from the app — so the code path made you copy the address and the code, and retype the address for every attempt. Kept for as long as the browser runs and no longer: it is what somebody is in the middle of, not something the extension knows.
+
+Attended pass, real Chrome, unpacked build, all five steps confirmed by the user: Allow opens the connect page and connects; Block says the permission is required and opens the code section; the code connects without a tab; the same code a second time is refused as spent; Disconnect swaps the panel and leaves `chrome.permissions.getAll()` with no origins. `pnpm check`, `pnpm test`, and the browser tier (9 tests) pass.
+
+Close this issue to approve.

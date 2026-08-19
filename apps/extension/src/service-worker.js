@@ -10,8 +10,11 @@
  *
  * The connect flow, once per instance:
  *
- *   the popup asks Chrome for the origin the user typed, from their click
- *   -> this worker opens the app's connect page there and injects the bridge
+ *   the popup says what it is about to do, then asks Chrome for the origin
+ *   -> the grant arrives here, and the popup usually does not: Chrome's dialog
+ *      takes focus, and a popup that loses focus is closed
+ *   -> so this worker finishes what was announced, whoever is left to tell it:
+ *      it opens the app's connect page and injects the bridge
  *   -> the page hands over the nonce this worker minted for the attempt
  *   -> the origin is remembered as connected
  *
@@ -39,6 +42,20 @@ const CONNECTION_KEY = "connection";
 /** The connect attempt in flight, in `storage.session`: it must not. */
 const ATTEMPT_KEY = "connect-attempt";
 
+/** What the popup was about to do when it asked Chrome, also in the session. */
+const INTENT_KEY = "connect-intent";
+
+/**
+ * The address last typed in the popup, in the session too.
+ *
+ * Chrome closes a popup the moment it loses focus, and a connect code has to be
+ * fetched from the app — so the popup that comes back is a new one every time,
+ * and without this the address would be typed once for every attempt. It is
+ * kept for as long as the browser runs and no longer: it is what somebody is in
+ * the middle of, not something this extension knows.
+ */
+const ADDRESS_KEY = "typed-address";
+
 /** The app's page that hands over the handshake. */
 const CONNECT_PATH = "/connect";
 
@@ -52,6 +69,15 @@ const CONNECT_ENDPOINT = "/api/extension/connect";
  * tab left open for an afternoon is not still a handshake waiting to be made.
  */
 const ATTEMPT_LIFETIME_MS = 5 * 60 * 1000;
+
+/**
+ * How long an announced connect waits for Chrome's dialog to be answered.
+ *
+ * The dialog is a decision a person makes, so it is generous; and it is not
+ * indefinite, so a dialog dismissed and forgotten does not turn a site access
+ * granted by hand an hour later into a tab nobody asked for.
+ */
+const INTENT_LIFETIME_MS = 2 * 60 * 1000;
 
 /** The longest connect code this worker will carry to an instance. */
 const CODE_LENGTH_LIMIT = 64;
@@ -82,6 +108,14 @@ chrome.tabs.onUpdated.addListener((tabId, change) => {
   }
 });
 
+// The grant is a trigger of its own, and usually the only one left. Chrome's
+// permission dialog is a window that takes focus, and a popup that loses focus
+// is closed — so on most desktops the popup that asked is already gone by the
+// time the answer arrives, taking with it the code that would have acted on it.
+chrome.permissions.onAdded.addListener((granted) => {
+  void finishConnect(granted.origins ?? []);
+});
+
 /**
  * What was said, and then whether the sayer may say it.
  *
@@ -100,11 +134,20 @@ async function answer(message, sender) {
   }
   switch (message?.type) {
     case "connection":
-      return { connection: await connection(), version: VERSION };
-    case "connect-through-the-page":
-      return openTheConnectPage(message.origin);
-    case "connect-with-code":
-      return spendConnectCode(message.origin, message.code);
+      return {
+        connection: await connection(),
+        version: VERSION,
+        unanswered: await unanswered(),
+        address: await typedAddress(),
+      };
+    case "about-to-connect":
+      return announce(message);
+    case "finish-connect":
+      return finishConnect(null);
+    case "declined":
+      return forget();
+    case "remember-address":
+      return rememberAddress(message.address);
     case "disconnect":
       return disconnect();
     default:
@@ -133,6 +176,121 @@ async function acceptHandshake(message, sender) {
   await remember(verdict.origin);
   await chrome.storage.session.remove(ATTEMPT_KEY);
   return { accepted: true, version: VERSION };
+}
+
+/**
+ * What the popup is about to ask Chrome for, and what it means to do after.
+ *
+ * The popup says this before it asks, because after it asks it may not be
+ * there to say anything: `chrome.permissions.request` opens a window of
+ * Chrome's own, and the popup that opened it is closed when focus leaves. So
+ * the intention is written down while there is still somewhere to write it
+ * from, and finishing is left to whoever is still alive.
+ */
+async function announce(message) {
+  await chrome.storage.session.set({
+    [INTENT_KEY]: {
+      origin: message.origin,
+      how: message.how === "code" ? "code" : "page",
+      code: typeof message.code === "string" ? message.code : "",
+      announcedAt: Date.now(),
+    },
+  });
+  return { announced: true };
+}
+
+/**
+ * Do the announced connect, exactly once.
+ *
+ * Two arrivals follow one grant — the grant itself, and the popup that asked
+ * for it, if the dialog left it standing. Whichever gets here first takes the
+ * announcement and does the work; the other joins the same promise, and so
+ * reads the same answer, rather than opening a second tab or spending a
+ * one-time code twice.
+ *
+ * `origins` is what the grant carried, or `null` from the popup, which has no
+ * need to match itself against what it just asked for.
+ */
+function finishConnect(origins) {
+  finishing ??= take(origins).then(perform);
+  const joined = finishing;
+  void joined
+    .catch(() => {})
+    .finally(() => {
+      if (finishing === joined) {
+        finishing = null;
+      }
+    });
+  return joined;
+}
+
+/** The connect in flight, so both arrivals share one of them. */
+let finishing = null;
+
+/** The announcement, if it is still good and this grant is the one it wanted. */
+/**
+ * Whether an announced connect is still sitting there unanswered.
+ *
+ * Chrome says nothing at all when a permission is declined — there is an event
+ * for the grant and none for the refusal — and the popup that would have said
+ * so is usually already closed by the dialog. What is left is the announcement
+ * itself: only a connect that went through takes one, so one still here when a
+ * popup opens is a connect that never got its grant.
+ */
+async function unanswered() {
+  const stored = await chrome.storage.session.get(INTENT_KEY);
+  const announced = stored[INTENT_KEY] ?? null;
+  return announced !== null && Date.now() - announced.announcedAt <= INTENT_LIFETIME_MS;
+}
+
+/** Hold what is being typed, so the next popup opens where this one left off. */
+async function rememberAddress(address) {
+  await chrome.storage.session.set({
+    [ADDRESS_KEY]: typeof address === "string" ? address : "",
+  });
+  return { remembered: true };
+}
+
+async function typedAddress() {
+  const stored = await chrome.storage.session.get(ADDRESS_KEY);
+  return stored[ADDRESS_KEY] ?? "";
+}
+
+/** Drop the announcement: a popup that outlived the dialog saw the refusal. */
+async function forget() {
+  await chrome.storage.session.remove(INTENT_KEY);
+  return { forgotten: true };
+}
+
+async function take(origins) {
+  const stored = await chrome.storage.session.get(INTENT_KEY);
+  const announced = stored[INTENT_KEY] ?? null;
+  if (announced === null) {
+    return null;
+  }
+  if (Date.now() - announced.announcedAt > INTENT_LIFETIME_MS) {
+    await chrome.storage.session.remove(INTENT_KEY);
+    return null;
+  }
+  // A grant for some other origin is somebody else's business, and leaves the
+  // announcement where it is.
+  if (origins !== null && !origins.includes(originPattern(announced.origin))) {
+    return null;
+  }
+  await chrome.storage.session.remove(INTENT_KEY);
+  return announced;
+}
+
+/** Either way in, once the origin is granted. */
+async function perform(announced) {
+  if (announced === null) {
+    // The other arrival got here first and is already done. Whatever it did is
+    // in storage, which is where the popup reads its state from anyway.
+    return { late: true };
+  }
+  return announced.how === "code"
+    ? spendConnectCode(announced.origin, announced.code)
+    : openTheConnectPage(announced.origin);
 }
 
 /** Open the app's connect page for a fresh attempt, and wait to be told. */
@@ -202,23 +360,41 @@ async function spendConnectCode(origin, code) {
 /**
  * Give up the instance, and the access to it along with the instance.
  *
- * Handing the permission back is the part that can fail — a build installed by
- * policy holds its origins as required permissions, and Chrome refuses to drop
- * one. The disconnection stands either way: what the extension will do is
- * decided by what it has stored, not by what it is still allowed to reach.
+ * What is stored is dropped first and awaited; the access is handed back after,
+ * and deliberately not awaited. Losing a host permission restarts this worker,
+ * and a worker that goes down mid-message takes the answer with it — the popup
+ * would be left showing a connection that no longer exists. So the answer goes
+ * out first, and the disconnection stands on the storage either way: what the
+ * extension will do is decided by what it has, not by what it may still reach.
  */
 async function disconnect() {
   const held = await connection();
   await chrome.storage.local.remove(CONNECTION_KEY);
   await chrome.storage.session.remove(ATTEMPT_KEY);
+  await chrome.storage.session.remove(INTENT_KEY);
   if (held !== null) {
-    try {
-      await chrome.permissions.remove({ origins: [originPattern(held.origin)] });
-    } catch (kept) {
-      console.warn("step-by-step: the site access could not be given back", kept);
-    }
+    void giveTheAccessBack(held.origin);
   }
   return { connection: null, version: VERSION };
+}
+
+/**
+ * Hand an origin back to Chrome, and say so when Chrome will not take it.
+ *
+ * A build installed by policy holds its origins as required permissions and
+ * Chrome throws rather than drop one; a pattern it never granted is refused
+ * more quietly, with a `false`. Neither undoes the disconnection, and both are
+ * worth finding in the log rather than in a permission nobody meant to keep.
+ */
+async function giveTheAccessBack(origin) {
+  const pattern = originPattern(origin);
+  try {
+    if (!(await chrome.permissions.remove({ origins: [pattern] }))) {
+      console.warn(`step-by-step: Chrome kept the site access for ${pattern}`);
+    }
+  } catch (kept) {
+    console.warn("step-by-step: the site access could not be given back", kept);
+  }
 }
 
 /** Inject now if the tab finished loading before the attempt was written. */
