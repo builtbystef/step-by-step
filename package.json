@@ -16,7 +16,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
-    "concurrently": "^10.0.0",
+    "concurrently": "^10.0.5",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:"
