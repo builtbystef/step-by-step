@@ -9,5 +9,5 @@ dependencies = ["playwright>=1.62", "step-by-step-core"]
 step-by-step-core = { workspace = true }
 
 [build-system]
-requires = ["uv_build>=0.12.3,<1"]
+requires = ["uv_build>=0.12.5,<1"]
 build-backend = "uv_build"
