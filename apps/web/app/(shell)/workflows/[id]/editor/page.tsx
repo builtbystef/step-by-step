@@ -28,12 +28,14 @@ import { workflowsKey } from "../../queries";
 
 import { useActiveOrganization } from "../../../use-active-organization";
 
+import { InstallAndConnect } from "@/components/extension/install-and-connect";
 import { Callout } from "@/components/primitives/callout";
 import { CountBadge } from "@/components/primitives/count-badge";
 import { EmptyState } from "@/components/primitives/empty-state";
 import { StickyActionFooter } from "@/components/primitives/sticky-action-footer";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useExtensionConnection } from "@/lib/extension-connection-context";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -78,6 +80,7 @@ export default function EditorTab() {
 }
 
 function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string }) {
+  const connection = useExtensionConnection();
   const cache = useQueryClient();
   const router = useRouter();
   const viewing = viewedVersion(useSearchParams().get("version"));
@@ -274,13 +277,24 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
 
       {steps.length === 0 ? (
         <EmptyState
-          absence={readOnly ? `v${String(viewing)} has no steps` : "This Workflow has no steps yet"}
+          absence={readOnly ? `v${String(viewing)} has no steps` : "Record your first steps"}
           whatFillsIt={
             readOnly
               ? "It was published from a Draft that had none."
               : "Record what you do in your own browser, or add a step here by hand."
           }
-          action={readOnly ? undefined : addMenu}
+          action={
+            readOnly ? undefined : (
+              <div className="flex max-w-xl flex-col gap-3">
+                {connection.state === "connected" ? (
+                  <Button>Start recording</Button>
+                ) : (
+                  <InstallAndConnect compact />
+                )}
+                {addMenu}
+              </div>
+            )
+          }
         />
       ) : (
         <>

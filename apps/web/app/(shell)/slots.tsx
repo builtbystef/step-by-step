@@ -1,4 +1,10 @@
+"use client";
+
+import Link from "next/link";
+
+import { ConnectionPill } from "@/components/primitives/connection-pill";
 import { CountBadge } from "@/components/primitives/count-badge";
+import { useExtensionConnection } from "@/lib/extension-connection-context";
 
 /**
  * The three places in the shell that a later slice fills.
@@ -41,5 +47,12 @@ export function RunsCountSlot() {
  * not a default, so nothing is shown until something has actually probed.
  */
 export function ConnectionPillSlot() {
-  return null;
+  const connection = useExtensionConnection();
+  if (connection.state === null) return null;
+
+  return (
+    <Link href="/settings/extension" title="Browser extension">
+      <ConnectionPill state={connection.state} version={connection.version ?? undefined} />
+    </Link>
+  );
 }

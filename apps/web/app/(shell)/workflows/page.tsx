@@ -14,6 +14,7 @@ import { useState } from "react";
 
 import type { WorkflowAction } from "./actions";
 import { DeleteDialog } from "./delete-dialog";
+import { FirstRunPanel } from "./first-run-panel";
 import { SORT_OPTIONS, offersSearchAndSort } from "./list";
 import { refusalMessage } from "./messages";
 import { NameDialog } from "./name-dialog";
@@ -25,7 +26,6 @@ import { EDITOR, tabPath } from "./[id]/tabs";
 import { useActiveOrganization } from "../use-active-organization";
 
 import { Callout } from "@/components/primitives/callout";
-import { EmptyState } from "@/components/primitives/empty-state";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -183,18 +183,10 @@ function Workflows({ orgId }: { orgId: string }) {
             <p className="text-half text-mut">No Workflow matches “{q}”.</p>
           </Card>
         ) : list.isPending ? null : (
-          <EmptyState
-            absence="Nothing is automated yet"
-            whatFillsIt="A Workflow is a sequence of steps you record once and run whenever you like."
-            action={
-              <Button
-                onClick={() => {
-                  setDialog({ kind: "new" });
-                }}
-              >
-                New workflow
-              </Button>
-            }
+          <FirstRunPanel
+            onCreate={() => {
+              setDialog({ kind: "new" });
+            }}
           />
         )
       ) : (

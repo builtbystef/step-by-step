@@ -20,6 +20,9 @@ export const CHANNEL = "step-by-step";
 /** The app's connect page proving it is the instance the user asked for. */
 export const HANDSHAKE = "connect-handshake";
 
+/** The connected page asking the extension to announce itself and its version. */
+export const PROBE = "connection-probe";
+
 /** The extension telling a page it is there, so the page may hand the handshake over. */
 export const READY = "extension-ready";
 

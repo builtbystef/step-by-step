@@ -19,6 +19,9 @@ export const EXTENSION_CHANNEL = "step-by-step";
 /** The app proving to the extension that this is the instance it asked for. */
 export const HANDSHAKE = "connect-handshake";
 
+/** The page asking the connected extension to announce itself. */
+export const EXTENSION_PROBE = "connection-probe";
+
 /** The extension's bridge saying it is in the page and listening. */
 export const EXTENSION_READY = "extension-ready";
 

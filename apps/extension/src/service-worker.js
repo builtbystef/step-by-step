@@ -28,6 +28,7 @@ import {
   ACCEPTED,
   CHANNEL,
   HANDSHAKE,
+  PROBE,
   READY,
   isProtocolMessage,
   judgeHandshake,
@@ -87,6 +88,7 @@ const VERSION = chrome.runtime.getManifest().version;
 const BRIDGE_PROTOCOL = {
   channel: CHANNEL,
   handshake: HANDSHAKE,
+  probe: PROBE,
   ready: READY,
   accepted: ACCEPTED,
   version: VERSION,
@@ -105,6 +107,7 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
 chrome.tabs.onUpdated.addListener((tabId, change) => {
   if (change.status === "complete") {
     void injectIntoTheConnectPage(tabId);
+    void injectIntoConnectedPage(tabId);
   }
 });
 
@@ -127,7 +130,7 @@ chrome.permissions.onAdded.addListener((granted) => {
  */
 async function answer(message, sender) {
   if (isProtocolMessage(message)) {
-    return acceptHandshake(message, sender);
+    return message.type === PROBE ? answerProbe(message, sender) : acceptHandshake(message, sender);
   }
   if (!fromOurOwnSurfaces(sender)) {
     return { ignored: true };
@@ -153,6 +156,19 @@ async function answer(message, sender) {
     default:
       return { ignored: true };
   }
+}
+
+/** Announce only to the connected instance, even if an old injected bridge remains. */
+async function answerProbe(message, sender) {
+  const held = await connection();
+  const origin = typeof message.instanceOrigin === "string" ? message.instanceOrigin : null;
+  const connected =
+    held !== null &&
+    sender.id === chrome.runtime.id &&
+    sender.frameId === 0 &&
+    sender.origin === held.origin &&
+    origin === held.origin;
+  return connected ? { connected: true, version: VERSION } : { connected: false };
 }
 
 /**
@@ -431,6 +447,35 @@ async function remember(origin) {
   await chrome.storage.local.set({
     [CONNECTION_KEY]: { origin, connectedAt: new Date().toISOString() },
   });
+  await injectIntoConnectedTabs(origin);
+}
+
+/** Put the version-announcing bridge into every already-open page of this instance. */
+async function injectIntoConnectedTabs(origin) {
+  const tabs = await chrome.tabs.query({ url: originPattern(origin) });
+  await Promise.all(tabs.map((tab) => injectBridge(tab.id)));
+}
+
+/** Put the bridge into a newly loaded page only when it belongs to this instance. */
+async function injectIntoConnectedPage(tabId) {
+  const held = await connection();
+  if (held === null) return;
+  const tab = await chrome.tabs.get(tabId);
+  if (typeof tab.url !== "string" || new URL(tab.url).origin !== held.origin) return;
+  await injectBridge(tabId);
+}
+
+async function injectBridge(tabId) {
+  if (typeof tabId !== "number") return;
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      func: pageBridge,
+      args: [BRIDGE_PROTOCOL],
+    });
+  } catch (refused) {
+    console.warn("step-by-step: a connected page could not be reached", refused);
+  }
 }
 
 /** The attempt in flight, or `null` — an expired one is not one. */

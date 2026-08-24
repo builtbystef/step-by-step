@@ -33,7 +33,27 @@ export function pageBridge(protocol) {
     if (typeof message !== "object" || message === null) {
       return;
     }
-    if (message.channel !== protocol.channel || message.type !== protocol.handshake) {
+    if (message.channel !== protocol.channel) {
+      return;
+    }
+    if (message.type === protocol.probe) {
+      chrome.runtime
+        .sendMessage({ channel: protocol.channel, type: protocol.probe, instanceOrigin: own })
+        .then((reply) => {
+          if (reply && reply.connected === true) {
+            window.postMessage(
+              { channel: protocol.channel, type: protocol.ready, version: reply.version },
+              own,
+            );
+          }
+        })
+        .catch(() => {
+          // A stopped or updating worker is silence, which is exactly what the
+          // page's bounded probe knows how to interpret.
+        });
+      return;
+    }
+    if (message.type !== protocol.handshake) {
       return;
     }
     if (typeof message.nonce !== "string" || message.instanceOrigin !== own) {

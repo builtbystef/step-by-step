@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   CONNECT_ACCEPTED,
   EXTENSION_CHANNEL,
+  EXTENSION_PROBE,
   EXTENSION_READY,
   HANDSHAKE,
   handshakeMessage,
@@ -27,6 +28,7 @@ describe("the protocol's names", () => {
   it.each([
     ["CHANNEL", EXTENSION_CHANNEL],
     ["HANDSHAKE", HANDSHAKE],
+    ["PROBE", EXTENSION_PROBE],
     ["READY", EXTENSION_READY],
     ["ACCEPTED", CONNECT_ACCEPTED],
   ])("is the extension's own %s", (name, value) => {

@@ -9,6 +9,7 @@ import { AttentionSlot } from "./slots";
 import { useActiveOrganization } from "./use-active-organization";
 
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { ExtensionConnectionProvider } from "@/lib/extension-connection-context";
 import { resolveGate } from "@/lib/gate";
 
 /**
@@ -75,13 +76,15 @@ export function Shell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <SidebarProvider open={!rail} style={SIDEBAR_WIDTHS}>
-      <AppSidebar me={me} active={active} here={here} />
-      <SidebarInset className="min-w-0">
-        <PendingInvitations me={me} />
-        <AttentionSlot />
-        <div className="flex min-w-0 flex-col gap-6 px-6 py-8">{children}</div>
-      </SidebarInset>
-    </SidebarProvider>
+    <ExtensionConnectionProvider>
+      <SidebarProvider open={!rail} style={SIDEBAR_WIDTHS}>
+        <AppSidebar me={me} active={active} here={here} />
+        <SidebarInset className="min-w-0">
+          <PendingInvitations me={me} />
+          <AttentionSlot />
+          <div className="flex min-w-0 flex-col gap-6 px-6 py-8">{children}</div>
+        </SidebarInset>
+      </SidebarProvider>
+    </ExtensionConnectionProvider>
   );
 }
