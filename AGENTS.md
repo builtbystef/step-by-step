@@ -19,6 +19,13 @@ Host ports are shifted off the defaults (Postgres 5433, Redis 6380, Garage 3910,
 
 `pnpm test` is the fast tier and stays green with no services and no browser installed.
 
+### Reaching the stack from inside the sandbox
+
+Sandboxed agent sessions (Claude Code, Pi) run in an isolated network namespace: the localhost ports above are unreachable from sandboxed commands, and no config re-opens them. The stack publishes two other doors:
+
+- Postgres and Redis answer on unix sockets under `.dev/run/`: `psql "host=$PWD/.dev/run/pg user=stepbystep dbname=stepbystep"` and `redis-cli -s .dev/run/redis/redis.sock`. The same paths work in connection URLs — `postgresql+psycopg://stepbystep:stepbystep@/stepbystep?host=$PWD/.dev/run/pg` and `unix://$PWD/.dev/run/redis/redis.sock?db=0` — which is how the integration tests run from a sandboxed session.
+- HTTP services (Garage on 3910, the containerised backend on 8001) answer through the sandbox's egress proxy at `http://stack.local:<port>`. `stack.local` is an `/etc/hosts` alias for 127.0.0.1; unlike `localhost` it is not on the sandbox's `NO_PROXY` list, so proxy-honouring clients (curl, httpx, boto3, fetch with proxy support) reach it.
+
 `pnpm check` deliberately runs format + lint + typecheck as one pass. After changing an endpoint, `pnpm build` regenerates the OpenAPI schema and typed client — commit them (CI fails on drift). `pnpm run ci` is check + test + build.
 
 ## Project docs & tracker

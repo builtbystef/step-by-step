@@ -46,6 +46,10 @@ services:
       - "${POSTGRES_PORT:-5433}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      # The unix socket, published into the repository for the sandboxed
+      # coding agents: their sandbox isolates the network namespace, so the
+      # host port above is unreachable from inside it — the socket is not.
+      - ./.dev/run/pg:/var/run/postgresql
     healthcheck:
       test:
         ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-stepbystep} -d ${POSTGRES_DB:-stepbystep}"]
@@ -57,6 +61,12 @@ services:
   redis:
     image: redis:8
     restart: unless-stopped
+    # The unix socket serves the sandboxed coding agents, exactly as the
+    # Postgres socket above does; TCP on 6379 keeps serving everything else.
+    command:
+      ["redis-server", "--unixsocket", "/var/run/redis/redis.sock", "--unixsocketperm", "777"]
+    volumes:
+      - ./.dev/run/redis:/var/run/redis
     ports:
       # 6380 on the host by default, for the same reason Postgres takes 5433:
       # a developer's other project already holds 6379. Override with REDIS_PORT.

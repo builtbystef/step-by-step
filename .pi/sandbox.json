@@ -2,7 +2,10 @@
   "enabled": true,
   "permissionPromptTimeoutSeconds": 30,
   "network": {
-    "allowAllUnixSockets": true
+    "allowAllUnixSockets": true,
+    "allowedDomains": [
+      "stack.local"
+    ]
   },
   "filesystem": {
     "allowRead": [

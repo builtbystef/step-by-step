@@ -22,6 +22,9 @@ coverage/
 secrets.*
 .secrets/
 
+# Dev-stack unix sockets published by compose for the sandboxed agents
+.dev/
+
 # Logs & OS noise
 *.log
 .DS_Store
