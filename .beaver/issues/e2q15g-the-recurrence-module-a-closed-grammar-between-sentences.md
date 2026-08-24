@@ -1,11 +1,12 @@
 ---
 id: e2q15g
 title: 'The recurrence module: a closed grammar between sentences and cron'
-state: todo
+state: done
+assignee: agent
 priority: medium
 parent: nno9gj
 created: 2026-08-14T19:51:01Z
-updated: 2026-08-14T19:51:01Z
+updated: 2026-08-24T07:41:17Z
 ---
 
 ## What to build
@@ -33,3 +34,13 @@ humanize(cron: string): string | null        // null: declines to phrase it
 - [ ] `fromCron("*/7 3-5 * * *")` → `null`: an expression outside the grammar is declined, never approximated.
 - [ ] `humanize("0 9 * * 1-5")` → `"every weekday at 09:00"`; `humanize("*/7 3-5 * * *")` → `null` — the readback is never a lie.
 - [ ] The tests call the module as functions with no DOM and no component rendering (seam 2).
+
+## Notes
+
+**agent** — 2026-08-24T07:37:25Z
+
+Testing at the spec's seam 2: pure recurrence functions in a Vitest module test, with no DOM or component rendering.
+
+**agent** — 2026-08-24T07:41:17Z
+
+Completed the pure frontend recurrence boundary: all six sentence shapes emit canonical five-field cron, canonical grammar expressions parse back without approximation, and recognized expressions receive client-owned readback text. Inputs are range-checked (minutes 0-59, hours 0-23, month days 1-31, weekdays 0-6); non-grammar cron returns null. Seam-2 Vitest coverage proves all acceptance examples and one round-trip per kind. pnpm check and pnpm test pass.
