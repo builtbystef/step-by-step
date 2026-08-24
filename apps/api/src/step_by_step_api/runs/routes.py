@@ -8,7 +8,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Query, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import literal, select, tuple_
+from sqlalchemy import case, func, literal, select, tuple_
 from step_by_step_core.bus import DISPATCH_LIST, get_redis
 
 from step_by_step_api import clock
@@ -17,6 +17,7 @@ from step_by_step_api.db import SessionDep
 from step_by_step_api.errors import ApiError, errors
 from step_by_step_api.runs.models import (
     DEFAULT_RUN_TIMEOUT_MS,
+    NON_TERMINAL,
     FailureReason,
     Run,
     RunControlInterval,
@@ -82,6 +83,20 @@ class RunSummary(BaseModel):
 class RunPage(BaseModel):
     items: list[RunSummary]
     next_cursor: str | None = None
+
+
+class WaitingAttention(BaseModel):
+    run_id: UUID
+    workflow_id: UUID
+    workflow_name: str
+    deadline_at: datetime
+
+
+class Attention(BaseModel):
+    waiting: list[WaitingAttention]
+    waiting_count: int
+    running_count: int
+    queued_count: int
 
 
 class StepResultRecord(BaseModel):
@@ -227,6 +242,65 @@ def list_runs(
     return RunPage(
         items=[run_summary(run) for run in rows[:limit]],
         next_cursor=cursor_for(rows[limit - 1]) if len(rows) > limit else None,
+    )
+
+
+def attention_statement(org_id: UUID):
+    """One index-bounded scan for both the waiting head and all three counts."""
+    waiting = Run.status == RunStatus.WAITING_FOR_HUMAN
+    return (
+        select(
+            Run.id.label("run_id"),
+            Run.workflow_id,
+            Workflow.name.label("workflow_name"),
+            Run.status,
+            Run.takeover_deadline_at.label("deadline_at"),
+            func.count().filter(waiting).over().label("waiting_count"),
+            func.count()
+            .filter(Run.status == RunStatus.RUNNING)
+            .over()
+            .label("running_count"),
+            func.count()
+            .filter(Run.status == RunStatus.QUEUED)
+            .over()
+            .label("queued_count"),
+        )
+        .join(Workflow, Workflow.id == Run.workflow_id)
+        .where(Run.org_id == org_id, Run.status.in_(NON_TERMINAL))
+        .order_by(
+            case((waiting, 0), else_=1),
+            Run.takeover_deadline_at.asc().nulls_last(),
+            Run.id,
+        )
+        .limit(5)
+    )
+
+
+@router.get(
+    "/api/attention",
+    operation_id="getAttention",
+    responses=errors(400, 401, 403),
+)
+def get_attention(member: ActiveMembership, db: SessionDep) -> Attention:
+    """The active Organization's non-terminal Run summary for the shell."""
+    rows = db.execute(attention_statement(member.org_id)).all()
+    if not rows:
+        return Attention(waiting=[], waiting_count=0, running_count=0, queued_count=0)
+    first = rows[0]
+    return Attention(
+        waiting=[
+            WaitingAttention(
+                run_id=row.run_id,
+                workflow_id=row.workflow_id,
+                workflow_name=row.workflow_name,
+                deadline_at=row.deadline_at,
+            )
+            for row in rows
+            if row.status is RunStatus.WAITING_FOR_HUMAN and row.deadline_at is not None
+        ],
+        waiting_count=first.waiting_count,
+        running_count=first.running_count,
+        queued_count=first.queued_count,
     )
 
 

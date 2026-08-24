@@ -68,6 +68,28 @@ export type AccountUpdate = {
 export type AssignableRole = 'admin' | 'member';
 
 /**
+ * Attention
+ */
+export type Attention = {
+    /**
+     * Waiting
+     */
+    waiting: Array<WaitingAttention>;
+    /**
+     * Waiting Count
+     */
+    waiting_count: number;
+    /**
+     * Running Count
+     */
+    running_count: number;
+    /**
+     * Queued Count
+     */
+    queued_count: number;
+};
+
+/**
  * AuthStateScope
  */
 export type AuthStateScope = 'organization' | 'personal';
@@ -1507,6 +1529,28 @@ export type WaitStep = {
     } & DurationWaitPayload) | ({
         mode: 'element';
     } & ElementWaitPayload);
+};
+
+/**
+ * WaitingAttention
+ */
+export type WaitingAttention = {
+    /**
+     * Run Id
+     */
+    run_id: string;
+    /**
+     * Workflow Id
+     */
+    workflow_id: string;
+    /**
+     * Workflow Name
+     */
+    workflow_name: string;
+    /**
+     * Deadline At
+     */
+    deadline_at: string;
 };
 
 /**
@@ -3742,6 +3786,49 @@ export type ListRunsResponses = {
 };
 
 export type ListRunsResponse = ListRunsResponses[keyof ListRunsResponses];
+
+export type GetAttentionData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/attention';
+};
+
+export type GetAttentionErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetAttentionError = GetAttentionErrors[keyof GetAttentionErrors];
+
+export type GetAttentionResponses = {
+    /**
+     * Successful Response
+     */
+    200: Attention;
+};
+
+export type GetAttentionResponse = GetAttentionResponses[keyof GetAttentionResponses];
 
 export type GetRunData = {
     body?: never;
