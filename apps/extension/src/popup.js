@@ -53,7 +53,23 @@ const view = {
   fallback: document.querySelector("#code-fallback"),
   note: document.querySelector("#note"),
   version: document.querySelector("#version"),
+  pending: document.querySelector("#recording-pending"),
+  pendingWorkflow: document.querySelector("#pending-workflow"),
+  active: document.querySelector("#recording-active"),
+  activeWorkflow: document.querySelector("#active-workflow"),
+  save: document.querySelector("#recording-save"),
+  saveWorkflow: document.querySelector("#save-workflow"),
+  saveSummary: document.querySelector("#save-summary"),
+  bindings: document.querySelector("#secret-bindings"),
+  secretVariables: document.querySelector("#secret-variables"),
 };
+
+// Read the tab while the popup is opening. The later click must call
+// permissions.request directly from its user gesture, before awaiting anything.
+let targetTab = null;
+void chrome.tabs.query({ active: true, lastFocusedWindow: true }).then(([tab]) => {
+  targetTab = tab ?? null;
+});
 
 document.querySelector("#connect-button").addEventListener("click", () => {
   connect("page");
@@ -61,6 +77,37 @@ document.querySelector("#connect-button").addEventListener("click", () => {
 
 document.querySelector("#code-button").addEventListener("click", () => {
   connect("code");
+});
+
+document.querySelector("#record-button").addEventListener("click", () => {
+  startPendingRecording();
+});
+
+document.querySelector("#stop-button").addEventListener("click", () => {
+  void ask("stop-recording")
+    .then(() => ask("connection"))
+    .then(show);
+});
+
+document.querySelector("#discard-button").addEventListener("click", () => {
+  if (!confirm("Discard this recording? Its captured Steps will be lost.")) return;
+  void ask("discard-recording")
+    .then(() => ask("connection"))
+    .then(show);
+});
+
+document.querySelector("#save-button").addEventListener("click", () => {
+  const bindings = [...view.bindings.querySelectorAll("input[data-step-id]")].map((input) => ({
+    stepId: input.dataset.stepId,
+    name: input.value,
+  }));
+  void ask("finalize-recording", { bindings }).then((answer) => {
+    if (answer.saved === true) {
+      void ask("connection").then(show);
+    } else {
+      say(answer.message ?? REFUSALS[answer.reason] ?? "The recording could not be saved.");
+    }
+  });
 });
 
 document.querySelector("#disconnect").addEventListener("click", () => {
@@ -151,16 +198,72 @@ function landed(answer) {
 
 function show(state) {
   const connected = state.connection !== null && state.connection !== undefined;
-  view.connected.hidden = !connected;
+  const recording = state.recording ?? null;
+  view.connected.hidden = !connected || recording !== null;
   view.connect.hidden = connected;
+  view.pending.hidden = recording?.state !== "pending";
+  view.active.hidden = recording?.state !== "recording";
+  view.save.hidden = recording?.state !== "ended";
+  if (recording?.state === "pending") view.pendingWorkflow.textContent = recording.workflowName;
+  if (recording?.state === "recording") view.activeWorkflow.textContent = recording.workflowName;
+  if (recording?.state === "ended") renderSave(recording);
   view.version.textContent = state.version ?? "";
   if (connected) {
     view.instance.textContent = state.connection.origin;
-    say("");
+    say(recording?.tokenExpired === true ? "Open this Workflow in the app to resume." : "");
     return;
   }
   if (state.unanswered === true) {
     declined();
+  }
+}
+
+function startPendingRecording() {
+  const tab = targetTab;
+  if (typeof tab?.id !== "number" || typeof tab.url !== "string" || !/^https?:/.test(tab.url)) {
+    say("Open the first web page you want to record, then try again.");
+    return;
+  }
+  const origin = new URL(tab.url).origin;
+  const announced = ask("about-to-start-recording", { targetTabId: tab.id, targetUrl: tab.url });
+  chrome.permissions
+    .request({ origins: [originPattern(origin)] })
+    .then(async (granted) => {
+      if (!granted) {
+        say("Nothing was recorded because Chrome did not grant access to this site.");
+        return;
+      }
+      await announced;
+      const answer = await ask("finish-recording-start");
+      if (answer.started !== true && answer.late !== true) {
+        say("That tab could not be recorded. Keep it open and try again.");
+      }
+      show(await ask("connection"));
+    })
+    .catch(() => say(REFUSALS.failed));
+}
+
+function renderSave(recording) {
+  view.saveWorkflow.textContent = recording.workflowName;
+  view.saveSummary.textContent = `${String(recording.steps.length)} Steps captured.`;
+  view.bindings.replaceChildren();
+  view.secretVariables.replaceChildren();
+  for (const variable of recording.variables ?? []) {
+    if (variable.secret !== true) continue;
+    const option = document.createElement("option");
+    option.value = variable.name;
+    view.secretVariables.append(option);
+  }
+  for (const step of recording.steps.filter((candidate) => candidate.needsSecret === true)) {
+    const label = document.createElement("label");
+    label.textContent = `${step.label} — secret Variable`;
+    const input = document.createElement("input");
+    input.dataset.stepId = step.id;
+    input.setAttribute("list", "secret-variables");
+    input.placeholder = "password";
+    input.autocomplete = "off";
+    label.append(input);
+    view.bindings.append(label);
   }
 }
 

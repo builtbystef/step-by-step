@@ -9,8 +9,15 @@ import {
   EXTENSION_PROBE,
   EXTENSION_READY,
   HANDSHAKE,
+  RECORDING_FINISHED,
+  RECORDING_PENDING,
+  RECORDING_PENDING_ACCEPTED,
+  RECORDING_TOKEN,
+  RECORDING_TOKEN_EXPIRED,
   handshakeMessage,
   readExtensionMessage,
+  recordingPendingMessage,
+  recordingTokenMessage,
 } from "./extension-protocol";
 
 /**
@@ -31,6 +38,11 @@ describe("the protocol's names", () => {
     ["PROBE", EXTENSION_PROBE],
     ["READY", EXTENSION_READY],
     ["ACCEPTED", CONNECT_ACCEPTED],
+    ["RECORDING_PENDING", RECORDING_PENDING],
+    ["RECORDING_PENDING_ACCEPTED", RECORDING_PENDING_ACCEPTED],
+    ["RECORDING_TOKEN_EXPIRED", RECORDING_TOKEN_EXPIRED],
+    ["RECORDING_TOKEN", RECORDING_TOKEN],
+    ["RECORDING_FINISHED", RECORDING_FINISHED],
   ])("is the extension's own %s", (name, value) => {
     expect(EXTENSION_SOURCE).toContain(`export const ${name} = "${value}";`);
   });
@@ -41,6 +53,23 @@ describe("reading what the extension says", () => {
     expect(
       readExtensionMessage({ channel: EXTENSION_CHANNEL, type: EXTENSION_READY, version: "0.1.0" }),
     ).toEqual({ type: EXTENSION_READY, version: "0.1.0" });
+  });
+
+  it("reads recording lifecycle messages", () => {
+    expect(
+      readExtensionMessage({
+        channel: EXTENSION_CHANNEL,
+        type: RECORDING_TOKEN_EXPIRED,
+        sessionId: "session-1",
+      }),
+    ).toEqual({ type: RECORDING_TOKEN_EXPIRED, version: "", sessionId: "session-1" });
+    expect(
+      readExtensionMessage({
+        channel: EXTENSION_CHANNEL,
+        type: RECORDING_FINISHED,
+        sessionId: "session-1",
+      }),
+    ).toEqual({ type: RECORDING_FINISHED, version: "", sessionId: "session-1" });
   });
 
   it("reads an accepted connection", () => {
@@ -58,6 +87,7 @@ describe("reading what the extension says", () => {
     ["a string", "connected"],
     ["another channel", { channel: "other", type: CONNECT_ACCEPTED }],
     ["another type", { channel: EXTENSION_CHANNEL, type: "recording-started" }],
+    ["a malformed recording event", { channel: EXTENSION_CHANNEL, type: RECORDING_FINISHED }],
     ["the handshake this page itself posted", { channel: EXTENSION_CHANNEL, type: HANDSHAKE }],
   ])("ignores %s", (_what, data) => {
     expect(readExtensionMessage(data)).toBeNull();
@@ -67,6 +97,40 @@ describe("reading what the extension says", () => {
     expect(readExtensionMessage({ channel: EXTENSION_CHANNEL, type: CONNECT_ACCEPTED })).toEqual({
       type: CONNECT_ACCEPTED,
       version: "",
+    });
+  });
+});
+
+describe("recording messages the app hands over", () => {
+  it("carries a pending recording without inventing a target tab", () => {
+    expect(
+      recordingPendingMessage({
+        sessionId: "session-1",
+        token: "token-1",
+        backendOrigin: "https://steps.example.com",
+        workflowId: "workflow-1",
+        workflowName: "Invoices",
+        variables: [{ name: "password", secret: true }],
+      }),
+    ).toEqual({
+      channel: EXTENSION_CHANNEL,
+      type: RECORDING_PENDING,
+      sessionId: "session-1",
+      token: "token-1",
+      backendOrigin: "https://steps.example.com",
+      workflowId: "workflow-1",
+      workflowName: "Invoices",
+      mode: "record",
+      variables: [{ name: "password", secret: true }],
+    });
+  });
+
+  it("carries a rotated token for the same session", () => {
+    expect(recordingTokenMessage("session-1", "token-2")).toEqual({
+      channel: EXTENSION_CHANNEL,
+      type: RECORDING_TOKEN,
+      sessionId: "session-1",
+      token: "token-2",
     });
   });
 });

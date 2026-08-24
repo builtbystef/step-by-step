@@ -29,6 +29,24 @@ export const READY = "extension-ready";
 /** The extension telling the page the connection is made. */
 export const ACCEPTED = "connect-accepted";
 
+/** The app handing a newly minted recording scope to the connected extension. */
+export const RECORDING_PENDING = "recording-pending";
+
+/** The extension saying that the pending scope is safely in local storage. */
+export const RECORDING_PENDING_ACCEPTED = "recording-pending-accepted";
+
+/** A newly opened app tab asking whether a recording needs its help. */
+export const RECORDING_STATUS = "recording-status";
+
+/** The extension asking the signed-in app to rotate an expired capability. */
+export const RECORDING_TOKEN_EXPIRED = "recording-token-expired";
+
+/** The app handing the rotated capability back to the extension. */
+export const RECORDING_TOKEN = "recording-token";
+
+/** The extension telling open app tabs that finalization changed the Draft. */
+export const RECORDING_FINISHED = "recording-finished";
+
 const NONCE_BYTES = 32;
 
 /**

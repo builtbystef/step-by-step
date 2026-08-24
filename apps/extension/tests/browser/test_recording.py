@@ -10,25 +10,84 @@ pytestmark = pytest.mark.browser
 
 
 def start_recording(browser: BrowserContext, fixture_site: str, page: Page) -> Page:
-    """Start through the extension's own command surface, as its popup does."""
+    """Hand off from the app, then confirm the target through the popup seam."""
     worker = worker_of(browser)
     worker.evaluate(
-        "(origin) => chrome.storage.local.set({connection: {origin}})", fixture_site
+        """(origin) => chrome.storage.local.set({connection: {origin}})
+          .then(() => chrome.storage.local.remove('active-recording'))""",
+        fixture_site,
     )
-    surface = browser.new_page()
-    surface.goto(f"chrome-extension://{worker.url.split('/')[2]}/popup.html")
-    answer = surface.evaluate(
-        """([targetUrl, origin]) => chrome.runtime.sendMessage({
-          type: "start-recording",
-          targetUrl,
+    page.reload()
+    page.wait_for_timeout(100)
+    page.evaluate(
+        """(origin) => window.postMessage({
+          channel: "step-by-step",
+          type: "recording-pending",
           sessionId: "fixture-session",
           token: "fixture-token",
           backendOrigin: origin,
-        })""",
-        [page.url, fixture_site],
+          workflowId: "fixture-workflow",
+          workflowName: "Fixture Workflow",
+          mode: "record",
+          variables: [],
+        }, origin)""",
+        fixture_site,
+    )
+    page.wait_for_timeout(100)
+    surface = browser.new_page()
+    surface.goto(f"chrome-extension://{worker.url.split('/')[2]}/popup.html")
+    answer = surface.evaluate(
+        """async (targetUrl) => {
+          const [tab] = await chrome.tabs.query({url: targetUrl});
+          await chrome.runtime.sendMessage({
+            type: "about-to-start-recording",
+            targetTabId: tab.id,
+            targetUrl,
+          });
+          return chrome.runtime.sendMessage({type: "finish-recording-start"});
+        }""",
+        page.url,
     )
     assert answer == {"started": True}
     return surface
+
+
+def test_connected_app_hands_a_pending_recording_to_restartable_storage(
+    connected_browser: BrowserContext, fixture_site: str
+) -> None:
+    page = connected_browser.new_page()
+    page.goto(f"{fixture_site}/recording.html")
+    worker = worker_of(connected_browser)
+    worker.evaluate(
+        "(origin) => chrome.storage.local.set({connection: {origin}})", fixture_site
+    )
+    page.reload()
+    page.wait_for_timeout(250)
+
+    page.evaluate(
+        """(origin) => window.postMessage({
+          channel: "step-by-step",
+          type: "recording-pending",
+          sessionId: "pending-session",
+          token: "pending-token",
+          backendOrigin: origin,
+          workflowId: "workflow-1",
+          workflowName: "Invoices",
+          mode: "record",
+          variables: [{name: "password", secret: true}],
+        }, origin)""",
+        fixture_site,
+    )
+    page.wait_for_timeout(250)
+    stored = worker.evaluate("() => chrome.storage.local.get('active-recording')")[
+        "active-recording"
+    ]
+
+    assert stored["state"] == "pending"
+    assert stored["sessionId"] == "pending-session"
+    assert stored["workflowName"] == "Invoices"
+    assert stored["steps"] == []
+    page.close()
 
 
 def assert_safe_message(value: Any) -> None:
@@ -88,6 +147,39 @@ def test_clicks_emit_ranked_verified_steps_in_order_and_checkpoint_them(
     assert steps[0]["screenshot"] is False
     assert "verified" not in str(steps)
     assert_safe_message(recording_sink.checkpoints)
+
+    surface.close()
+    page.close()
+
+
+def test_finished_recording_binds_password_and_finalizes_directly(
+    connected_browser: BrowserContext,
+    fixture_site: str,
+    recording_sink: RecordingSink,
+) -> None:
+    page = connected_browser.new_page()
+    page.goto(f"{fixture_site}/recording.html")
+    surface = start_recording(connected_browser, fixture_site, page)
+
+    page.click('[data-testid="save"]')
+    page.fill('[data-testid="password"]', "not-in-the-document")
+    page.press('[data-testid="password"]', "Tab")
+    steps = recording_sink.wait_for_steps(2)
+    surface.evaluate("() => chrome.runtime.sendMessage({type: 'stop-recording'})")
+    answer = surface.evaluate(
+        """(stepId) => chrome.runtime.sendMessage({
+          type: "finalize-recording",
+          bindings: [{stepId, name: "site_password"}],
+        })""",
+        steps[1]["id"],
+    )
+    saved = recording_sink.wait_for_finalization()
+
+    assert answer == {"saved": True}
+    assert saved["steps"][1]["payload"]["value"] == "{{site_password}}"
+    assert "needsSecret" not in saved["steps"][1]
+    assert saved["variables"] == [{"name": "site_password", "secret": True}]
+    assert "not-in-the-document" not in str(saved)
 
     surface.close()
     page.close()

@@ -53,24 +53,39 @@ export function pageBridge(protocol) {
         });
       return;
     }
-    if (message.type !== protocol.handshake) {
+    if (
+      message.type !== protocol.handshake &&
+      message.type !== protocol.recordingPending &&
+      message.type !== protocol.recordingToken
+    ) {
       return;
     }
-    if (typeof message.nonce !== "string" || message.instanceOrigin !== own) {
+    if (message.type === protocol.handshake) {
+      if (typeof message.nonce !== "string" || message.instanceOrigin !== own) return;
+    } else if (message.backendOrigin !== undefined && message.backendOrigin !== own) {
       return;
     }
 
     chrome.runtime
-      .sendMessage({
-        channel: protocol.channel,
-        type: protocol.handshake,
-        nonce: message.nonce,
-        instanceOrigin: own,
-      })
+      .sendMessage(
+        message.type === protocol.handshake
+          ? {
+              channel: protocol.channel,
+              type: protocol.handshake,
+              nonce: message.nonce,
+              instanceOrigin: own,
+            }
+          : message,
+      )
       .then((reply) => {
         if (reply && reply.accepted === true) {
           window.postMessage(
-            { channel: protocol.channel, type: protocol.accepted, version: protocol.version },
+            {
+              channel: protocol.channel,
+              type: reply.type ?? protocol.accepted,
+              version: protocol.version,
+              ...(typeof reply.sessionId === "string" ? { sessionId: reply.sessionId } : {}),
+            },
             own,
           );
         }
@@ -79,6 +94,42 @@ export function pageBridge(protocol) {
         // The worker was restarting, or the popup closed the attempt. The page
         // announces itself again, so nothing here has to retry.
       });
+  });
+
+  if (protocol.recordingStatus) {
+    chrome.runtime
+      .sendMessage({ channel: protocol.channel, type: protocol.recordingStatus })
+      .then((reply) => {
+        if (reply?.type === protocol.recordingTokenExpired) {
+          window.postMessage(
+            {
+              channel: protocol.channel,
+              type: reply.type,
+              version: protocol.version,
+              sessionId: reply.sessionId,
+            },
+            own,
+          );
+        }
+      })
+      .catch(() => {});
+  }
+
+  chrome.runtime.onMessage?.addListener((message) => {
+    if (
+      message?.type === protocol.recordingTokenExpired ||
+      message?.type === protocol.recordingFinished
+    ) {
+      window.postMessage(
+        {
+          channel: protocol.channel,
+          type: message.type,
+          version: protocol.version,
+          sessionId: message.sessionId,
+        },
+        own,
+      );
+    }
   });
 
   // The page is already loaded by the time this arrives, so it is told rather

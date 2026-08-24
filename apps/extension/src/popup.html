@@ -11,10 +11,33 @@
 
       <section id="connected" hidden>
         <p>Connected to <strong id="instance"></strong>.</p>
-        <p class="quiet">
+        <p id="connected-note" class="quiet">
           Recording happens in the app: open a Workflow there and start recording.
         </p>
         <button id="disconnect" type="button">Disconnect</button>
+      </section>
+
+      <section id="recording-pending" hidden>
+        <p><strong id="pending-workflow"></strong> is ready to record.</p>
+        <p class="quiet">Open the first page of the task in this window, then confirm here.</p>
+        <button id="record-button" type="button">Start recording this tab</button>
+      </section>
+
+      <section id="recording-active" hidden>
+        <p>Recording <strong id="active-workflow"></strong>.</p>
+        <p class="quiet">Complete the task in this tab, then stop to review every Step.</p>
+        <button id="stop-button" type="button">Stop and review</button>
+      </section>
+
+      <section id="recording-save" hidden>
+        <p>Save <strong id="save-workflow"></strong></p>
+        <p id="save-summary" class="quiet"></p>
+        <div id="secret-bindings"></div>
+        <datalist id="secret-variables"></datalist>
+        <div class="button-row">
+          <button id="discard-button" type="button">Discard</button>
+          <button id="save-button" type="button">Save to Draft</button>
+        </div>
       </section>
 
       <section id="connect" hidden>

@@ -65,15 +65,30 @@ class RecordingSink:
     def __init__(self) -> None:
         self.condition = threading.Condition()
         self.checkpoints: list[dict[str, Any]] = []
+        self.finalizations: list[dict[str, Any]] = []
 
     def clear(self) -> None:
         with self.condition:
             self.checkpoints.clear()
+            self.finalizations.clear()
 
     def append(self, checkpoint: dict[str, Any]) -> None:
         with self.condition:
             self.checkpoints.append(deepcopy(checkpoint))
             self.condition.notify_all()
+
+    def finalize(self, document: dict[str, Any]) -> None:
+        with self.condition:
+            self.finalizations.append(deepcopy(document))
+            self.condition.notify_all()
+
+    def wait_for_finalization(self) -> dict[str, Any]:
+        with self.condition:
+            ready = self.condition.wait_for(
+                lambda: bool(self.finalizations), timeout=10
+            )
+            assert ready
+            return deepcopy(self.finalizations[-1])
 
     def wait_for_steps(self, count: int) -> list[dict[str, Any]]:
         with self.condition:
@@ -127,6 +142,12 @@ class SiteHandler(http.server.SimpleHTTPRequestHandler):
         ):
             RECORDING_SINK.append(asked)
             body = b"{}"
+            status = 200
+        elif self.path.startswith("/api/recording-sessions/") and self.path.endswith(
+            "/finalize"
+        ):
+            RECORDING_SINK.finalize(asked)
+            body = json.dumps(asked).encode()
             status = 200
         elif self.path == "/api/extension/connect":
             spent = asked.get("code") == LIVE_CODE

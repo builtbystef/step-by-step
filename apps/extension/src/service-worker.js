@@ -30,12 +30,19 @@ import {
   HANDSHAKE,
   PROBE,
   READY,
+  RECORDING_FINISHED,
+  RECORDING_PENDING,
+  RECORDING_PENDING_ACCEPTED,
+  RECORDING_STATUS,
+  RECORDING_TOKEN,
+  RECORDING_TOKEN_EXPIRED,
   isProtocolMessage,
   judgeHandshake,
   mintNonce,
 } from "./lib/handshake.js";
 import { originPattern, readInstanceUrl } from "./lib/instance.js";
 import { pageBridge } from "./lib/page-bridge.js";
+import { bindSecretSteps } from "./lib/recording.js";
 
 /** The connected instance, in `storage.local`: it outlives the browser. */
 const CONNECTION_KEY = "connection";
@@ -91,6 +98,12 @@ const BRIDGE_PROTOCOL = {
   probe: PROBE,
   ready: READY,
   accepted: ACCEPTED,
+  recordingPending: RECORDING_PENDING,
+  recordingPendingAccepted: RECORDING_PENDING_ACCEPTED,
+  recordingStatus: RECORDING_STATUS,
+  recordingTokenExpired: RECORDING_TOKEN_EXPIRED,
+  recordingToken: RECORDING_TOKEN,
+  recordingFinished: RECORDING_FINISHED,
   version: VERSION,
 };
 
@@ -117,6 +130,7 @@ chrome.tabs.onUpdated.addListener((tabId, change) => {
 // time the answer arrives, taking with it the code that would have acted on it.
 chrome.permissions.onAdded.addListener((granted) => {
   void finishConnect(granted.origins ?? []);
+  void finishRecordingStart(granted.origins ?? []);
 });
 
 chrome.webNavigation.onCommitted.addListener((details) => {
@@ -142,7 +156,9 @@ chrome.downloads.onCreated.addListener(() => {
  */
 async function answer(message, sender) {
   if (isProtocolMessage(message)) {
-    return message.type === PROBE ? answerProbe(message, sender) : acceptHandshake(message, sender);
+    if (message.type === PROBE) return answerProbe(message, sender);
+    if (message.type === HANDSHAKE) return acceptHandshake(message, sender);
+    return acceptRecordingPageMessage(message, sender);
   }
   if (message?.type === "recorder-ax" || message?.type === "recorder-event") {
     return acceptRecorderMessage(message, sender);
@@ -157,6 +173,7 @@ async function answer(message, sender) {
         version: VERSION,
         unanswered: await unanswered(),
         address: await typedAddress(),
+        recording: await activeRecording(),
       };
     case "about-to-connect":
       return announce(message);
@@ -166,10 +183,18 @@ async function answer(message, sender) {
       return forget();
     case "remember-address":
       return rememberAddress(message.address);
-    case "start-recording":
-      return startRecording(message);
+    case "about-to-start-recording":
+      return announceRecordingStart(message);
+    case "finish-recording-start":
+      return finishRecordingStart(null);
+    case "recording-state":
+      return { recording: await activeRecording() };
     case "stop-recording":
       return stopRecording();
+    case "discard-recording":
+      return discardRecording();
+    case "finalize-recording":
+      return finalizeRecording(message.bindings);
     case "arm-extract":
       return armExtract(message);
     case "disconnect":
@@ -180,6 +205,71 @@ async function answer(message, sender) {
 }
 
 /** Announce only to the connected instance, even if an old injected bridge remains. */
+async function acceptRecordingPageMessage(message, sender) {
+  const held = await connection();
+  if (
+    held === null ||
+    sender.id !== chrome.runtime.id ||
+    sender.frameId !== 0 ||
+    sender.origin !== held.origin
+  ) {
+    return { ignored: true };
+  }
+  if (message.type === RECORDING_STATUS) {
+    const active = await activeRecording();
+    return active?.tokenExpired === true
+      ? { type: RECORDING_TOKEN_EXPIRED, sessionId: active.sessionId }
+      : { type: null };
+  }
+  if (message.type === RECORDING_PENDING) {
+    const current = await activeRecording();
+    if (current !== null && current.state !== "pending") {
+      return { accepted: false, reason: "recording-in-progress" };
+    }
+    if (
+      message.backendOrigin !== held.origin ||
+      typeof message.sessionId !== "string" ||
+      typeof message.token !== "string" ||
+      typeof message.workflowName !== "string" ||
+      typeof message.workflowId !== "string" ||
+      message.mode !== "record" ||
+      !Array.isArray(message.variables)
+    ) {
+      return { accepted: false };
+    }
+    await chrome.storage.local.set({
+      [RECORDING_KEY]: {
+        state: "pending",
+        sessionId: message.sessionId,
+        token: message.token,
+        backendOrigin: message.backendOrigin,
+        workflowId: message.workflowId,
+        workflowName: message.workflowName,
+        variables: message.variables,
+        steps: [],
+        checkpointSeq: 0,
+      },
+    });
+    return { accepted: true, type: RECORDING_PENDING_ACCEPTED, sessionId: message.sessionId };
+  }
+  if (message.type === RECORDING_TOKEN) {
+    const active = await activeRecording();
+    if (
+      active === null ||
+      active.sessionId !== message.sessionId ||
+      typeof message.token !== "string"
+    ) {
+      return { accepted: false };
+    }
+    active.token = message.token;
+    delete active.tokenExpired;
+    await chrome.storage.local.set({ [RECORDING_KEY]: active });
+    if (active.checkpointSeq > 0) await sendCheckpoint(active);
+    return { accepted: true };
+  }
+  return { ignored: true };
+}
+
 async function answerProbe(message, sender) {
   const held = await connection();
   const origin = typeof message.instanceOrigin === "string" ? message.instanceOrigin : null;
@@ -549,6 +639,7 @@ function permitted(origin) {
 // keeps this worker alive on Chrome 118+, but storage remains the source of
 // truth when Chrome restarts it between recording events.
 const RECORDING_KEY = "active-recording";
+const RECORDING_INTENT_KEY = "recording-start-intent";
 const AX_WAIT_MS = 750;
 const DOWNLOAD_WINDOW_MS = 5000;
 const CLOSED_SHADOW_WARNING =
@@ -563,34 +654,76 @@ function enqueueRecording(work) {
   return recordingQueue;
 }
 
+async function announceRecordingStart(message) {
+  if (typeof message.targetTabId !== "number" || typeof message.targetUrl !== "string") {
+    return { announced: false };
+  }
+  await chrome.storage.session.set({
+    [RECORDING_INTENT_KEY]: {
+      targetTabId: message.targetTabId,
+      targetUrl: message.targetUrl,
+      announcedAt: Date.now(),
+    },
+  });
+  return { announced: true };
+}
+
+let startingRecording = null;
+
+function finishRecordingStart(origins) {
+  startingRecording ??= takeRecordingIntent(origins).then((intent) =>
+    intent === null ? { late: true } : startRecording(intent),
+  );
+  const joined = startingRecording;
+  void joined.finally(() => {
+    if (startingRecording === joined) startingRecording = null;
+  });
+  return joined;
+}
+
+async function takeRecordingIntent(origins) {
+  const stored = await chrome.storage.session.get(RECORDING_INTENT_KEY);
+  const intent = stored[RECORDING_INTENT_KEY] ?? null;
+  if (intent === null || Date.now() - intent.announcedAt > INTENT_LIFETIME_MS) {
+    await chrome.storage.session.remove(RECORDING_INTENT_KEY);
+    return null;
+  }
+  const targetOrigin = new URL(intent.targetUrl).origin;
+  if (origins !== null && !origins.includes(originPattern(targetOrigin))) return null;
+  await chrome.storage.session.remove(RECORDING_INTENT_KEY);
+  return intent;
+}
+
 async function startRecording(message) {
+  const active = await activeRecording();
   if (
-    typeof message.sessionId !== "string" ||
-    typeof message.token !== "string" ||
-    typeof message.backendOrigin !== "string" ||
-    typeof message.targetUrl !== "string"
+    active?.state !== "pending" ||
+    typeof message.targetUrl !== "string" ||
+    typeof active.token !== "string" ||
+    typeof active.backendOrigin !== "string"
   ) {
-    return { started: false };
+    return { started: false, reason: "no-pending-recording" };
   }
   const held = await connection();
-  if (held?.origin !== message.backendOrigin) return { started: false };
-  const tabs = await chrome.tabs.query({ url: message.targetUrl });
-  const tab = tabs.find((candidate) => candidate.url === message.targetUrl);
-  if (typeof tab?.id !== "number") return { started: false };
+  if (held?.origin !== active.backendOrigin) return { started: false, reason: "wrong-instance" };
+  const tab =
+    typeof message.targetTabId === "number"
+      ? await chrome.tabs.get(message.targetTabId)
+      : (await chrome.tabs.query({ url: message.targetUrl })).find(
+          (candidate) => candidate.url === message.targetUrl,
+        );
+  if (typeof tab?.id !== "number" || tab.url !== message.targetUrl) {
+    return { started: false, reason: "target-gone" };
+  }
+  if (!(await permitted(new URL(message.targetUrl).origin))) {
+    return { started: false, reason: "not-permitted" };
+  }
 
   await debuggerAttach(tab.id);
   await debuggerCommand(tab.id, "Accessibility.enable");
-  await chrome.storage.local.set({
-    [RECORDING_KEY]: {
-      tabId: tab.id,
-      sessionId: message.sessionId,
-      token: message.token,
-      backendOrigin: message.backendOrigin,
-      steps: [],
-      checkpointSeq: 0,
-      state: "recording",
-    },
-  });
+  active.tabId = tab.id;
+  active.state = "recording";
+  await chrome.storage.local.set({ [RECORDING_KEY]: active });
   await injectRecorder(tab.id);
   return { started: true };
 }
@@ -617,8 +750,11 @@ async function armExtract(message) {
 
 async function stopRecording() {
   const active = await activeRecording();
-  if (active !== null) {
-    await chrome.storage.local.remove(RECORDING_KEY);
+  if (active?.state === "recording") {
+    active.state = "ended";
+    active.endedReason = "stopped";
+    active.endedAt = new Date().toISOString();
+    await chrome.storage.local.set({ [RECORDING_KEY]: active });
     try {
       await debuggerDetach(active.tabId);
     } catch {
@@ -627,6 +763,48 @@ async function stopRecording() {
   }
   accessibilityQueries.clear();
   return { stopped: true };
+}
+
+async function discardRecording() {
+  const active = await activeRecording();
+  await chrome.storage.local.remove(RECORDING_KEY);
+  if (active?.state === "recording") void debuggerDetach(active.tabId);
+  accessibilityQueries.clear();
+  return { discarded: true };
+}
+
+async function finalizeRecording(bindings) {
+  const active = await activeRecording();
+  if (active === null || active.state !== "ended" || !Array.isArray(bindings)) {
+    return { saved: false, reason: "not-ended" };
+  }
+  let document;
+  try {
+    document = bindSecretSteps(active.steps, bindings, active.variables ?? []);
+  } catch (failure) {
+    return { saved: false, reason: "needs-secret", message: failure.message };
+  }
+  let response;
+  try {
+    response = await fetch(
+      `${active.backendOrigin}/api/recording-sessions/${encodeURIComponent(active.sessionId)}/finalize`,
+      {
+        method: "POST",
+        headers: { Authorization: active.token, "Content-Type": "application/json" },
+        body: JSON.stringify(document),
+      },
+    );
+  } catch {
+    return { saved: false, reason: "unreachable" };
+  }
+  if (response.status === 401) {
+    await markTokenExpired(active);
+    return { saved: false, reason: "token-expired" };
+  }
+  if (!response.ok) return { saved: false, reason: "refused" };
+  await chrome.storage.local.remove(RECORDING_KEY);
+  await broadcastRecording(RECORDING_FINISHED, active.sessionId);
+  return { saved: true };
 }
 
 async function endRecordingAfterDetach(tabId) {
@@ -831,6 +1009,10 @@ async function recordNavigation(details) {
 async function checkpoint(active) {
   active.checkpointSeq += 1;
   await chrome.storage.local.set({ [RECORDING_KEY]: active });
+  await sendCheckpoint(active);
+}
+
+async function sendCheckpoint(active) {
   const response = await fetch(
     `${active.backendOrigin}/api/recording-sessions/${encodeURIComponent(active.sessionId)}/checkpoint`,
     {
@@ -842,7 +1024,30 @@ async function checkpoint(active) {
       body: JSON.stringify({ seq: active.checkpointSeq, steps: active.steps }),
     },
   );
+  if (response.status === 401) {
+    await markTokenExpired(active);
+    return;
+  }
   if (!response.ok) throw new Error(`checkpoint refused (${response.status})`);
+}
+
+async function markTokenExpired(active) {
+  active.tokenExpired = true;
+  await chrome.storage.local.set({ [RECORDING_KEY]: active });
+  await broadcastRecording(RECORDING_TOKEN_EXPIRED, active.sessionId);
+}
+
+async function broadcastRecording(type, sessionId) {
+  const held = await connection();
+  if (held === null) return;
+  const tabs = await chrome.tabs.query({ url: originPattern(held.origin) });
+  await Promise.all(
+    tabs.map((tab) =>
+      typeof tab.id === "number"
+        ? chrome.tabs.sendMessage(tab.id, { type, sessionId }).catch(() => {})
+        : Promise.resolve(),
+    ),
+  );
 }
 
 function debuggerAttach(tabId) {

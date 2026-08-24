@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  createRecordingSession,
   restoreWorkflowVersion,
   saveWorkflowDraft,
   type Variable,
@@ -10,7 +11,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Braces, History, Plus } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { withStepAdded, withStepDeleted, withStepMoved, withStepReplaced } from "./edits";
 import { readRefusal, saveRefusal } from "./messages";
@@ -36,6 +37,13 @@ import { StickyActionFooter } from "@/components/primitives/sticky-action-footer
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useExtensionConnection } from "@/lib/extension-connection-context";
+import {
+  RECORDING_FINISHED,
+  RECORDING_TOKEN_EXPIRED,
+  readExtensionMessage,
+  recordingPendingMessage,
+  recordingTokenMessage,
+} from "@/lib/extension-protocol";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -92,6 +100,76 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
   const [drawer, setDrawer] = useState(false);
   const [highlighted, setHighlighted] = useState<string | null>(null);
   const [restoring, setRestoring] = useState<number | null>(null);
+  const [recordingNote, setRecordingNote] = useState<string | null>(null);
+
+  const recording = useMutation({
+    mutationFn: async (document: WorkflowDocument) => {
+      if (connection.version === null || workflow.data === undefined) {
+        throw new Error("The connected extension is not ready.");
+      }
+      const { data, error } = await createRecordingSession({
+        path: { workflow_id: workflowId },
+        headers: { "X-Extension-Version": connection.version },
+        body: { mode: "record" },
+      });
+      if (error) throw error;
+      window.postMessage(
+        recordingPendingMessage({
+          sessionId: data.session_id,
+          token: data.token,
+          backendOrigin: window.location.origin,
+          workflowId,
+          workflowName: workflow.data.name,
+          variables: document.variables ?? [],
+        }),
+        window.location.origin,
+      );
+      return data.session_id;
+    },
+    onSuccess: () => {
+      setRecordingNote("Ready in the extension. Open the first page, then confirm from its popup.");
+    },
+  });
+
+  useEffect(() => {
+    const receive = (event: MessageEvent) => {
+      if (event.source !== window || event.origin !== window.location.origin) return;
+      const message = readExtensionMessage(event.data);
+      if (message?.type === RECORDING_FINISHED) {
+        setRecordingNote("Recording saved to the Draft.");
+        void Promise.all([
+          cache.invalidateQueries({ queryKey: draftKey(orgId, workflowId) }),
+          cache.invalidateQueries({ queryKey: workflowKey(orgId, workflowId) }),
+          cache.invalidateQueries({ queryKey: workflowsKey(orgId) }),
+        ]);
+      }
+      if (
+        message?.type === RECORDING_TOKEN_EXPIRED &&
+        message.sessionId !== undefined &&
+        connection.version !== null
+      ) {
+        void createRecordingSession({
+          path: { workflow_id: workflowId },
+          headers: { "X-Extension-Version": connection.version },
+          body: { session_id: message.sessionId },
+        }).then(({ data, error }) => {
+          if (error) {
+            setRecordingNote(readRefusal(error));
+            return;
+          }
+          window.postMessage(
+            recordingTokenMessage(data.session_id, data.token),
+            window.location.origin,
+          );
+          setRecordingNote("Recording resumed with every captured Step intact.");
+        });
+      }
+    };
+    window.addEventListener("message", receive);
+    return () => {
+      window.removeEventListener("message", receive);
+    };
+  }, [cache, connection.version, orgId, workflowId]);
 
   const save = useMutation({
     mutationFn: async (document: WorkflowDocument) => {
@@ -194,6 +272,20 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
     </DropdownMenu>
   );
 
+  const startRecording = () => {
+    if (unsaved) {
+      setRecordingNote("Save or discard your editor changes before recording.");
+      return;
+    }
+    if (
+      steps.length > 0 &&
+      !window.confirm("Replace every Step in this Draft with a new recording?")
+    ) {
+      return;
+    }
+    recording.mutate(document);
+  };
+
   const variablesButton = (
     <Button
       variant="secondary"
@@ -210,6 +302,8 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
   return (
     <>
       {save.error ? <Callout tone="bad">{saveRefusal(save.error)}</Callout> : null}
+      {recording.error ? <Callout tone="bad">{readRefusal(recording.error)}</Callout> : null}
+      {recordingNote ? <Callout tone="info">{recordingNote}</Callout> : null}
 
       {viewing === null ? null : (
         <Callout
@@ -242,7 +336,14 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
         </Callout>
       )}
 
-      <div className="flex justify-end">{variablesButton}</div>
+      <div className="flex justify-end gap-2">
+        {readOnly || connection.state !== "connected" || steps.length === 0 ? null : (
+          <Button disabled={recording.isPending} onClick={startRecording}>
+            Start recording
+          </Button>
+        )}
+        {variablesButton}
+      </div>
 
       {highlighted === null ? null : (
         <Callout
@@ -287,7 +388,9 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
             readOnly ? undefined : (
               <div className="flex max-w-xl flex-col gap-3">
                 {connection.state === "connected" ? (
-                  <Button>Start recording</Button>
+                  <Button disabled={recording.isPending} onClick={startRecording}>
+                    Start recording
+                  </Button>
                 ) : (
                   <InstallAndConnect compact />
                 )}

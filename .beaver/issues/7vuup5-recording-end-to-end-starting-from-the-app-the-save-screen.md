@@ -1,8 +1,10 @@
 ---
 id: 7vuup5
 title: 'Recording end to end: starting from the app, the save screen, and surviving death'
-state: todo
+state: in-progress
 priority: medium
+labels:
+    - needs-review
 depends_on:
     - bysmhd
     - rjklmp
@@ -11,7 +13,7 @@ depends_on:
     - 0zwbku
 parent: d8ux2s
 created: 2026-08-14T06:03:37Z
-updated: 2026-08-24T10:13:30Z
+updated: 2026-08-24T16:50:37Z
 ---
 
 ## What to build
@@ -40,3 +42,9 @@ Implementation is blocked by an undecided Chrome permission boundary. The app-fi
 **agent** — 2026-08-24T10:12:17Z
 
 Decision approved by the user: use extension-popup confirmation. Start recording in the editor creates a pending session; the user opens the intended target tab and confirms in the extension popup. That popup gesture requests the target origin when needed, then starts only after the grant. Remembered per-origin grants skip Chrome's permission dialog but not the per-recording popup confirmation. Declining leaves the session pending and injects nothing. Do not use CDP-only capture or broad install-time host access. The parent spec and architecture now record this boundary.
+
+**agent** — 2026-08-24T16:50:37Z
+
+Implemented the full recording loop. The editor now confirms replacement before minting, hands pending sessions to the connected extension, rotates an expired token against the same session, and refreshes the Draft after finalization. The popup owns target-tab confirmation and optional host permission, recording stop/review, password-Step binding to existing or new secret Variables, save, and discard. The service worker persists pending/active/ended state and full Step buffers in local storage, checkpoints and finalizes directly to the backend, retries the full checkpoint after token rotation, and announces expiry/finalization to app tabs. Automated coverage now exercises app-to-extension pending handoff, direct checkpoint/finalize, password binding with no literal leakage, and the existing recorder pipeline; pnpm check, pnpm test, and pnpm test:browser pass.
+
+Attended review is still required by the issue's verification plan: in real Chrome, verify the native target-origin permission grant/decline; replace a non-empty Draft and confirm the finished click/type/password recording appears in the editor; close the app tab during capture; force a service-worker stop and continue capture if Chrome permits that while debugger is attached; and exercise the expired-token resume path. Close to approve, or note requested changes and remove needs-review.

@@ -59,7 +59,21 @@ p {
 }
 
 label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
   font-weight: 600;
+}
+
+#secret-bindings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.button-row {
+  display: flex;
+  gap: 0.5rem;
 }
 
 input {
