@@ -14,6 +14,7 @@ from step_by_step_api.mail import mailer
 from step_by_step_api.runs.routes import router as runs_router
 from step_by_step_api.secrets.routes import router as secrets_router
 from step_by_step_api.workflows.catalog import router as workflow_catalog_router
+from step_by_step_api.workflows.recording import router as recording_router
 from step_by_step_api.workflows.routes import router as workflows_router
 
 
@@ -44,6 +45,7 @@ app.include_router(accounts_router)
 app.include_router(extension_router)
 app.include_router(secrets_router)
 app.include_router(workflows_router)
+app.include_router(recording_router)
 app.include_router(workflow_catalog_router)
 app.include_router(runs_router)
 

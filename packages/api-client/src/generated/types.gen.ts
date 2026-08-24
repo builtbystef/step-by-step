@@ -89,6 +89,22 @@ export type ChangeSecret = {
 };
 
 /**
+ * Checkpoint
+ */
+export type Checkpoint = {
+    /**
+     * Seq
+     */
+    seq: number;
+    /**
+     * Steps
+     */
+    steps: Array<{
+        [key: string]: unknown;
+    }>;
+};
+
+/**
  * ClickPayload
  */
 export type ClickPayload = {
@@ -424,6 +440,28 @@ export type ExtractStep = {
 export type FailureReason = 'step_failed' | 'auth_challenge' | 'takeover_timeout' | 'takeover_abandoned' | 'run_timeout' | 'worker_lost' | 'missing_secret' | 'startup_failed';
 
 /**
+ * FinalizeRequest
+ */
+export type FinalizeRequest = {
+    /**
+     * Steps
+     */
+    steps?: Array<{
+        [key: string]: unknown;
+    }> | null;
+    /**
+     * Variables
+     */
+    variables?: Array<{
+        [key: string]: unknown;
+    }> | null;
+    /**
+     * Candidates
+     */
+    candidates?: Array<SelectorCandidate> | null;
+};
+
+/**
  * FrameHop
  *
  * One step of the path into the frame an element lives in.
@@ -539,6 +577,37 @@ export type Member = {
      * Joined At
      */
     joined_at: string;
+};
+
+/**
+ * MintRequest
+ *
+ * A new scope, or the id of an expired scope whose buffer must survive.
+ */
+export type MintRequest = {
+    /**
+     * Session Id
+     */
+    session_id?: string | null;
+    mode?: RecordingMode;
+    /**
+     * Step Id
+     */
+    step_id?: string | null;
+};
+
+/**
+ * MintedSession
+ */
+export type MintedSession = {
+    /**
+     * Session Id
+     */
+    session_id: string;
+    /**
+     * Token
+     */
+    token: string;
 };
 
 /**
@@ -700,6 +769,13 @@ export type PendingInvitation = {
      */
     expires_at: string;
 };
+
+/**
+ * RecordingMode
+ *
+ * Whether a recording session replaces the Draft or repairs one Step.
+ */
+export type RecordingMode = 'record' | 'repick';
 
 /**
  * RevealedValue
@@ -3089,6 +3165,158 @@ export type SaveWorkflowDraftResponses = {
 };
 
 export type SaveWorkflowDraftResponse = SaveWorkflowDraftResponses[keyof SaveWorkflowDraftResponses];
+
+export type CreateRecordingSessionData = {
+    body: MintRequest;
+    headers?: {
+        /**
+         * X-Extension-Version
+         */
+        'X-Extension-Version'?: string | null;
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+    };
+    query?: never;
+    url: '/api/workflows/{workflow_id}/recording-sessions';
+};
+
+export type CreateRecordingSessionErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Conflict
+     */
+    409: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateRecordingSessionError = CreateRecordingSessionErrors[keyof CreateRecordingSessionErrors];
+
+export type CreateRecordingSessionResponses = {
+    /**
+     * Successful Response
+     */
+    201: MintedSession;
+};
+
+export type CreateRecordingSessionResponse = CreateRecordingSessionResponses[keyof CreateRecordingSessionResponses];
+
+export type CheckpointRecordingSessionData = {
+    body: Checkpoint;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/recording-sessions/{session_id}/checkpoint';
+};
+
+export type CheckpointRecordingSessionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Conflict
+     */
+    409: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CheckpointRecordingSessionError = CheckpointRecordingSessionErrors[keyof CheckpointRecordingSessionErrors];
+
+export type CheckpointRecordingSessionResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type CheckpointRecordingSessionResponse = CheckpointRecordingSessionResponses[keyof CheckpointRecordingSessionResponses];
+
+export type FinalizeRecordingSessionData = {
+    body: FinalizeRequest;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/recording-sessions/{session_id}/finalize';
+};
+
+export type FinalizeRecordingSessionErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Conflict
+     */
+    409: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type FinalizeRecordingSessionError = FinalizeRecordingSessionErrors[keyof FinalizeRecordingSessionErrors];
+
+export type FinalizeRecordingSessionResponses = {
+    /**
+     * Successful Response
+     */
+    200: WorkflowDocument;
+};
+
+export type FinalizeRecordingSessionResponse = FinalizeRecordingSessionResponses[keyof FinalizeRecordingSessionResponses];
 
 export type DeleteWorkflowData = {
     body?: never;

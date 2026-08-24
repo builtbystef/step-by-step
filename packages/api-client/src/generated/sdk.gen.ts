@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AcceptInvitationData, AcceptInvitationErrors, AcceptInvitationResponses, CancelRunData, CancelRunErrors, CancelRunResponses, ChangeMemberRoleData, ChangeMemberRoleErrors, ChangeMemberRoleResponses, ConnectExtensionData, ConnectExtensionErrors, ConnectExtensionResponses, CreateExtensionConnectCodeData, CreateExtensionConnectCodeErrors, CreateExtensionConnectCodeResponses, CreateInvitationData, CreateInvitationErrors, CreateInvitationResponses, CreateOrganizationData, CreateOrganizationErrors, CreateOrganizationResponses, CreateSecretData, CreateSecretErrors, CreateSecretResponses, CreateWorkflowData, CreateWorkflowErrors, CreateWorkflowResponses, DeleteAccountData, DeleteAccountErrors, DeleteAccountResponses, DeleteOrganizationData, DeleteOrganizationErrors, DeleteOrganizationResponses, DeleteSecretData, DeleteSecretErrors, DeleteSecretOverrideData, DeleteSecretOverrideErrors, DeleteSecretOverrideResponses, DeleteSecretResponses, DeleteWorkflowData, DeleteWorkflowErrors, DeleteWorkflowResponses, DuplicateWorkflowData, DuplicateWorkflowErrors, DuplicateWorkflowResponses, GetCurrentAccountData, GetCurrentAccountErrors, GetCurrentAccountResponses, GetExtensionVersionData, GetExtensionVersionErrors, GetExtensionVersionResponses, GetGreetingData, GetGreetingErrors, GetGreetingResponses, GetHealthData, GetHealthResponses, GetInstanceData, GetInstanceResponses, GetRunData, GetRunErrors, GetRunResponses, GetWorkflowData, GetWorkflowDraftData, GetWorkflowDraftDiffData, GetWorkflowDraftDiffErrors, GetWorkflowDraftDiffResponses, GetWorkflowDraftErrors, GetWorkflowDraftResponses, GetWorkflowErrors, GetWorkflowResponses, GetWorkflowVersionData, GetWorkflowVersionErrors, GetWorkflowVersionResponses, ListInvitationsData, ListInvitationsErrors, ListInvitationsResponses, ListMembersData, ListMembersErrors, ListMembersResponses, ListRunsData, ListRunsErrors, ListRunsResponses, ListSecretsData, ListSecretsErrors, ListSecretsResponses, ListWorkflowsData, ListWorkflowsErrors, ListWorkflowsResponses, ListWorkflowVersionsData, ListWorkflowVersionsErrors, ListWorkflowVersionsResponses, PublishWorkflowVersionData, PublishWorkflowVersionErrors, PublishWorkflowVersionResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, RenameOrganizationData, RenameOrganizationErrors, RenameOrganizationResponses, RenameWorkflowData, RenameWorkflowErrors, RenameWorkflowResponses, RequestSigninCodeData, RequestSigninCodeErrors, RequestSigninCodeResponses, RestoreWorkflowVersionData, RestoreWorkflowVersionErrors, RestoreWorkflowVersionResponses, RevealSecretData, RevealSecretErrors, RevealSecretOverrideData, RevealSecretOverrideErrors, RevealSecretOverrideResponses, RevealSecretResponses, RevokeInvitationData, RevokeInvitationErrors, RevokeInvitationResponses, SaveWorkflowDraftData, SaveWorkflowDraftErrors, SaveWorkflowDraftResponses, SetSecretOverrideData, SetSecretOverrideErrors, SetSecretOverrideResponses, SignOutData, SignOutErrors, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, StartRunData, StartRunErrors, StartRunResponses, TransferOwnershipData, TransferOwnershipErrors, TransferOwnershipResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, UpdateSecretData, UpdateSecretErrors, UpdateSecretResponses, VerifySigninCodeData, VerifySigninCodeErrors, VerifySigninCodeResponses } from './types.gen';
+import type { AcceptInvitationData, AcceptInvitationErrors, AcceptInvitationResponses, CancelRunData, CancelRunErrors, CancelRunResponses, ChangeMemberRoleData, ChangeMemberRoleErrors, ChangeMemberRoleResponses, CheckpointRecordingSessionData, CheckpointRecordingSessionErrors, CheckpointRecordingSessionResponses, ConnectExtensionData, ConnectExtensionErrors, ConnectExtensionResponses, CreateExtensionConnectCodeData, CreateExtensionConnectCodeErrors, CreateExtensionConnectCodeResponses, CreateInvitationData, CreateInvitationErrors, CreateInvitationResponses, CreateOrganizationData, CreateOrganizationErrors, CreateOrganizationResponses, CreateRecordingSessionData, CreateRecordingSessionErrors, CreateRecordingSessionResponses, CreateSecretData, CreateSecretErrors, CreateSecretResponses, CreateWorkflowData, CreateWorkflowErrors, CreateWorkflowResponses, DeleteAccountData, DeleteAccountErrors, DeleteAccountResponses, DeleteOrganizationData, DeleteOrganizationErrors, DeleteOrganizationResponses, DeleteSecretData, DeleteSecretErrors, DeleteSecretOverrideData, DeleteSecretOverrideErrors, DeleteSecretOverrideResponses, DeleteSecretResponses, DeleteWorkflowData, DeleteWorkflowErrors, DeleteWorkflowResponses, DuplicateWorkflowData, DuplicateWorkflowErrors, DuplicateWorkflowResponses, FinalizeRecordingSessionData, FinalizeRecordingSessionErrors, FinalizeRecordingSessionResponses, GetCurrentAccountData, GetCurrentAccountErrors, GetCurrentAccountResponses, GetExtensionVersionData, GetExtensionVersionErrors, GetExtensionVersionResponses, GetGreetingData, GetGreetingErrors, GetGreetingResponses, GetHealthData, GetHealthResponses, GetInstanceData, GetInstanceResponses, GetRunData, GetRunErrors, GetRunResponses, GetWorkflowData, GetWorkflowDraftData, GetWorkflowDraftDiffData, GetWorkflowDraftDiffErrors, GetWorkflowDraftDiffResponses, GetWorkflowDraftErrors, GetWorkflowDraftResponses, GetWorkflowErrors, GetWorkflowResponses, GetWorkflowVersionData, GetWorkflowVersionErrors, GetWorkflowVersionResponses, ListInvitationsData, ListInvitationsErrors, ListInvitationsResponses, ListMembersData, ListMembersErrors, ListMembersResponses, ListRunsData, ListRunsErrors, ListRunsResponses, ListSecretsData, ListSecretsErrors, ListSecretsResponses, ListWorkflowsData, ListWorkflowsErrors, ListWorkflowsResponses, ListWorkflowVersionsData, ListWorkflowVersionsErrors, ListWorkflowVersionsResponses, PublishWorkflowVersionData, PublishWorkflowVersionErrors, PublishWorkflowVersionResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, RenameOrganizationData, RenameOrganizationErrors, RenameOrganizationResponses, RenameWorkflowData, RenameWorkflowErrors, RenameWorkflowResponses, RequestSigninCodeData, RequestSigninCodeErrors, RequestSigninCodeResponses, RestoreWorkflowVersionData, RestoreWorkflowVersionErrors, RestoreWorkflowVersionResponses, RevealSecretData, RevealSecretErrors, RevealSecretOverrideData, RevealSecretOverrideErrors, RevealSecretOverrideResponses, RevealSecretResponses, RevokeInvitationData, RevokeInvitationErrors, RevokeInvitationResponses, SaveWorkflowDraftData, SaveWorkflowDraftErrors, SaveWorkflowDraftResponses, SetSecretOverrideData, SetSecretOverrideErrors, SetSecretOverrideResponses, SignOutData, SignOutErrors, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, StartRunData, StartRunErrors, StartRunResponses, TransferOwnershipData, TransferOwnershipErrors, TransferOwnershipResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, UpdateSecretData, UpdateSecretErrors, UpdateSecretResponses, VerifySigninCodeData, VerifySigninCodeErrors, VerifySigninCodeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -466,6 +466,48 @@ export const getWorkflowDraft = <ThrowOnError extends boolean = false>(options: 
  */
 export const saveWorkflowDraft = <ThrowOnError extends boolean = false>(options: Options<SaveWorkflowDraftData, ThrowOnError>): RequestResult<SaveWorkflowDraftResponses, SaveWorkflowDraftErrors, ThrowOnError> => (options.client ?? client).put<SaveWorkflowDraftResponses, SaveWorkflowDraftErrors, ThrowOnError>({
     url: '/api/workflows/{workflow_id}/draft',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Mint Session
+ *
+ * Mint or rotate a one-hour token for this user and this Draft.
+ */
+export const createRecordingSession = <ThrowOnError extends boolean = false>(options: Options<CreateRecordingSessionData, ThrowOnError>): RequestResult<CreateRecordingSessionResponses, CreateRecordingSessionErrors, ThrowOnError> => (options.client ?? client).post<CreateRecordingSessionResponses, CreateRecordingSessionErrors, ThrowOnError>({
+    url: '/api/workflows/{workflow_id}/recording-sessions',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Save Checkpoint
+ *
+ * Keep only the newest full buffer; repeating a sequence changes nothing.
+ */
+export const checkpointRecordingSession = <ThrowOnError extends boolean = false>(options: Options<CheckpointRecordingSessionData, ThrowOnError>): RequestResult<CheckpointRecordingSessionResponses, CheckpointRecordingSessionErrors, ThrowOnError> => (options.client ?? client).post<CheckpointRecordingSessionResponses, CheckpointRecordingSessionErrors, ThrowOnError>({
+    url: '/api/recording-sessions/{session_id}/checkpoint',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Finalize Session
+ *
+ * Replace the Draft from a recording, or patch one Re-pick target.
+ */
+export const finalizeRecordingSession = <ThrowOnError extends boolean = false>(options: Options<FinalizeRecordingSessionData, ThrowOnError>): RequestResult<FinalizeRecordingSessionResponses, FinalizeRecordingSessionErrors, ThrowOnError> => (options.client ?? client).post<FinalizeRecordingSessionResponses, FinalizeRecordingSessionErrors, ThrowOnError>({
+    url: '/api/recording-sessions/{session_id}/finalize',
     ...options,
     headers: {
         'Content-Type': 'application/json',

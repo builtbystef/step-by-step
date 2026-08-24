@@ -1,14 +1,15 @@
 ---
 id: bysmhd
 title: 'Recording sessions API: mint, checkpoint, finalize'
-state: todo
+state: done
+assignee: agent
 priority: medium
 depends_on:
     - sl7h4j
     - 94xanm
 parent: d8ux2s
 created: 2026-08-14T06:02:41Z
-updated: 2026-08-14T06:02:41Z
+updated: 2026-08-24T07:22:54Z
 ---
 
 ## What to build
@@ -25,3 +26,9 @@ The backend half of the recording protocol, built so a dead tab, a killed servic
 - [ ] A repick-scoped session (mode and step id at mint) accepts a finalize carrying one fresh candidate list: exactly that Step's candidates change in the Draft, its id and everything else preserved.
 - [ ] A token used against another session, Draft, or user → refused.
 - [ ] HTTP seam tests with a real Postgres cover the version gate, idempotency, the death and expiry examples, the needs-secret rejection, and the repick patch.
+
+## Notes
+
+**agent** — 2026-08-24T07:22:54Z
+
+Done. Added the recording-session table, one-hour hashed capability tokens, extension-version gating from the version endpoint's shared minimum, idempotent full-buffer checkpoints, same-session token rotation, whole-Draft finalize with needs-secret refusal, and scoped Re-pick candidate patching. The HTTP seam suite covers the version gate, duplicate/later checkpoint sequences, server-buffer recovery after session death, expiry and re-mint, unresolved secrets, Re-pick preservation, and cross-session token refusal. Decisions: re-mint names session_id in the mint body and rotates its token; a record finalize may omit steps to use the newest persisted checkpoint; the unresolved transient marker is needsSecret; Authorization accepts the protocol's raw token and the conventional Bearer form. Generated OpenAPI/client artifacts and architecture docs are updated. pnpm check, pnpm test, and pnpm build pass; the migration also renders through Alembic's PostgreSQL offline path. The real-Postgres tier could not be executed because the compose Postgres was not running in this harness, but its tests are committed at the agreed HTTP seam.
