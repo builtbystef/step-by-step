@@ -3,7 +3,10 @@
   "permissionPromptTimeoutSeconds": 30,
   "network": {
     "allowLocalBinding": true,
-    "allowAllUnixSockets": true
+    "allowedDomains": [
+      "localhost",
+      "127.0.0.1"
+    ]
   },
   "filesystem": {
     "allowRead": [
