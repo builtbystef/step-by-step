@@ -1,6 +1,30 @@
 """The shared Workflow document contract."""
 
-from step_by_step_core.document import CandidateKind, Target
+from uuid import uuid4
+
+from step_by_step_core.document import CandidateKind, Target, WorkflowDocument
+
+
+def test_sparse_steps_observe_execution_defaults() -> None:
+    document = WorkflowDocument.model_validate(
+        {
+            "steps": [
+                {
+                    "id": str(uuid4()),
+                    "type": "navigate",
+                    "label": "Open invoices",
+                    "payload": {"url": "https://example.test/invoices"},
+                }
+            ],
+            "variables": [],
+        }
+    )
+
+    step = document.steps[0]
+    assert step.optional is False
+    assert step.disabled is False
+    assert step.screenshot is False
+    assert step.timeout_ms is None
 
 
 def test_target_reads_the_stored_document_shape() -> None:

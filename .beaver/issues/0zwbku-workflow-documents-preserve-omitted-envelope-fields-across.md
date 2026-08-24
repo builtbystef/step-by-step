@@ -1,12 +1,13 @@
 ---
 id: 0zwbku
 title: Workflow documents preserve omitted envelope fields across round trips
-state: todo
+state: done
+assignee: agent
 priority: high
 labels:
     - bug
 created: 2026-08-24T10:13:30Z
-updated: 2026-08-24T10:13:30Z
+updated: 2026-08-24T16:33:44Z
 ---
 
 ## Problem
@@ -24,3 +25,9 @@ A sparse Step accepted from the editor or recorder reads back with default envel
 ## Evidence
 
 `pnpm test:integration` on 2026-08-24: two recording-session assertions and `test_test_and_manual_runs_store_the_document_they_execute` received Pydantic-materialized default envelope fields not present in the input.
+
+## Notes
+
+**agent** — 2026-08-24T16:33:44Z
+
+Completed sparse Workflow document preservation across Draft saves/reads, recording finalization, Version reads/restores, duplication, and test Run snapshots. Storage and HTTP serialization now omit fields Pydantic defaulted while retaining explicitly supplied default values; top-level steps and variables remain present. Added an integration round-trip example and a shared document-contract test proving Workers still observe false/None execution defaults. Verified pnpm check, pnpm test, pnpm build, and the full integration tier (API 169 passed; core 5 passed).

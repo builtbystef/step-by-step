@@ -79,6 +79,20 @@ def test_creating_a_workflow_starts_it_with_an_empty_draft(
     assert draft.json() == {"steps": [], "variables": []}
 
 
+def test_a_sparse_step_round_trips_without_materializing_defaults(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    workflow_id = a_workflow(account)
+    sparse = {"steps": [a_navigate_step(str(uuid4()))], "variables": []}
+
+    saved = account.client.put(f"/api/workflows/{workflow_id}/draft", json=sparse)
+
+    assert saved.status_code == 200, saved.text
+    assert saved.json() == sparse
+    assert read_draft(account, workflow_id).json() == sparse
+
+
 def test_a_save_replaces_the_draft_whole_and_rewrites_no_step_id(
     new_account: NewAccount,
 ) -> None:

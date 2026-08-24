@@ -167,7 +167,13 @@ def stored(document: WorkflowDocument) -> dict[str, Any]:
     saved document that read back with a hundred added nulls would not be the
     document the editor sent.
     """
-    return document.model_dump(mode="json", by_alias=True, exclude_none=True)
+    sparse = document.model_dump(
+        mode="json", by_alias=True, exclude_none=True, exclude_unset=True
+    )
+    return {
+        "steps": sparse.get("steps", []),
+        "variables": sparse.get("variables", []),
+    }
 
 
 def with_fresh_step_ids(document: dict[str, Any]) -> dict[str, Any]:

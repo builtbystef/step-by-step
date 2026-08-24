@@ -150,6 +150,7 @@ def draft_of(
     "/api/workflows/{workflow_id}/draft",
     operation_id="getWorkflowDraft",
     response_model_exclude_none=True,
+    response_model_exclude_unset=True,
     responses=errors(400, 401, 403, 404),
 )
 def get_workflow_draft(
@@ -163,6 +164,7 @@ def get_workflow_draft(
     "/api/workflows/{workflow_id}/draft",
     operation_id="saveWorkflowDraft",
     response_model_exclude_none=True,
+    response_model_exclude_unset=True,
     responses=errors(400, 401, 403, 404),
 )
 def save_workflow_draft(
@@ -265,6 +267,7 @@ def version_of(
     "/api/workflows/{workflow_id}/versions/{number}",
     operation_id="getWorkflowVersion",
     response_model_exclude_none=True,
+    response_model_exclude_unset=True,
     responses=errors(400, 401, 403, 404),
 )
 def get_workflow_version(
@@ -280,6 +283,7 @@ def get_workflow_version(
     "/api/workflows/{workflow_id}/versions/{number}/restore",
     operation_id="restoreWorkflowVersion",
     response_model_exclude_none=True,
+    response_model_exclude_unset=True,
     responses=errors(400, 401, 403, 404),
 )
 def restore_workflow_version(

@@ -301,11 +301,7 @@ def test_a_duplicate_carries_the_steps_across_under_fresh_ids(
     assert [without_id(step) for step in copy["steps"]] == [
         without_id(step) for step in original["steps"]
     ]
-    assert (
-        copy["variables"]
-        == original["variables"]
-        == [{"name": "month", "secret": False}]
-    )
+    assert copy["variables"] == original["variables"] == [{"name": "month"}]
 
 
 def without_id(step: dict[str, Any]) -> dict[str, Any]:

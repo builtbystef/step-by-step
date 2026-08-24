@@ -231,6 +231,7 @@ def has_needs_secret(value: Any) -> bool:
     "/api/recording-sessions/{session_id}/finalize",
     operation_id="finalizeRecordingSession",
     response_model_exclude_none=True,
+    response_model_exclude_unset=True,
     responses=errors(400, 401, 409),
 )
 def finalize_session(
