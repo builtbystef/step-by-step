@@ -3,10 +3,13 @@
   "permissionPromptTimeoutSeconds": 30,
   "network": {
     "allowLocalBinding": true,
-    "allowAllUnixSockets": false
+    "allowAllUnixSockets": true
   },
   "filesystem": {
-    "allowRead": [],
+    "allowRead": [
+      "**/site-packages/certifi/cacert.pem",
+      "**/site-packages/botocore/cacert.pem"
+    ],
     "denyRead": [
       "~/Main",
       "~/.ssh",
@@ -17,6 +20,8 @@
       "~/.config/gh",
       "~/.config/gcloud",
       "~/.local/share/keyrings",
+      "/run/user/1000/keyring",
+      "/run/user/1000/gnupg",
       "~/.claude/.credentials.json",
       "~/.claude.json",
       "~/.claude.json.backup",

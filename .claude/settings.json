@@ -4,6 +4,9 @@
     "failIfUnavailable": true,
     "allowUnsandboxedCommands": false,
     "autoAllowBashIfSandboxed": true,
+    "network": {
+      "allowAllUnixSockets": true
+    },
     "filesystem": {
       "denyRead": [
         "~/Main",
@@ -15,6 +18,8 @@
         "~/.config/gh",
         "~/.config/gcloud",
         "~/.local/share/keyrings",
+        "/run/user/1000/keyring",
+        "/run/user/1000/gnupg",
         "~/.claude/.credentials.json",
         "~/.claude.json",
         "~/.claude.json.backup",
@@ -25,6 +30,7 @@
         "~/.pgpass"
       ],
       "allowWrite": [
+        "/tmp",
         "~/.cache",
         "~/.npm",
         "~/.local/share/pnpm",
@@ -35,6 +41,10 @@
       "denyWrite": [
         "~/.cache/ccache",
         "~/.cache/go-build"
+      ],
+      "allowRead": [
+        "**/site-packages/certifi/cacert.pem",
+        "**/site-packages/botocore/cacert.pem"
       ]
     }
   },
@@ -53,6 +63,8 @@
       "Read(~/.config/gh/**)",
       "Read(~/.config/gcloud/**)",
       "Read(~/.local/share/keyrings/**)",
+      "Read(/run/user/1000/keyring/**)",
+      "Read(/run/user/1000/gnupg/**)",
       "Read(~/.claude/.credentials.json)",
       "Read(~/.claude.json)",
       "Read(~/.claude.json.backup)",
