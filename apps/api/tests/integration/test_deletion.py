@@ -170,7 +170,9 @@ def owning_nothing(host: Account, new_account: NewAccount) -> Account:
     team, and it ended the Organization its own signup made.
     """
     guest = new_account()
+    own_org = guest.org_id
     join(host, guest)
+    guest.client.headers["X-Organization"] = own_org
     ended = end_organization(guest, org_name_of(guest))
     assert ended.status_code == 204, ended.text
     return guest

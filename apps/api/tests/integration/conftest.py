@@ -154,4 +154,5 @@ def join(owner: Account, invitee: Account, role: str = "member") -> Account:
     assert invited.status_code == 201, invited.text
     accepted = invitee.client.post(f"/api/invitations/{invited.json()['id']}/accept")
     assert accepted.status_code == 204, accepted.text
+    invitee.client.headers["X-Organization"] = owner.org_id
     return Account(client=invitee.client, email=invitee.email, org_id=owner.org_id)

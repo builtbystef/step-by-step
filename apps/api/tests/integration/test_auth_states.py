@@ -71,7 +71,7 @@ def test_store_upserts_each_layer_without_exposing_blob_contents(
             db, UUID(owner.org_id), user_id(member), blob("example.com", "personal")
         )
         personal_only = store(
-            db, UUID(owner.org_id), user_id(member), blob("github.io", "only-mine")
+            db, UUID(owner.org_id), user_id(member), blob("example.org", "only-mine")
         )
         db.commit()
         db.refresh(organization)
