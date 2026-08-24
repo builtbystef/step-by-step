@@ -9,12 +9,15 @@ export default defineConfig({
     // Machine-written files keep their generators' formatting so the CI
     // contract job can diff regenerated output against what's committed.
     // .beaver issue files are managed by the beaver CLI, not formatted here.
+    // The agents' sandbox policy is mounted read-only while a sandboxed
+    // session runs, so a reformat there would fail the commit from inside one.
     ignorePatterns: [
       "**/src/generated/**",
       "**/openapi.json",
       ".beaver/**",
       ".agents/**",
       ".claude/**",
+      ".pi/**",
     ],
   },
   lint: {
