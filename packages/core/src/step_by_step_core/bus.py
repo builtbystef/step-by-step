@@ -14,6 +14,9 @@ from os import environ
 
 from redis import Redis
 
+DISPATCH_LIST = "runs:dispatch"
+"""The one list carrying queued Run ids to Workers."""
+
 
 @lru_cache(maxsize=1)
 def get_redis() -> Redis:

@@ -188,6 +188,25 @@ export type Connected = {
 };
 
 /**
+ * ControlIntervalRecord
+ */
+export type ControlIntervalRecord = {
+    /**
+     * Id
+     */
+    id: string;
+    kind: RunControlKind;
+    /**
+     * Started At
+     */
+    started_at: string;
+    /**
+     * Ended At
+     */
+    ended_at: string | null;
+};
+
+/**
  * CreateSecret
  */
 export type CreateSecret = {
@@ -398,6 +417,11 @@ export type ExtractStep = {
         mode: 'list';
     } & ListExtractPayload);
 };
+
+/**
+ * FailureReason
+ */
+export type FailureReason = 'step_failed' | 'auth_challenge' | 'takeover_timeout' | 'takeover_abandoned' | 'run_timeout' | 'worker_lost' | 'missing_secret' | 'startup_failed';
 
 /**
  * FrameHop
@@ -707,6 +731,194 @@ export type RoleChange = {
 };
 
 /**
+ * RunControlKind
+ */
+export type RunControlKind = 'automation' | 'waiting' | 'human' | 'verifying';
+
+/**
+ * RunCreated
+ */
+export type RunCreated = {
+    /**
+     * Run Id
+     */
+    run_id: string;
+};
+
+/**
+ * RunDetail
+ */
+export type RunDetail = {
+    run: RunRecord;
+    /**
+     * Step Results
+     */
+    step_results: Array<StepResultRecord>;
+    /**
+     * Control Intervals
+     */
+    control_intervals: Array<ControlIntervalRecord>;
+    /**
+     * Artifacts
+     */
+    artifacts: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Batch Row
+     */
+    batch_row: {
+        [key: string]: unknown;
+    } | null;
+};
+
+/**
+ * RunPage
+ */
+export type RunPage = {
+    /**
+     * Items
+     */
+    items: Array<RunSummary>;
+    /**
+     * Next Cursor
+     */
+    next_cursor?: string | null;
+};
+
+/**
+ * RunRecord
+ */
+export type RunRecord = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Workflow Id
+     */
+    workflow_id: string;
+    /**
+     * Version Number
+     */
+    version_number: number | null;
+    /**
+     * Draft Snapshot
+     */
+    draft_snapshot: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Is Test
+     */
+    is_test: boolean;
+    trigger: RunTrigger;
+    status: RunStatus;
+    failure_reason: FailureReason | null;
+    /**
+     * Failure Detail
+     */
+    failure_detail: string | null;
+    /**
+     * Variables
+     */
+    variables: {
+        [key: string]: unknown;
+    };
+    /**
+     * Timeout Ms
+     */
+    timeout_ms: number;
+    /**
+     * Worker Id
+     */
+    worker_id: string | null;
+    /**
+     * Worker Vnc Endpoint
+     */
+    worker_vnc_endpoint: string | null;
+    /**
+     * Heartbeat At
+     */
+    heartbeat_at: string | null;
+    /**
+     * Cancel Requested At
+     */
+    cancel_requested_at: string | null;
+    /**
+     * Pause Requested At
+     */
+    pause_requested_at: string | null;
+    /**
+     * Takeover Deadline At
+     */
+    takeover_deadline_at: string | null;
+    /**
+     * Auto Handback Disabled
+     */
+    auto_handback_disabled: boolean;
+    /**
+     * Queued At
+     */
+    queued_at: string;
+    /**
+     * Started At
+     */
+    started_at: string | null;
+    /**
+     * Ended At
+     */
+    ended_at: string | null;
+    /**
+     * Automation Ms
+     */
+    automation_ms: number;
+};
+
+/**
+ * RunStatus
+ */
+export type RunStatus = 'queued' | 'running' | 'waiting_for_human' | 'succeeded' | 'failed' | 'cancelled';
+
+/**
+ * RunSummary
+ */
+export type RunSummary = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Workflow Id
+     */
+    workflow_id: string;
+    /**
+     * Version Number
+     */
+    version_number: number | null;
+    trigger: RunTrigger;
+    status: RunStatus;
+    failure_reason: FailureReason | null;
+    /**
+     * Queued At
+     */
+    queued_at: string;
+    /**
+     * Started At
+     */
+    started_at: string | null;
+    /**
+     * Ended At
+     */
+    ended_at: string | null;
+};
+
+/**
+ * RunTrigger
+ */
+export type RunTrigger = 'manual' | 'schedule' | 'batch' | 'test';
+
+/**
  * ScalarExtractPayload
  *
  * One named value: an element's text, or one of its attributes.
@@ -844,6 +1056,22 @@ export type SignedIn = {
 export type SignupMode = 'open' | 'invite_only';
 
 /**
+ * StartRun
+ */
+export type StartRun = {
+    /**
+     * Variables
+     */
+    variables?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Test
+     */
+    test?: boolean;
+};
+
+/**
  * StepRef
  *
  * One Step in a diff: what names it in a modal, and nothing else.
@@ -858,6 +1086,68 @@ export type StepRef = {
      */
     label: string;
 };
+
+/**
+ * StepResultRecord
+ */
+export type StepResultRecord = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Step Id
+     */
+    step_id: string;
+    /**
+     * Position
+     */
+    position: number;
+    status: StepResultStatus;
+    /**
+     * Started At
+     */
+    started_at: string | null;
+    /**
+     * Ended At
+     */
+    ended_at: string | null;
+    /**
+     * Matched Candidate Rank
+     */
+    matched_candidate_rank: number | null;
+    /**
+     * Candidate Count
+     */
+    candidate_count: number | null;
+    /**
+     * Completed By Human
+     */
+    completed_by_human: boolean;
+    /**
+     * Error Code
+     */
+    error_code: string | null;
+    /**
+     * Error Message
+     */
+    error_message: string | null;
+    /**
+     * Diagnostics
+     */
+    diagnostics: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Extracted Value
+     */
+    extracted_value: unknown | null;
+};
+
+/**
+ * StepResultStatus
+ */
+export type StepResultStatus = 'passed' | 'failed' | 'skipped';
 
 /**
  * TakeoverPayload
@@ -3007,6 +3297,224 @@ export type DuplicateWorkflowResponses = {
 };
 
 export type DuplicateWorkflowResponse = DuplicateWorkflowResponses[keyof DuplicateWorkflowResponses];
+
+export type StartRunData = {
+    body: StartRun;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+    };
+    query?: never;
+    url: '/api/workflows/{workflow_id}/runs';
+};
+
+export type StartRunErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Conflict
+     */
+    409: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type StartRunError = StartRunErrors[keyof StartRunErrors];
+
+export type StartRunResponses = {
+    /**
+     * Successful Response
+     */
+    201: RunCreated;
+};
+
+export type StartRunResponse = StartRunResponses[keyof StartRunResponses];
+
+export type ListRunsData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Workflow Id
+         */
+        workflow_id?: string | null;
+        /**
+         * Status
+         */
+        status?: RunStatus | null;
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Cursor
+         */
+        cursor?: string | null;
+    };
+    url: '/api/runs';
+};
+
+export type ListRunsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListRunsError = ListRunsErrors[keyof ListRunsErrors];
+
+export type ListRunsResponses = {
+    /**
+     * Successful Response
+     */
+    200: RunPage;
+};
+
+export type ListRunsResponse = ListRunsResponses[keyof ListRunsResponses];
+
+export type GetRunData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Run Id
+         */
+        run_id: string;
+    };
+    query?: never;
+    url: '/api/runs/{run_id}';
+};
+
+export type GetRunErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetRunError = GetRunErrors[keyof GetRunErrors];
+
+export type GetRunResponses = {
+    /**
+     * Successful Response
+     */
+    200: RunDetail;
+};
+
+export type GetRunResponse = GetRunResponses[keyof GetRunResponses];
+
+export type CancelRunData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Run Id
+         */
+        run_id: string;
+    };
+    query?: never;
+    url: '/api/runs/{run_id}/cancel';
+};
+
+export type CancelRunErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CancelRunError = CancelRunErrors[keyof CancelRunErrors];
+
+export type CancelRunResponses = {
+    /**
+     * Successful Response
+     */
+    202: unknown;
+};
 
 export type GetHealthData = {
     body?: never;

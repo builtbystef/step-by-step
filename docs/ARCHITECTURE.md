@@ -183,6 +183,12 @@ Publishing copies the Draft's stored JSONB across as it is rather than re-serial
 
 Another Organization's Workflow answers 404 and never 403. A refusal that admitted the id exists would let anyone map another tenant's Workflows one guess at a time.
 
+### Runs and dispatch
+
+`step_by_step_api.runs` owns the persisted execution record and the first four user-facing Run routes. `models.py` holds `runs`, `step_results`, `run_control_intervals`, and `run_log_lines`, including the closed lifecycle and failure-reason sets. Runs belong to an Organization, point to an immutable Workflow Version except for test Runs, and carry only non-secret Variable values; a test Run instead carries the Draft snapshot it will execute. The partial `(org_id, takeover_deadline_at)` index over non-terminal Runs is the attention query's ground.
+
+`routes.py` starts manual and test Runs, lists them by a newest-first `(queued_at, id)` keyset, reconstructs detail from the Run, ordered Step Results, and control intervals, and cancels queued Runs immediately. Every lookup passes through the active-Organization Membership gate, so an id from another Organization is 404. Starting commits the queued row to Postgres first, then performs one `LPUSH` of its id to `step_by_step_core.bus.DISPATCH_LIST`; Redis is a dispatch hint, never the record of whether the Run exists. Active cancellation, Worker claims, Artifact rows, and Batch rows arrive in their owning execution slices, so detail returns empty Artifacts and no Batch row until those stores exist.
+
 ### The extension, and how it reaches an instance
 
 `apps/extension` is the recorder: plain MV3 JavaScript, no framework and no build step, so the directory Chrome loads unpacked is also the artifact the backend serves. The manifest pins a `key` — the extension id then follows the package rather than the directory it was installed from, which is what an enterprise-policy install and any later Web Store continuity need — declares `minimum_chrome_version: "118"` (from 118 an attached `chrome.debugger` session resets the service worker's idle timer), and asks for broad host access as an **optional** permission only. An install grants `storage` and `scripting` and reaches no site until somebody names one.

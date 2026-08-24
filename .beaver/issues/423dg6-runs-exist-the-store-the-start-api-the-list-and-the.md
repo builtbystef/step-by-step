@@ -1,14 +1,15 @@
 ---
 id: 423dg6
 title: 'Runs exist: the store, the start API, the list, and the dispatch queue'
-state: todo
+state: done
+assignee: agent
 priority: high
 depends_on:
     - f53mo0
     - g795ji
 parent: 9gea5p
 created: 2026-08-14T07:41:05Z
-updated: 2026-08-19T20:02:05Z
+updated: 2026-08-24T07:00:04Z
 ---
 
 ## What to build
@@ -46,3 +47,7 @@ Re-scope per ADR 0005 (see the note on 9gea5p): runs gains org_id (FK organizati
 **claude** — 2026-08-19T20:02:05Z
 
 From 5rkj33 (the Workflows list): the frontend already renders a `no_published_version` refusal as the shared sentence `COPY.noPublishedVersion` ("Publish a Version before this Workflow can run."), and `app/(shell)/workflows/messages.ts` maps that code to it. When this slice builds POST /api/workflows/{id}/runs, the refusal for a Workflow with no published Version should carry exactly that code, so the mapping and the disabled Run/New batch/New schedule actions line up with the route.
+
+**agent** — 2026-08-24T07:00:04Z
+
+Completed the Run persistence and dispatch slice. Added the runs, step_results, run_control_intervals, and run_log_lines schema with closed lifecycle/failure sets, Organization ownership, nullable starter and Version fields for test Runs, cascades, keyset and attention indexes. Added org-scoped start/list/detail/cancel routes: starts select the latest Version or snapshot the Draft for tests, strip secret Variable values, commit queued state, then LPUSH the id once; queued cancellation is immediate; list filters and keyset-pages; detail orders Step Results and carries timeline plus the Artifact/Batch placeholders owned by later slices. Added HTTP seam coverage for every acceptance example, shared dispatch-list naming, architecture docs, OpenAPI, and generated client. The Artifact table itself remains correctly owned by tls69i, so this response is ready to carry its rows when that slice lands. pnpm run ci passes; the integration suite was authored but the local compose services were unavailable in this run.
