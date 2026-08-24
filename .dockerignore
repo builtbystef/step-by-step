@@ -20,6 +20,5 @@ node_modules
 apps/web
 packages/api-client
 docs
-sandbox
 .env
 .env.*

@@ -36,7 +36,7 @@ The deployment shape (settled in `px25yw`): one docker compose stack — backend
 
 The Workers publish **nothing**. Their VNC servers must be reachable from the backend over the compose network and from nowhere else, which is also what makes `docker compose up --scale worker=N` work: with no published port there is nothing for a replica to collide with, and each container's `:99` display is its own.
 
-The stack is long-lived shared state: dev, the tests, and any sandboxed agent loop all reach the same containers, so nothing may assume it starts fresh.
+The stack is long-lived shared state: dev and the tests all reach the same containers, so nothing may assume it starts fresh.
 
 Garage is the Artifact store, chosen over MinIO on 2026-08-16 after MinIO archived its community edition; `px25yw` carries the reasoning and `ymz3md` the stack fact. What binds code rather than compose: artifacts are read and written through the **S3 API only**, via boto3 against a configurable endpoint URL, so the store stays swappable. Garage has no object versioning, bucket policies, object lock, or server-side encryption — none are used here, since retention is app-driven and ADR 0003 puts encryption in the application layer.
 
