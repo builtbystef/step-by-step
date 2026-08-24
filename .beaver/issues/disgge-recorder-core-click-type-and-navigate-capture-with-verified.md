@@ -1,14 +1,15 @@
 ---
 id: disgge
 title: 'Recorder core: click, type, and navigate capture with verified ranked candidates'
-state: todo
+state: done
+assignee: agent
 priority: medium
 depends_on:
     - 94xanm
     - bysmhd
 parent: d8ux2s
 created: 2026-08-14T06:02:56Z
-updated: 2026-08-19T01:52:25Z
+updated: 2026-08-24T07:58:25Z
 ---
 
 ## What to build
@@ -39,3 +40,7 @@ The replay half is built (mwrkwp), so the encoding of a candidate's `value` is n
 - `shadowPath` — one selector per open shadow-root hop, outermost first; each hop is a scope the next one is read inside, and the last is the scope the candidate itself is read in.
 
 Frames: `resolve` addresses a hop by its `name` when exactly one child frame carries it, and by the recorded `index` otherwise. The `url` is not an address — record it for the person reading the Step.
+
+**agent** — 2026-08-24T07:58:25Z
+
+Done. Added the MV3 capture pipeline for click, type, and navigation Steps. Content capture runs in every permitted frame, marks elements with page-load-scoped correlation ids, computes only live-DOM-unique candidates in the fixed testid → role → placeholder → label → alt → text → title → CSS order, and prefetches accessibility at pointerdown/focusin. The service worker attaches CDP, addresses marked elements through Runtime.evaluate object ids, verifies implicit role/name uniqueness while ignoring ignored AX nodes, awaits the bounded in-flight query, serializes interactions and web-navigation events, correlates click-caused navigation as assertedNavigation, auto-generates labels/envelope defaults, and sends a full-buffer checkpoint after every Step change. It enables no Network domain and recorder messages carry no network data. Browser-boundary tests load the unpacked package over fixture pages and cover ranked role/testid candidates, rejected ambiguous candidates, type capture, rapid interaction order, fast AX assembly, click navigation without a duplicate navigate Step, standalone browser navigation, page-load correlation, checkpoint delivery, defaults, and absence of network-level fields. Updated the manifest permissions and architecture record. pnpm check, pnpm test, and the complete extension browser tier pass.

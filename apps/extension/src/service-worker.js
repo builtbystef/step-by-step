@@ -119,6 +119,14 @@ chrome.permissions.onAdded.addListener((granted) => {
   void finishConnect(granted.origins ?? []);
 });
 
+chrome.webNavigation.onCommitted.addListener((details) => {
+  if (details.frameId === 0) void enqueueRecording(() => recordNavigation(details));
+});
+
+chrome.debugger.onDetach.addListener((source) => {
+  void endRecordingAfterDetach(source.tabId);
+});
+
 /**
  * What was said, and then whether the sayer may say it.
  *
@@ -131,6 +139,9 @@ chrome.permissions.onAdded.addListener((granted) => {
 async function answer(message, sender) {
   if (isProtocolMessage(message)) {
     return message.type === PROBE ? answerProbe(message, sender) : acceptHandshake(message, sender);
+  }
+  if (message?.type === "recorder-ax" || message?.type === "recorder-event") {
+    return acceptRecorderMessage(message, sender);
   }
   if (!fromOurOwnSurfaces(sender)) {
     return { ignored: true };
@@ -151,6 +162,10 @@ async function answer(message, sender) {
       return forget();
     case "remember-address":
       return rememberAddress(message.address);
+    case "start-recording":
+      return startRecording(message);
+    case "stop-recording":
+      return stopRecording();
     case "disconnect":
       return disconnect();
     default:
@@ -522,4 +537,237 @@ function canonical(origin) {
 /** Whether Chrome has actually granted the origin — the popup asks, this checks. */
 function permitted(origin) {
   return chrome.permissions.contains({ origins: [originPattern(origin)] });
+}
+
+// Recording state is checkpointed after every Step. The debugger attachment
+// keeps this worker alive on Chrome 118+, but storage remains the source of
+// truth when Chrome restarts it between recording events.
+const RECORDING_KEY = "active-recording";
+const AX_WAIT_MS = 750;
+let recordingQueue = Promise.resolve();
+const accessibilityQueries = new Map();
+
+function enqueueRecording(work) {
+  recordingQueue = recordingQueue.then(work).catch((failure) => {
+    console.warn("step-by-step: recorder event failed", failure);
+  });
+  return recordingQueue;
+}
+
+async function startRecording(message) {
+  if (
+    typeof message.sessionId !== "string" ||
+    typeof message.token !== "string" ||
+    typeof message.backendOrigin !== "string" ||
+    typeof message.targetUrl !== "string"
+  ) {
+    return { started: false };
+  }
+  const held = await connection();
+  if (held?.origin !== message.backendOrigin) return { started: false };
+  const tabs = await chrome.tabs.query({ url: message.targetUrl });
+  const tab = tabs.find((candidate) => candidate.url === message.targetUrl);
+  if (typeof tab?.id !== "number") return { started: false };
+
+  await debuggerAttach(tab.id);
+  await debuggerCommand(tab.id, "Accessibility.enable");
+  await chrome.storage.local.set({
+    [RECORDING_KEY]: {
+      tabId: tab.id,
+      sessionId: message.sessionId,
+      token: message.token,
+      backendOrigin: message.backendOrigin,
+      steps: [],
+      checkpointSeq: 0,
+    },
+  });
+  await injectRecorder(tab.id);
+  return { started: true };
+}
+
+async function stopRecording() {
+  const active = await activeRecording();
+  if (active !== null) {
+    await chrome.storage.local.remove(RECORDING_KEY);
+    try {
+      await debuggerDetach(active.tabId);
+    } catch {
+      // A tab that closed already detached itself.
+    }
+  }
+  accessibilityQueries.clear();
+  return { stopped: true };
+}
+
+async function endRecordingAfterDetach(tabId) {
+  const active = await activeRecording();
+  if (active?.tabId === tabId) await chrome.storage.local.remove(RECORDING_KEY);
+}
+
+async function activeRecording() {
+  const stored = await chrome.storage.local.get(RECORDING_KEY);
+  return stored[RECORDING_KEY] ?? null;
+}
+
+async function injectRecorder(tabId) {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId, allFrames: true },
+      files: ["recorder-content.js"],
+    });
+  } catch (refused) {
+    console.warn("step-by-step: recorder could not enter every permitted frame", refused);
+  }
+}
+
+async function acceptRecorderMessage(message, sender) {
+  const active = await activeRecording();
+  if (
+    active === null ||
+    sender.id !== chrome.runtime.id ||
+    sender.tab?.id !== active.tabId ||
+    typeof sender.frameId !== "number" ||
+    typeof message.correlation !== "string" ||
+    typeof message.pageLoad !== "string" ||
+    !message.correlation.startsWith(`${message.pageLoad}:`)
+  ) {
+    return { ignored: true };
+  }
+  const key = `${sender.frameId}:${message.correlation}`;
+  if (message.type === "recorder-ax") {
+    accessibilityQueries.set(key, queryAccessibility(active.tabId, message.correlation));
+  } else {
+    void enqueueRecording(() => assembleInteraction(active.tabId, key, message));
+  }
+  return { accepted: true };
+}
+
+async function queryAccessibility(tabId, correlation) {
+  const selector = `[data-step-by-step-correlation=${JSON.stringify(correlation)}]`;
+  try {
+    const evaluated = await debuggerCommand(tabId, "Runtime.evaluate", {
+      expression: `document.querySelector(${JSON.stringify(selector)})`,
+    });
+    const objectId = evaluated.result?.objectId;
+    if (!objectId) return null;
+    const partial = await debuggerCommand(tabId, "Accessibility.getPartialAXTree", {
+      objectId,
+      fetchRelatives: false,
+    });
+    const node = partial.nodes?.find((candidate) => !candidate.ignored);
+    const role = node?.role?.value;
+    const name = node?.name?.value;
+    if (typeof role !== "string" || typeof name !== "string" || name.trim() === "") return null;
+    const documentObject = await debuggerCommand(tabId, "Runtime.evaluate", {
+      expression: "document",
+    });
+    const matches = await debuggerCommand(tabId, "Accessibility.queryAXTree", {
+      objectId: documentObject.result?.objectId,
+      role,
+      accessibleName: name,
+    });
+    if ((matches.nodes ?? []).filter((candidate) => !candidate.ignored).length !== 1) return null;
+    return { kind: "role", value: `${role}[name=${JSON.stringify(name)}]` };
+  } catch {
+    // Navigation may destroy the object between pointerdown and the query. A
+    // missing candidate is safer than retaining a stale or unverified one.
+    return null;
+  }
+}
+
+async function assembleInteraction(tabId, key, message) {
+  const active = await activeRecording();
+  if (active?.tabId !== tabId) return;
+  const pending = accessibilityQueries.get(key);
+  const role = pending
+    ? await Promise.race([
+        pending,
+        new Promise((resolve) => setTimeout(() => resolve(null), AX_WAIT_MS)),
+      ])
+    : null;
+  accessibilityQueries.delete(key);
+  const candidates = Array.isArray(message.candidates) ? [...message.candidates] : [];
+  if (role !== null) candidates.splice(candidates[0]?.kind === "testid" ? 1 : 0, 0, role);
+
+  const description =
+    typeof message.description === "string" && message.description
+      ? message.description
+      : "element";
+  const step = {
+    id: crypto.randomUUID(),
+    type: message.event,
+    label: message.event === "type" ? `Type into ${description}` : `Click ${description}`,
+    optional: false,
+    disabled: false,
+    screenshot: false,
+    payload: {
+      target: { candidates },
+      ...(message.event === "type" ? { value: message.value ?? "" } : {}),
+    },
+  };
+  if (message.needsSecret === true) step.needsSecret = true;
+  active.steps.push(step);
+  await checkpoint(active);
+}
+
+async function recordNavigation(details) {
+  const active = await activeRecording();
+  if (active === null || active.tabId !== details.tabId) return;
+  const previous = active.steps.at(-1);
+  if (previous?.type === "click" && ["link", "form_submit"].includes(details.transitionType)) {
+    previous.payload.assertedNavigation = true;
+  } else {
+    active.steps.push({
+      id: crypto.randomUUID(),
+      type: "navigate",
+      label: `Navigate to ${new URL(details.url).hostname}`,
+      optional: false,
+      disabled: false,
+      screenshot: false,
+      payload: { url: details.url },
+    });
+  }
+  await checkpoint(active);
+  await injectRecorder(active.tabId);
+}
+
+async function checkpoint(active) {
+  active.checkpointSeq += 1;
+  await chrome.storage.local.set({ [RECORDING_KEY]: active });
+  const response = await fetch(
+    `${active.backendOrigin}/api/recording-sessions/${encodeURIComponent(active.sessionId)}/checkpoint`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: active.token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ seq: active.checkpointSeq, steps: active.steps }),
+    },
+  );
+  if (!response.ok) throw new Error(`checkpoint refused (${response.status})`);
+}
+
+function debuggerAttach(tabId) {
+  return new Promise((resolve, reject) => {
+    chrome.debugger.attach({ tabId }, "1.3", () => {
+      const failure = chrome.runtime.lastError;
+      if (failure) reject(new Error(failure.message));
+      else resolve();
+    });
+  });
+}
+
+function debuggerDetach(tabId) {
+  return new Promise((resolve) => chrome.debugger.detach({ tabId }, resolve));
+}
+
+function debuggerCommand(tabId, method, params = {}) {
+  return new Promise((resolve, reject) => {
+    chrome.debugger.sendCommand({ tabId }, method, params, (result) => {
+      const failure = chrome.runtime.lastError;
+      if (failure) reject(new Error(failure.message));
+      else resolve(result ?? {});
+    });
+  });
 }

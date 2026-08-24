@@ -5,7 +5,7 @@
   "description": "Records what you do in the browser as a Step by Step Workflow.",
   "minimum_chrome_version": "118",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1H18Qg0UPn82FcpUvl3EbwYf/YwVAqi8fvv/TAneKw3KaL0c1zP95PAQc8o5aJePhg4SmigvTNwOhHB9KoknX0CkmKFuYtvrzsRg9RD8/0l+pYM3VoLFprNXoOyS+8uZIHwsjByMEOmr8u93ENDxE5wovlPmlPZdTu+1ZqnpDO47wrA5QPcbtMfc3EjlD0DBTnZjn5UKdyip7Oce9TRJFdN9ppCEcusswB2mYGtgmbSIQwusTHnHplDc+UIafGjhYE4c27UGWx7XXQztOuaykvgGWkjnoHrH4NbE5IPhQSUs8Jq4mtEIXp7txcZRMBFL5dQHW+EwBw0Yn9cj3eS6wQIDAQAB",
-  "permissions": ["storage", "scripting"],
+  "permissions": ["storage", "scripting", "debugger", "webNavigation"],
   "optional_host_permissions": ["*://*/*"],
   "background": {
     "service_worker": "service-worker.js",

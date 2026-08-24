@@ -14,7 +14,9 @@ import json
 import shutil
 import threading
 from collections.abc import Iterator
+from copy import deepcopy
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 from playwright.sync_api import BrowserContext, Playwright, Worker, sync_playwright
@@ -57,6 +59,44 @@ LIVE_CODE = "ABCD-EFGH-JKLM"
 """The one connect code the fixture instance will accept."""
 
 
+class RecordingSink:
+    """The fixture instance's observable recording boundary."""
+
+    def __init__(self) -> None:
+        self.condition = threading.Condition()
+        self.checkpoints: list[dict[str, Any]] = []
+
+    def clear(self) -> None:
+        with self.condition:
+            self.checkpoints.clear()
+
+    def append(self, checkpoint: dict[str, Any]) -> None:
+        with self.condition:
+            self.checkpoints.append(deepcopy(checkpoint))
+            self.condition.notify_all()
+
+    def wait_for_steps(self, count: int) -> list[dict[str, Any]]:
+        with self.condition:
+            ready = self.condition.wait_for(
+                lambda: (
+                    bool(self.checkpoints)
+                    and len(self.checkpoints[-1].get("steps", [])) >= count
+                ),
+                timeout=10,
+            )
+            assert ready, self.checkpoints
+            return deepcopy(cast(list[dict[str, Any]], self.checkpoints[-1]["steps"]))
+
+
+RECORDING_SINK = RecordingSink()
+
+
+@pytest.fixture
+def recording_sink() -> RecordingSink:
+    RECORDING_SINK.clear()
+    return RECORDING_SINK
+
+
 class SiteHandler(http.server.SimpleHTTPRequestHandler):
     """The fixture pages, with the extension's own modules beside them.
 
@@ -77,17 +117,25 @@ class SiteHandler(http.server.SimpleHTTPRequestHandler):
         return super().translate_path(path)
 
     def do_POST(self) -> None:
-        if self.path != "/api/extension/connect":
-            self.send_error(404)
-            return
         length = int(self.headers.get("Content-Length", "0"))
         try:
             asked = json.loads(self.rfile.read(length) or b"{}")
         except json.JSONDecodeError:
             asked = {}
-        spent = asked.get("code") == LIVE_CODE
-        body = b"{}" if spent else b'{"code":"bad_code","message":"no"}'
-        self.send_response(200 if spent else 401)
+        if self.path.startswith("/api/recording-sessions/") and self.path.endswith(
+            "/checkpoint"
+        ):
+            RECORDING_SINK.append(asked)
+            body = b"{}"
+            status = 200
+        elif self.path == "/api/extension/connect":
+            spent = asked.get("code") == LIVE_CODE
+            body = b"{}" if spent else b'{"code":"bad_code","message":"no"}'
+            status = 200 if spent else 401
+        else:
+            self.send_error(404)
+            return
+        self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()

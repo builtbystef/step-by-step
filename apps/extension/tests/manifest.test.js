@@ -42,7 +42,7 @@ describe("the extension package", () => {
   it("asks for broad host access only as an optional permission", () => {
     expect(manifest.host_permissions).toBeUndefined();
     expect(manifest.optional_host_permissions).toEqual(["*://*/*"]);
-    expect(manifest.permissions).toEqual(["storage", "scripting"]);
+    expect(manifest.permissions).toEqual(["storage", "scripting", "debugger", "webNavigation"]);
   });
 
   it("names only files that are in the package", () => {
@@ -54,6 +54,7 @@ describe("the extension package", () => {
       "lib/handshake.js",
       "lib/instance.js",
       "lib/page-bridge.js",
+      "recorder-content.js",
     ];
 
     expect(named.filter((file) => !existsSync(join(PACKAGE, file)))).toEqual([]);

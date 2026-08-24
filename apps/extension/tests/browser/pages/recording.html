@@ -1,0 +1,16 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Recorder fixture</title>
+<button data-testid="save">Save</button>
+<button data-testid="second">Second</button>
+<button title="Repeated title">One repeated title</button>
+<button title="Repeated title">Another repeated title</button>
+<label>Email <input data-testid="email" placeholder="Email address" /></label>
+<a data-testid="next" href="/destination.html">Next page</a>
+<script>
+  for (const button of document.querySelectorAll("button")) {
+    button.addEventListener("click", () => {
+      document.body.dataset.lastClick = button.textContent;
+    });
+  }
+</script>
