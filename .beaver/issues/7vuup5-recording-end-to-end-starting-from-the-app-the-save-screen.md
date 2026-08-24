@@ -7,9 +7,11 @@ depends_on:
     - bysmhd
     - rjklmp
     - y2fsy1
+    - 56r40g
+    - 0zwbku
 parent: d8ux2s
 created: 2026-08-14T06:03:37Z
-updated: 2026-08-24T10:12:17Z
+updated: 2026-08-24T10:13:30Z
 ---
 
 ## What to build
