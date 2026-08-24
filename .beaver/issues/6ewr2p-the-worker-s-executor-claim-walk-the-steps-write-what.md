@@ -1,7 +1,8 @@
 ---
 id: 6ewr2p
 title: 'The Worker''s executor: claim, walk the Steps, write what happened'
-state: todo
+state: done
+assignee: agent
 priority: high
 depends_on:
     - 423dg6
@@ -9,7 +10,7 @@ depends_on:
     - xkfmw8
 parent: 9gea5p
 created: 2026-08-14T07:41:22Z
-updated: 2026-08-19T01:52:14Z
+updated: 2026-08-24T09:21:29Z
 ---
 
 ## What to build
@@ -31,3 +32,13 @@ Credentials and Auth State injection plug in through the 54i6da slices; until th
 - [ ] A Run cancelled between enqueue and claim → the claim updates zero rows and the Worker pops the next job.
 - [ ] A Version exceeding the run timeout (fixture with a tiny timeout) → `failed` / `run_timeout` at a Step boundary, unreached Steps `skipped`.
 - [ ] After a Run, no profile directory remains on the Worker.
+
+## Notes
+
+**agent** — 2026-08-24T09:08:59Z
+
+Test seam selected from the parent spec: the Worker's executor against real Playwright fixture pages, with its Postgres writes and Redis claim queue observed at their public boundaries. This slice will exercise Version and Draft-snapshot Runs through the dispatch/executor entry points; selector resolution remains covered by its existing browser seam.
+
+**agent** — 2026-08-24T09:21:29Z
+
+Completed the Worker executor and dispatch loop. A Worker now BRPOPs the shared list, conditionally claims queued Runs with worker/VNC/start/heartbeat stamps, drops cancelled/stale/duplicate ids, selects the immutable Version or a test Run's Draft snapshot, and executes one fresh headed persistent Chromium context at a time. The executor writes ordered Step Results and one automation control interval durably, records selector rank/candidate count, skips disabled and optional-missing Steps, fails required misses and fills later skipped results, enforces the Run timeout at Step boundaries, interpolates Run Variables, closes the browser, removes the throwaway profile, then writes terminal status. Added browser-seam coverage for success, drift, required/optional failures, disabled behavior, Draft snapshots, serial/duplicate/cancelled dispatch, timeout, and profile cleanup; added a Postgres integration assertion for the conditional claim and snapshot selection. pnpm check, pnpm test, and pnpm test:browser pass. The new Postgres integration assertion was not runnable locally because the compose Postgres service was not running; the fast and browser tiers are green.

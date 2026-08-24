@@ -16,6 +16,7 @@ from step_by_step_api.runs.models import (
 )
 from step_by_step_core.bus import get_redis
 from step_by_step_core.db import session_scope
+from step_by_step_worker.store import PostgresRunStore
 from test_workflow_versions import publish
 from test_workflows import NewAccount, a_navigate_step, a_workflow, save_draft
 
@@ -88,6 +89,41 @@ def test_test_and_manual_runs_store_the_document_they_execute(
     assert test["trigger"] == "test"
     assert test["version_number"] is None
     assert test["draft_snapshot"]["steps"] == changed
+
+
+def test_worker_claim_is_conditional_and_selects_the_test_run_snapshot(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    workflow_id = published_workflow(account)
+    draft_step_id = uuid4()
+    changed = [a_navigate_step(str(draft_step_id))]
+    assert save_draft(account, workflow_id, steps=changed).status_code == 200
+    manual_id = start(account, workflow_id, variables={}).json()["run_id"]
+    test_id = start(account, workflow_id, variables={}, test=True).json()["run_id"]
+    cancelled_id = start(account, workflow_id, variables={}).json()["run_id"]
+    assert account.client.post(f"/api/runs/{cancelled_id}/cancel").status_code == 202
+    store = PostgresRunStore()
+
+    manual = store.claim(UUID(manual_id), "worker-1", "worker-1:5900", clock.now())
+    assert manual is not None
+    assert (
+        store.claim(UUID(manual_id), "worker-2", "worker-2:5900", clock.now()) is None
+    )
+    assert (
+        store.claim(UUID(cancelled_id), "worker-1", "worker-1:5900", clock.now())
+        is None
+    )
+    snapshot = store.claim(UUID(test_id), "worker-1", "worker-1:5900", clock.now())
+
+    assert snapshot is not None
+    assert [step.id for step in snapshot.document.steps] == [draft_step_id]
+    claimed = detail(account, manual_id).json()["run"]
+    assert claimed["status"] == "running"
+    assert claimed["worker_id"] == "worker-1"
+    assert claimed["worker_vnc_endpoint"] == "worker-1:5900"
+    assert claimed["started_at"] is not None
+    assert claimed["heartbeat_at"] is not None
 
 
 def test_secret_variable_values_never_enter_a_run(new_account: NewAccount) -> None:
