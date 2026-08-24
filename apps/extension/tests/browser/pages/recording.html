@@ -6,8 +6,24 @@
 <button title="Repeated title">One repeated title</button>
 <button title="Repeated title">Another repeated title</button>
 <label>Email <input data-testid="email" placeholder="Email address" /></label>
+<label>Password <input data-testid="password" type="password" /></label>
+<label
+  >Country
+  <select data-testid="country">
+    <option value="de">Germany</option>
+    <option value="nl">Netherlands</option>
+  </select></label
+>
 <a data-testid="next" href="/destination.html">Next page</a>
+<div id="sealed-control"></div>
+<iframe id="unreachable-frame" title="Embedded actions"></iframe>
 <script>
+  document.querySelector("#unreachable-frame").src =
+    `http://localhost:${location.port}/destination.html`;
+  const sealed = document.querySelector("#sealed-control").attachShadow({ mode: "closed" });
+  const sealedButton = document.createElement("button");
+  sealedButton.textContent = "Sealed action";
+  sealed.append(sealedButton);
   for (const button of document.querySelectorAll("button")) {
     button.addEventListener("click", () => {
       document.body.dataset.lastClick = button.textContent;

@@ -127,6 +127,10 @@ chrome.debugger.onDetach.addListener((source) => {
   void endRecordingAfterDetach(source.tabId);
 });
 
+chrome.downloads.onCreated.addListener(() => {
+  void enqueueRecording(recordRecentClickAsDownload);
+});
+
 /**
  * What was said, and then whether the sayer may say it.
  *
@@ -166,6 +170,8 @@ async function answer(message, sender) {
       return startRecording(message);
     case "stop-recording":
       return stopRecording();
+    case "arm-extract":
+      return armExtract(message);
     case "disconnect":
       return disconnect();
     default:
@@ -544,6 +550,9 @@ function permitted(origin) {
 // truth when Chrome restarts it between recording events.
 const RECORDING_KEY = "active-recording";
 const AX_WAIT_MS = 750;
+const DOWNLOAD_WINDOW_MS = 5000;
+const CLOSED_SHADOW_WARNING =
+  "This part of the page is sealed off, so the workflow may not be able to use it later. The step was recorded anyway.";
 let recordingQueue = Promise.resolve();
 const accessibilityQueries = new Map();
 
@@ -579,10 +588,31 @@ async function startRecording(message) {
       backendOrigin: message.backendOrigin,
       steps: [],
       checkpointSeq: 0,
+      state: "recording",
     },
   });
   await injectRecorder(tab.id);
   return { started: true };
+}
+
+async function armExtract(message) {
+  const active = await activeRecording();
+  if (active === null || !["scalar", "list"].includes(message.mode)) return { armed: false };
+  if (typeof message.outputName !== "string" || message.outputName.trim() === "") {
+    return { armed: false };
+  }
+  const extract = {
+    outputName: message.outputName,
+    mode: message.mode,
+    ...(typeof message.attribute === "string" ? { attribute: message.attribute } : {}),
+    ...(message.mode === "list" && Array.isArray(message.fields) ? { fields: message.fields } : {}),
+  };
+  try {
+    await chrome.tabs.sendMessage(active.tabId, { type: "recorder-arm-extract", extract });
+  } catch {
+    return { armed: false };
+  }
+  return { armed: true };
 }
 
 async function stopRecording() {
@@ -601,7 +631,12 @@ async function stopRecording() {
 
 async function endRecordingAfterDetach(tabId) {
   const active = await activeRecording();
-  if (active?.tabId === tabId) await chrome.storage.local.remove(RECORDING_KEY);
+  if (active?.tabId !== tabId || active.state !== "recording") return;
+  active.state = "ended";
+  active.endedReason = "debugger-detached";
+  active.endedAt = new Date().toISOString();
+  await chrome.storage.local.set({ [RECORDING_KEY]: active });
+  accessibilityQueries.clear();
 }
 
 async function activeRecording() {
@@ -624,6 +659,7 @@ async function acceptRecorderMessage(message, sender) {
   const active = await activeRecording();
   if (
     active === null ||
+    active.state !== "recording" ||
     sender.id !== chrome.runtime.id ||
     sender.tab?.id !== active.tabId ||
     typeof sender.frameId !== "number" ||
@@ -635,14 +671,17 @@ async function acceptRecorderMessage(message, sender) {
   }
   const key = `${sender.frameId}:${message.correlation}`;
   if (message.type === "recorder-ax") {
-    accessibilityQueries.set(key, queryAccessibility(active.tabId, message.correlation));
+    accessibilityQueries.set(
+      key,
+      queryAccessibility(active.tabId, sender.frameId, message.correlation),
+    );
   } else {
     void enqueueRecording(() => assembleInteraction(active.tabId, key, message));
   }
   return { accepted: true };
 }
 
-async function queryAccessibility(tabId, correlation) {
+async function queryAccessibility(tabId, frameId, correlation) {
   const selector = `[data-step-by-step-correlation=${JSON.stringify(correlation)}]`;
   try {
     const evaluated = await debuggerCommand(tabId, "Runtime.evaluate", {
@@ -650,6 +689,21 @@ async function queryAccessibility(tabId, correlation) {
     });
     const objectId = evaluated.result?.objectId;
     if (!objectId) return null;
+    const described = await debuggerCommand(tabId, "DOM.describeNode", {
+      objectId,
+      depth: 0,
+      pierce: true,
+    });
+    const unsupported = described.node?.shadowRoots?.some(
+      (root) => root.shadowRootType === "closed",
+    )
+      ? { reason: "closed-shadow-root", warning: CLOSED_SHADOW_WARNING }
+      : null;
+    if (unsupported !== null) {
+      void chrome.tabs
+        .sendMessage(tabId, { type: "recorder-warning", unsupported }, { frameId })
+        .catch(() => {});
+    }
     const partial = await debuggerCommand(tabId, "Accessibility.getPartialAXTree", {
       objectId,
       fetchRelatives: false,
@@ -657,7 +711,9 @@ async function queryAccessibility(tabId, correlation) {
     const node = partial.nodes?.find((candidate) => !candidate.ignored);
     const role = node?.role?.value;
     const name = node?.name?.value;
-    if (typeof role !== "string" || typeof name !== "string" || name.trim() === "") return null;
+    if (typeof role !== "string" || typeof name !== "string" || name.trim() === "") {
+      return { role: null, unsupported };
+    }
     const documentObject = await debuggerCommand(tabId, "Runtime.evaluate", {
       expression: "document",
     });
@@ -666,8 +722,13 @@ async function queryAccessibility(tabId, correlation) {
       role,
       accessibleName: name,
     });
-    if ((matches.nodes ?? []).filter((candidate) => !candidate.ignored).length !== 1) return null;
-    return { kind: "role", value: `${role}[name=${JSON.stringify(name)}]` };
+    if ((matches.nodes ?? []).filter((candidate) => !candidate.ignored).length !== 1) {
+      return { role: null, unsupported };
+    }
+    return {
+      role: { kind: "role", value: `${role}[name=${JSON.stringify(name)}]` },
+      unsupported,
+    };
   } catch {
     // Navigation may destroy the object between pointerdown and the query. A
     // missing candidate is safer than retaining a stale or unverified one.
@@ -679,7 +740,7 @@ async function assembleInteraction(tabId, key, message) {
   const active = await activeRecording();
   if (active?.tabId !== tabId) return;
   const pending = accessibilityQueries.get(key);
-  const role = pending
+  const prefetched = pending
     ? await Promise.race([
         pending,
         new Promise((resolve) => setTimeout(() => resolve(null), AX_WAIT_MS)),
@@ -687,7 +748,9 @@ async function assembleInteraction(tabId, key, message) {
     : null;
   accessibilityQueries.delete(key);
   const candidates = Array.isArray(message.candidates) ? [...message.candidates] : [];
-  if (role !== null) candidates.splice(candidates[0]?.kind === "testid" ? 1 : 0, 0, role);
+  if (prefetched?.role) {
+    candidates.splice(candidates[0]?.kind === "testid" ? 1 : 0, 0, prefetched.role);
+  }
 
   const description =
     typeof message.description === "string" && message.description
@@ -696,17 +759,51 @@ async function assembleInteraction(tabId, key, message) {
   const step = {
     id: crypto.randomUUID(),
     type: message.event,
-    label: message.event === "type" ? `Type into ${description}` : `Click ${description}`,
+    label:
+      message.event === "type"
+        ? `Type into ${description}`
+        : message.event === "select"
+          ? `Select ${description}`
+          : message.event === "extract"
+            ? `Extract ${description}`
+            : `Click ${description}`,
     optional: false,
     disabled: false,
     screenshot: false,
     payload: {
-      target: { candidates },
-      ...(message.event === "type" ? { value: message.value ?? "" } : {}),
+      target: {
+        candidates,
+        ...(message.unsupported || prefetched?.unsupported
+          ? { unsupported: message.unsupported ?? prefetched.unsupported }
+          : {}),
+      },
+      ...(["type", "select"].includes(message.event) ? { value: message.value ?? "" } : {}),
+      ...(message.event === "extract" && message.extract ? message.extract : {}),
     },
   };
   if (message.needsSecret === true) step.needsSecret = true;
   active.steps.push(step);
+  if (message.event === "click") {
+    active.recentClick = { stepId: step.id, at: Date.now() };
+  }
+  await checkpoint(active);
+}
+
+async function recordRecentClickAsDownload() {
+  const active = await activeRecording();
+  const recent = active?.recentClick;
+  if (
+    active?.state !== "recording" ||
+    recent === undefined ||
+    Date.now() - recent.at > DOWNLOAD_WINDOW_MS
+  )
+    return;
+  const step = active.steps.find((candidate) => candidate.id === recent.stepId);
+  if (step?.type !== "click") return;
+  step.type = "download";
+  step.label = step.label.replace(/^Click /, "Download ");
+  step.payload = { target: step.payload.target };
+  delete active.recentClick;
   await checkpoint(active);
 }
 

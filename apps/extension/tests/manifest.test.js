@@ -42,7 +42,13 @@ describe("the extension package", () => {
   it("asks for broad host access only as an optional permission", () => {
     expect(manifest.host_permissions).toBeUndefined();
     expect(manifest.optional_host_permissions).toEqual(["*://*/*"]);
-    expect(manifest.permissions).toEqual(["storage", "scripting", "debugger", "webNavigation"]);
+    expect(manifest.permissions).toEqual([
+      "storage",
+      "scripting",
+      "debugger",
+      "webNavigation",
+      "downloads",
+    ]);
   });
 
   it("names only files that are in the package", () => {

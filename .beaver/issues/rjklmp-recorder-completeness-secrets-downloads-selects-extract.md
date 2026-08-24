@@ -1,13 +1,15 @@
 ---
 id: rjklmp
 title: 'Recorder completeness: secrets, downloads, selects, extract, unsupported targets'
-state: todo
+state: in-progress
 priority: medium
+labels:
+    - needs-review
 depends_on:
     - disgge
 parent: d8ux2s
 created: 2026-08-14T06:03:09Z
-updated: 2026-08-17T04:04:21Z
+updated: 2026-08-24T08:16:25Z
 ---
 
 ## What to build
@@ -29,3 +31,7 @@ The remaining capture behaviors, including the two safety promises: a recorded p
 **claude** — 2026-08-17T04:04:21Z
 
 Attended-verification plan (loop operator's decision): the real-Chrome download AC and the debugger-infobar dismissal AC cannot be verified headlessly. Build everything, cover the password/select/extract/unsupported cases in the harness, then apply needs-review with a note naming the two manual checks for the user's attended pass, and do not close.
+
+**agent** — 2026-08-24T08:16:25Z
+
+Implemented recorder completeness at the extension boundary: password values are stripped before selector generation or messaging and carry needsSecret; native option changes emit select Steps; scalar and flat-list extract arming makes the next click side-effect-free; closed-shadow and unreachable-frame targets retain a plain-language unsupported warning shown inline; recent clicks are correlated with chrome.downloads into download Steps; and debugger detach preserves the ended recording buffer for save or discard. Browser fixtures cover password leakage from outside storage/checkpoints, select, scalar/list extract, closed shadow, unreachable frame, and the existing capture pipeline. pnpm check, pnpm test, and the 18-test extension browser tier pass. Attended approval still requires two checks from the issue plan: in real Chrome confirm a clicked download becomes a download Step under the attached debugger, and confirm dismissing the debugger infobar (or opening DevTools) ends recording with prior Steps available to save or discard. Close to approve, or note requested changes and remove needs-review.

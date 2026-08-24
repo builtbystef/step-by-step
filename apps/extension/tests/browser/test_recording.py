@@ -93,6 +93,176 @@ def test_clicks_emit_ranked_verified_steps_in_order_and_checkpoint_them(
     page.close()
 
 
+def test_password_value_never_crosses_the_extension_boundary(
+    connected_browser: BrowserContext,
+    fixture_site: str,
+    recording_sink: RecordingSink,
+) -> None:
+    page = connected_browser.new_page()
+    page.goto(f"{fixture_site}/recording.html")
+    surface = start_recording(connected_browser, fixture_site, page)
+
+    literal = "do-not-record-this"
+    page.fill('[data-testid="password"]', literal)
+    page.press('[data-testid="password"]', "Tab")
+    steps = recording_sink.wait_for_steps(1)
+    stored = worker_of(connected_browser).evaluate(
+        "() => chrome.storage.local.get('active-recording')"
+    )
+
+    assert steps[0]["type"] == "type"
+    assert steps[0]["payload"]["value"] == ""
+    assert steps[0]["needsSecret"] is True
+    assert literal not in str(recording_sink.checkpoints)
+    assert literal not in str(stored)
+
+    surface.close()
+    page.close()
+
+
+def test_option_selection_emits_a_select_step(
+    connected_browser: BrowserContext,
+    fixture_site: str,
+    recording_sink: RecordingSink,
+) -> None:
+    page = connected_browser.new_page()
+    page.goto(f"{fixture_site}/recording.html")
+    surface = start_recording(connected_browser, fixture_site, page)
+
+    page.select_option('[data-testid="country"]', "nl")
+    steps = recording_sink.wait_for_steps(1)
+
+    assert steps[0]["type"] == "select"
+    assert steps[0]["label"] == "Select Country"
+    assert steps[0]["payload"]["value"] == "nl"
+    assert steps[0]["payload"]["target"]["candidates"][0] == {
+        "kind": "testid",
+        "value": "country",
+    }
+
+    surface.close()
+    page.close()
+
+
+def test_extract_toggle_makes_the_next_click_side_effect_free(
+    connected_browser: BrowserContext,
+    fixture_site: str,
+    recording_sink: RecordingSink,
+) -> None:
+    page = connected_browser.new_page()
+    page.goto(f"{fixture_site}/recording.html")
+    surface = start_recording(connected_browser, fixture_site, page)
+
+    armed = surface.evaluate(
+        """() => chrome.runtime.sendMessage({
+          type: "arm-extract",
+          mode: "scalar",
+          outputName: "save_text",
+        })"""
+    )
+    assert armed == {"armed": True}
+    page.click('[data-testid="save"]')
+    steps = recording_sink.wait_for_steps(1)
+
+    assert page.locator("body").get_attribute("data-last-click") is None
+    assert steps[0]["type"] == "extract"
+    assert steps[0]["label"] == "Extract Save"
+    assert steps[0]["payload"] == {
+        "target": {"candidates": steps[0]["payload"]["target"]["candidates"]},
+        "outputName": "save_text",
+        "mode": "scalar",
+    }
+
+    surface.close()
+    page.close()
+
+
+def test_list_extract_carries_flat_field_bindings(
+    connected_browser: BrowserContext,
+    fixture_site: str,
+    recording_sink: RecordingSink,
+) -> None:
+    page = connected_browser.new_page()
+    page.goto(f"{fixture_site}/recording.html")
+    surface = start_recording(connected_browser, fixture_site, page)
+    fields = [
+        {"name": "name", "subSelector": ".name"},
+        {"name": "price", "subSelector": ".price", "attribute": "data-value"},
+    ]
+
+    armed = surface.evaluate(
+        """(fields) => chrome.runtime.sendMessage({
+          type: "arm-extract",
+          mode: "list",
+          outputName: "rows",
+          fields,
+        })""",
+        fields,
+    )
+    assert armed == {"armed": True}
+    page.click('[data-testid="save"]')
+    steps = recording_sink.wait_for_steps(1)
+
+    assert steps[0]["payload"]["mode"] == "list"
+    assert steps[0]["payload"]["fields"] == fields
+
+    surface.close()
+    page.close()
+
+
+def test_closed_shadow_target_is_recorded_with_an_immediate_warning(
+    connected_browser: BrowserContext,
+    fixture_site: str,
+    recording_sink: RecordingSink,
+) -> None:
+    page = connected_browser.new_page()
+    page.goto(f"{fixture_site}/recording.html")
+    surface = start_recording(connected_browser, fixture_site, page)
+
+    page.locator("#sealed-control").click()
+    steps = recording_sink.wait_for_steps(1)
+    warning = page.locator('[data-step-by-step-warning="unsupported"]')
+
+    assert warning.is_visible()
+    assert warning.text_content() == (
+        "This part of the page is sealed off, so the workflow may not be able "
+        "to use it later. The step was recorded anyway."
+    )
+    assert steps[0]["payload"]["target"]["unsupported"] == {
+        "reason": "closed-shadow-root",
+        "warning": warning.text_content(),
+    }
+
+    surface.close()
+    page.close()
+
+
+def test_unreachable_frame_target_is_recorded_with_a_warning(
+    connected_browser: BrowserContext,
+    fixture_site: str,
+    recording_sink: RecordingSink,
+) -> None:
+    page = connected_browser.new_page()
+    page.goto(f"{fixture_site}/recording.html")
+    surface = start_recording(connected_browser, fixture_site, page)
+    frame = page.frame_locator("#unreachable-frame")
+
+    frame.locator('[data-testid="after-navigation"]').click()
+    steps = recording_sink.wait_for_steps(1)
+
+    assert steps[0]["payload"]["target"]["unsupported"]["reason"] == (
+        "cross-origin-frame"
+    )
+    assert (
+        "can't reach this embedded part"
+        in steps[0]["payload"]["target"]["unsupported"]["warning"]
+    )
+    assert page.locator('[data-step-by-step-warning="unsupported"]').is_visible()
+
+    surface.close()
+    page.close()
+
+
 def test_navigation_is_correlated_without_mixing_page_loads(
     connected_browser: BrowserContext,
     fixture_site: str,
