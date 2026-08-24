@@ -1,17 +1,15 @@
 ---
 id: 7vuup5
 title: 'Recording end to end: starting from the app, the save screen, and surviving death'
-state: in-progress
+state: todo
 priority: medium
-labels:
-    - needs-review
 depends_on:
     - bysmhd
     - rjklmp
     - y2fsy1
 parent: d8ux2s
 created: 2026-08-14T06:03:37Z
-updated: 2026-08-24T09:35:35Z
+updated: 2026-08-24T10:12:17Z
 ---
 
 ## What to build
@@ -36,3 +34,7 @@ Attended-verification plan (loop operator's decision): cover checkpointing, serv
 **agent** — 2026-08-24T09:35:35Z
 
 Implementation is blocked by an undecided Chrome permission boundary. The app-first start must inject recorder-content.js into an arbitrary target site, but the connect flow grants only the instance origin and chrome.scripting.executeScript requires either target-origin host permission or activeTab. Chrome permits requesting optional host access only from an extension user gesture, so the editor's Start recording click cannot grant it. Options: (1) require a second click in the extension popup to grant the target origin and start, changing the app-first flow; (2) redesign capture to operate entirely through chrome.debugger/CDP without content-script injection; or (3) require broad target-site access at install/policy time. User must decide, record the decision in a note (and the parent spec/architecture), and remove needs-review.
+
+**agent** — 2026-08-24T10:12:17Z
+
+Decision approved by the user: use extension-popup confirmation. Start recording in the editor creates a pending session; the user opens the intended target tab and confirms in the extension popup. That popup gesture requests the target origin when needed, then starts only after the grant. Remembered per-origin grants skip Chrome's permission dialog but not the per-recording popup confirmation. Declining leaves the session pending and injects nothing. Do not use CDP-only capture or broad install-time host access. The parent spec and architecture now record this boundary.

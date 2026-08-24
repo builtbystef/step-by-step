@@ -125,7 +125,7 @@ payload by type:
 
 ### Recording session protocol
 
-App-first: the Workflow is created and named in the web app; recording targets its Draft. Re-recording a Draft that already has Steps **replaces** them, behind a confirm in the app before the session starts.
+App-first: the Workflow is created and named in the web app; recording targets its Draft. Re-recording a Draft that already has Steps **replaces** them, behind a confirm in the app before the session starts. Starting is deliberately two gestures: **Start recording** in the editor creates a pending session in the extension, then the user opens the intended target tab and confirms in the extension popup. That popup click requests the target origin through `chrome.permissions.request` when needed and starts recording after the grant. A remembered per-origin grant skips Chrome's permission dialog but not the popup confirmation. Declining leaves the pending session idle and injects nothing. The extension never asks for all-sites access at install time.
 
 **The extension opens the channel, not the app.** `externally_connectable.matches` cannot express an arbitrary self-hosted origin — wildcard domains and subdomains of effective TLDs are rejected, so `<all_urls>`, `*://*/*`, and `*://*.com/*` are all invalid — and a self-hoster's origin is unknown at build time. One shared build therefore cannot be messaged by the app. Instead:
 
@@ -147,7 +147,12 @@ Web app -> backend:
 
 Web app -> extension (content script on the connected origin, postMessage):
   { sessionId, token, backendOrigin, workflowName, mode: "record" | "repick",
-    stepId? }                      // stepId only for repick
+    stepId? }                      // stepId only for repick; stored as pending
+
+Target tab -> extension popup (one user confirmation per recording):
+  click Start recording
+  -> chrome.permissions.request for the target origin when not already granted
+  -> attach debugger and inject recorder-content.js only after the grant
 
 Extension -> backend (direct fetch, Authorization: token):
   POST /api/recording-sessions/{sessionId}/checkpoint
