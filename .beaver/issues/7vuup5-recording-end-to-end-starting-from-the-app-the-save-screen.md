@@ -1,15 +1,17 @@
 ---
 id: 7vuup5
 title: 'Recording end to end: starting from the app, the save screen, and surviving death'
-state: todo
+state: in-progress
 priority: medium
+labels:
+    - needs-review
 depends_on:
     - bysmhd
     - rjklmp
     - y2fsy1
 parent: d8ux2s
 created: 2026-08-14T06:03:37Z
-updated: 2026-08-17T04:04:21Z
+updated: 2026-08-24T09:35:35Z
 ---
 
 ## What to build
@@ -30,3 +32,7 @@ The full recording loop, closed. The editor starts a recording: the app mints a 
 **claude** — 2026-08-17T04:04:21Z
 
 Attended-verification plan (loop operator's decision): cover checkpointing, service-worker-kill persistence, and app-tab-close survival in the harness where it can drive them; any AC the harness cannot drive goes into a needs-review note for the user's attended pass instead of closing unverified.
+
+**agent** — 2026-08-24T09:35:35Z
+
+Implementation is blocked by an undecided Chrome permission boundary. The app-first start must inject recorder-content.js into an arbitrary target site, but the connect flow grants only the instance origin and chrome.scripting.executeScript requires either target-origin host permission or activeTab. Chrome permits requesting optional host access only from an extension user gesture, so the editor's Start recording click cannot grant it. Options: (1) require a second click in the extension popup to grant the target origin and start, changing the app-first flow; (2) redesign capture to operate entirely through chrome.debugger/CDP without content-script injection; or (3) require broad target-site access at install/policy time. User must decide, record the decision in a note (and the parent spec/architecture), and remove needs-review.
