@@ -5,10 +5,7 @@
     "allowUnsandboxedCommands": false,
     "autoAllowBashIfSandboxed": true,
     "network": {
-      "allowedDomains": [
-        "localhost",
-        "127.0.0.1"
-      ]
+      "allowAllUnixSockets": true
     },
     "filesystem": {
       "denyRead": [
