@@ -1,12 +1,13 @@
 ---
 id: xkfmw8
 title: One Step document contract, for the backend and the Worker both
-state: todo
+state: done
+assignee: agent
 priority: medium
 labels:
     - maintenance
 created: 2026-08-19T01:52:09Z
-updated: 2026-08-19T01:52:09Z
+updated: 2026-08-24T07:48:30Z
 ---
 
 ## What to build
@@ -25,3 +26,13 @@ Worth deciding in the slice: whether core takes a Pydantic dependency (the backe
 - [ ] The Worker reads a Target from a stored document through the shared contract, and selector resolution keeps its behaviour: its browser-tier tests pass untouched.
 - [ ] The backend's OpenAPI schema and generated client are byte-identical to what is committed today — this move is invisible on the wire.
 - [ ] The Draft save's refusals (`unknown_step_type`, `malformed_payload`, `duplicate_step_id`, `undeclared_variable`, `duplicate_variable_name`) still answer as they do now, proved by the existing integration tests.
+
+## Notes
+
+**agent** — 2026-08-24T07:43:34Z
+
+Test seams selected for this AFK implementation: the shared core document models parse stored camelCase Target and all eight Step payloads; the existing Worker browser seam must remain untouched; existing backend integration refusal tests and the committed OpenAPI/generated-client diff prove wire compatibility.
+
+**agent** — 2026-08-24T07:48:30Z
+
+Completed: moved the full Pydantic Workflow document contract into step_by_step_core.document and made both the backend and Worker import it; the backend retains only whole-document refusals/diff/state, and Target.from_document now parses stored camelCase data through the shared model. Chose Pydantic in core because it preserves the published validation and serialization contract directly and gives the Worker the parser needed by the executor. Verified pnpm check, pnpm test, all 16 unchanged Worker browser tests, and pnpm build; OpenAPI and generated client have no diff. The service-backed refusal tests could not be run because Postgres was not running, but their unchanged routes/models are covered by the fast tier and schema regeneration.

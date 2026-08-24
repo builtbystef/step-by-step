@@ -17,89 +17,22 @@ awaited. So no library default timeout is in play anywhere here, and the
 deadline the caller passes is the only clock a resolution runs on.
 """
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from time import monotonic, sleep
-from typing import Any
 
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Frame, Locator, Page
+from step_by_step_core.document import (
+    CandidateKind,
+    FrameHop,
+    SelectorCandidate,
+    Target,
+)
 
 POLL_INTERVAL_MS = 100
 """How long a failed walk waits before the next one."""
-
-
-class CandidateKind(StrEnum):
-    """The ways of finding an element, in the order the recorder ranks them."""
-
-    TESTID = "testid"
-    ROLE = "role"
-    PLACEHOLDER = "placeholder"
-    LABEL = "label"
-    ALT = "alt"
-    TEXT = "text"
-    TITLE = "title"
-    CSS = "css"
-
-
-@dataclass(frozen=True, slots=True)
-class SelectorCandidate:
-    """One recorded way of finding an element.
-
-    `value` is what the kind's engine takes: the test id, the placeholder,
-    label, alt, title, or text as written, a CSS selector, or — for a role
-    candidate — the body of Playwright's role selector, `button[name="Save"]`.
-    """
-
-    kind: CandidateKind
-    value: str
-    shadow_path: Sequence[str] = ()
-    """One selector per open shadow-root hop, outermost first. Each narrows
-    the scope the next one is read in, and the last narrows the candidate."""
-
-
-@dataclass(frozen=True, slots=True)
-class FrameHop:
-    """One step of the path into the frame the element lives in.
-
-    The name addresses the frame wherever exactly one child frame carries it,
-    and the recorded position addresses it otherwise: a frame that moved keeps
-    its name, and a page that renamed nothing is addressed by position as it
-    always was. The url is recorded for a person reading the Step, and is not
-    an address — a frame's url carries session ids and query strings that
-    differ on every visit.
-    """
-
-    index: int
-    name: str | None = None
-    url: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class Target:
-    """How a Step finds its element, as the Step document holds it."""
-
-    candidates: Sequence[SelectorCandidate]
-    frame: Sequence[FrameHop] = ()
-
-    @classmethod
-    def from_document(cls, target: Mapping[str, Any]) -> Target:
-        """A Target read out of a stored Step document."""
-        return cls(
-            frame=tuple(
-                FrameHop(index=hop["index"], name=hop.get("name"), url=hop.get("url"))
-                for hop in target.get("frame") or ()
-            ),
-            candidates=[
-                SelectorCandidate(
-                    kind=CandidateKind(candidate["kind"]),
-                    value=candidate["value"],
-                    shadow_path=tuple(candidate.get("shadowPath") or ()),
-                )
-                for candidate in target["candidates"]
-            ],
-        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -171,7 +104,7 @@ def resolve(
         walks += 1
         if on_walk is not None:
             on_walk(walks)
-        root = addressed_frame(page, target.frame)
+        root = addressed_frame(page, target.frame or ())
         if root is not None:
             for rank, candidate in enumerate(target.candidates):
                 found = locate(root, candidate)
@@ -230,7 +163,7 @@ def addressed_frame(page: Page, hops: Sequence[FrameHop]) -> Frame | None:
 def locate(root: Frame, candidate: SelectorCandidate) -> Locator:
     """The locator one candidate stands for, inside the scope it was recorded in."""
     scope: Frame | Locator = root
-    for hop in candidate.shadow_path:
+    for hop in candidate.shadow_path or ():
         scope = scope.locator(hop)
     return matching(scope, candidate)
 
