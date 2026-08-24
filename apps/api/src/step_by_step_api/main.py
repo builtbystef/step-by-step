@@ -11,6 +11,7 @@ from step_by_step_api.errors import install_error_handler
 from step_by_step_api.extension.routes import router as extension_router
 from step_by_step_api.logs import configure as configure_logging
 from step_by_step_api.mail import mailer
+from step_by_step_api.secrets.routes import router as secrets_router
 from step_by_step_api.workflows.catalog import router as workflow_catalog_router
 from step_by_step_api.workflows.routes import router as workflows_router
 
@@ -40,6 +41,7 @@ app = FastAPI(title="step-by-step-api", lifespan=lifespan)
 install_error_handler(app)
 app.include_router(accounts_router)
 app.include_router(extension_router)
+app.include_router(secrets_router)
 app.include_router(workflows_router)
 app.include_router(workflow_catalog_router)
 

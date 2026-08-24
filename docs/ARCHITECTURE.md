@@ -77,9 +77,9 @@ SQLAlchemy 2 + Alembic, on psycopg 3 (`postgresql+psycopg://`). The connection U
 
 `step_by_step_api.db` adds only what is FastAPI's: `SessionDep`, the annotated dependency a route handler declares to receive its request's session. The session opens when the request starts and closes when it ends, rolling back whatever the handler did not commit. Handlers commit for themselves.
 
-Tables are declared in the backend, not in core: `step_by_step_api.accounts.models` holds the six accounts tables, `step_by_step_api.workflows.models` the three Workflow tables, and `step_by_step_api.extension.models` the connect codes; `alembic/env.py` imports all three so that `Base.metadata` knows them before autogenerate compares. Core owns the connection, never the schema.
+Tables are declared in the backend, not in core: `step_by_step_api.accounts.models` holds the accounts tables, `step_by_step_api.workflows.models` the three Workflow tables, `step_by_step_api.extension.models` the connect codes, and `step_by_step_api.secrets.models` the Secret vault; `alembic/env.py` imports all four so that `Base.metadata` knows them before autogenerate compares. Core owns the connection, never the schema.
 
-Migrations run with `pnpm --filter api run migrate` (`alembic upgrade head`). Five revisions exist: the empty baseline that gives the runner a head to reach, the accounts schema, the Workflow document store, its Versions, and the extension's connect codes.
+Migrations run with `pnpm --filter api run migrate` (`alembic upgrade head`). Revisions form one linear history from the empty baseline; each schema slice adds its own revision.
 
 `env.py`'s `include_object` hides one thing from autogenerate: the check constraint a non-native `Enum` column writes, which alembic reflects but does not compare, and would otherwise propose dropping in every revision. The names come from the metadata each run, so a column a model really drops takes its constraint out of the filter and the drop is proposed as it should be; `tests/integration/test_migrations.py` holds both halves.
 
@@ -88,6 +88,12 @@ Migrations run with `pnpm --filter api run migrate` (`alembic upgrade head`). Fi
 `step_by_step_api.envelope` is the backend's alone — the one module deliberately kept out of `packages/core`, because the Workers that import core must never hold the master key (ADR 0004). It is envelope encryption per ADR 0003, PyNaCl `SecretBox` on both levels: `seal()` mints a fresh 32-byte data key per record, seals the plaintext under it and the data key under the master key, and returns the two blobs a vault row stores; `open_sealed()` reverses it; `rewrap()` re-seals a data key from one master key to another and leaves the plaintext untouched, reporting a record an earlier pass already moved so a half-finished rotation can be re-run rather than corrupted.
 
 `master_key()` reads `STEPBYSTEP_MASTER_KEY` — base64 of 32 bytes — and is the only thing in the module that touches the environment; every other function takes the key it works with, which is what makes rotation a two-key call rather than a global swap. The backend's **lifespan calls it at startup**, so a missing, malformed, or wrong-length key stops the process while an operator is watching rather than failing on the first vault write. In `compose.yaml` the variable sits on the `api` service alone, outside the `x-stack-environment` anchor the Workers share.
+
+### Secrets
+
+`step_by_step_api.secrets` owns the Organization's Secret vault. `models.py` stores only each value's envelope-encrypted value and data key, with names unique inside one Organization; `secret_overrides` adds one identically sealed Personal Override per member and cascades with either the Secret or the user. `routes.py` is the signed-in, active-Organization HTTP surface: every id lookup includes the active Organization, reveals decrypt only the selected row, and list joins only the caller's own override marker. Deleting an Organization cascades through Secrets, and deleting a Secret cascades through all of its overrides.
+
+The Settings Secrets client consumes only the generated API client. A revealed org value or Personal Override lives in that row component's memory and is discarded after thirty seconds; create, edit, delete confirmation, and the caller's override controls all invalidate the one vault query.
 
 ### The mailer
 

@@ -1,7 +1,8 @@
 ---
 id: 3679bv
 title: 'The Secrets vault: store, API, and the Secrets settings section'
-state: todo
+state: done
+assignee: agent
 priority: high
 depends_on:
     - i1osfd
@@ -9,7 +10,7 @@ depends_on:
     - hat4cf
 parent: 54i6da
 created: 2026-08-14T06:14:44Z
-updated: 2026-08-15T04:32:52Z
+updated: 2026-08-24T06:49:22Z
 ---
 
 ## What to build
@@ -52,3 +53,7 @@ Deliberately deferred: the used-by column, the Workflow names inside the delete 
 **claude** — 2026-08-15T04:14:42Z
 
 Re-scope per ADR 0005 before building: the vault is per-Organization, not per-user (name unique per Organization, org_id on the row, X-Organization on the API), plus Personal Overrides per the note on 54i6da. The envelope encryption and API shape are otherwise unchanged.
+
+**agent** — 2026-08-24T06:49:22Z
+
+Completed the Organization-scoped Secret vault end to end: added cascading Secret and Personal Override tables, envelope-sealed CRUD/reveal/override API routes with tenant-hidden ids and name conflict handling, the generated OpenAPI client, and the Settings → Secrets create/edit/delete/reveal/override surface with a 30-second re-mask. Added HTTP-seam integration coverage for every backend criterion and a UI policy test for the reveal duration. Updated the architecture record. Verification: pnpm check, pnpm test, and pnpm build pass; the service-backed integration file was not run because Postgres is not running in this harness.

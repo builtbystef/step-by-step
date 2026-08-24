@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AcceptInvitationData, AcceptInvitationErrors, AcceptInvitationResponses, ChangeMemberRoleData, ChangeMemberRoleErrors, ChangeMemberRoleResponses, ConnectExtensionData, ConnectExtensionErrors, ConnectExtensionResponses, CreateExtensionConnectCodeData, CreateExtensionConnectCodeErrors, CreateExtensionConnectCodeResponses, CreateInvitationData, CreateInvitationErrors, CreateInvitationResponses, CreateOrganizationData, CreateOrganizationErrors, CreateOrganizationResponses, CreateWorkflowData, CreateWorkflowErrors, CreateWorkflowResponses, DeleteAccountData, DeleteAccountErrors, DeleteAccountResponses, DeleteOrganizationData, DeleteOrganizationErrors, DeleteOrganizationResponses, DeleteWorkflowData, DeleteWorkflowErrors, DeleteWorkflowResponses, DuplicateWorkflowData, DuplicateWorkflowErrors, DuplicateWorkflowResponses, GetCurrentAccountData, GetCurrentAccountErrors, GetCurrentAccountResponses, GetExtensionVersionData, GetExtensionVersionErrors, GetExtensionVersionResponses, GetGreetingData, GetGreetingErrors, GetGreetingResponses, GetHealthData, GetHealthResponses, GetInstanceData, GetInstanceResponses, GetWorkflowData, GetWorkflowDraftData, GetWorkflowDraftDiffData, GetWorkflowDraftDiffErrors, GetWorkflowDraftDiffResponses, GetWorkflowDraftErrors, GetWorkflowDraftResponses, GetWorkflowErrors, GetWorkflowResponses, GetWorkflowVersionData, GetWorkflowVersionErrors, GetWorkflowVersionResponses, ListInvitationsData, ListInvitationsErrors, ListInvitationsResponses, ListMembersData, ListMembersErrors, ListMembersResponses, ListWorkflowsData, ListWorkflowsErrors, ListWorkflowsResponses, ListWorkflowVersionsData, ListWorkflowVersionsErrors, ListWorkflowVersionsResponses, PublishWorkflowVersionData, PublishWorkflowVersionErrors, PublishWorkflowVersionResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, RenameOrganizationData, RenameOrganizationErrors, RenameOrganizationResponses, RenameWorkflowData, RenameWorkflowErrors, RenameWorkflowResponses, RequestSigninCodeData, RequestSigninCodeErrors, RequestSigninCodeResponses, RestoreWorkflowVersionData, RestoreWorkflowVersionErrors, RestoreWorkflowVersionResponses, RevokeInvitationData, RevokeInvitationErrors, RevokeInvitationResponses, SaveWorkflowDraftData, SaveWorkflowDraftErrors, SaveWorkflowDraftResponses, SignOutData, SignOutErrors, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, TransferOwnershipData, TransferOwnershipErrors, TransferOwnershipResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, VerifySigninCodeData, VerifySigninCodeErrors, VerifySigninCodeResponses } from './types.gen';
+import type { AcceptInvitationData, AcceptInvitationErrors, AcceptInvitationResponses, ChangeMemberRoleData, ChangeMemberRoleErrors, ChangeMemberRoleResponses, ConnectExtensionData, ConnectExtensionErrors, ConnectExtensionResponses, CreateExtensionConnectCodeData, CreateExtensionConnectCodeErrors, CreateExtensionConnectCodeResponses, CreateInvitationData, CreateInvitationErrors, CreateInvitationResponses, CreateOrganizationData, CreateOrganizationErrors, CreateOrganizationResponses, CreateSecretData, CreateSecretErrors, CreateSecretResponses, CreateWorkflowData, CreateWorkflowErrors, CreateWorkflowResponses, DeleteAccountData, DeleteAccountErrors, DeleteAccountResponses, DeleteOrganizationData, DeleteOrganizationErrors, DeleteOrganizationResponses, DeleteSecretData, DeleteSecretErrors, DeleteSecretOverrideData, DeleteSecretOverrideErrors, DeleteSecretOverrideResponses, DeleteSecretResponses, DeleteWorkflowData, DeleteWorkflowErrors, DeleteWorkflowResponses, DuplicateWorkflowData, DuplicateWorkflowErrors, DuplicateWorkflowResponses, GetCurrentAccountData, GetCurrentAccountErrors, GetCurrentAccountResponses, GetExtensionVersionData, GetExtensionVersionErrors, GetExtensionVersionResponses, GetGreetingData, GetGreetingErrors, GetGreetingResponses, GetHealthData, GetHealthResponses, GetInstanceData, GetInstanceResponses, GetWorkflowData, GetWorkflowDraftData, GetWorkflowDraftDiffData, GetWorkflowDraftDiffErrors, GetWorkflowDraftDiffResponses, GetWorkflowDraftErrors, GetWorkflowDraftResponses, GetWorkflowErrors, GetWorkflowResponses, GetWorkflowVersionData, GetWorkflowVersionErrors, GetWorkflowVersionResponses, ListInvitationsData, ListInvitationsErrors, ListInvitationsResponses, ListMembersData, ListMembersErrors, ListMembersResponses, ListSecretsData, ListSecretsErrors, ListSecretsResponses, ListWorkflowsData, ListWorkflowsErrors, ListWorkflowsResponses, ListWorkflowVersionsData, ListWorkflowVersionsErrors, ListWorkflowVersionsResponses, PublishWorkflowVersionData, PublishWorkflowVersionErrors, PublishWorkflowVersionResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, RenameOrganizationData, RenameOrganizationErrors, RenameOrganizationResponses, RenameWorkflowData, RenameWorkflowErrors, RenameWorkflowResponses, RequestSigninCodeData, RequestSigninCodeErrors, RequestSigninCodeResponses, RestoreWorkflowVersionData, RestoreWorkflowVersionErrors, RestoreWorkflowVersionResponses, RevealSecretData, RevealSecretErrors, RevealSecretOverrideData, RevealSecretOverrideErrors, RevealSecretOverrideResponses, RevealSecretResponses, RevokeInvitationData, RevokeInvitationErrors, RevokeInvitationResponses, SaveWorkflowDraftData, SaveWorkflowDraftErrors, SaveWorkflowDraftResponses, SetSecretOverrideData, SetSecretOverrideErrors, SetSecretOverrideResponses, SignOutData, SignOutErrors, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, TransferOwnershipData, TransferOwnershipErrors, TransferOwnershipResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, UpdateSecretData, UpdateSecretErrors, UpdateSecretResponses, VerifySigninCodeData, VerifySigninCodeErrors, VerifySigninCodeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -302,6 +302,67 @@ export const connectExtension = <ThrowOnError extends boolean = false>(options: 
         ...options.headers
     }
 });
+
+/**
+ * List Secrets
+ */
+export const listSecrets = <ThrowOnError extends boolean = false>(options?: Options<ListSecretsData, ThrowOnError>): RequestResult<ListSecretsResponses, ListSecretsErrors, ThrowOnError> => (options?.client ?? client).get<ListSecretsResponses, ListSecretsErrors, ThrowOnError>({ url: '/api/secrets', ...options });
+
+/**
+ * Create Secret
+ */
+export const createSecret = <ThrowOnError extends boolean = false>(options: Options<CreateSecretData, ThrowOnError>): RequestResult<CreateSecretResponses, CreateSecretErrors, ThrowOnError> => (options.client ?? client).post<CreateSecretResponses, CreateSecretErrors, ThrowOnError>({
+    url: '/api/secrets',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete Secret
+ */
+export const deleteSecret = <ThrowOnError extends boolean = false>(options: Options<DeleteSecretData, ThrowOnError>): RequestResult<DeleteSecretResponses, DeleteSecretErrors, ThrowOnError> => (options.client ?? client).delete<DeleteSecretResponses, DeleteSecretErrors, ThrowOnError>({ url: '/api/secrets/{secret_id}', ...options });
+
+/**
+ * Update Secret
+ */
+export const updateSecret = <ThrowOnError extends boolean = false>(options: Options<UpdateSecretData, ThrowOnError>): RequestResult<UpdateSecretResponses, UpdateSecretErrors, ThrowOnError> => (options.client ?? client).patch<UpdateSecretResponses, UpdateSecretErrors, ThrowOnError>({
+    url: '/api/secrets/{secret_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Reveal Secret
+ */
+export const revealSecret = <ThrowOnError extends boolean = false>(options: Options<RevealSecretData, ThrowOnError>): RequestResult<RevealSecretResponses, RevealSecretErrors, ThrowOnError> => (options.client ?? client).post<RevealSecretResponses, RevealSecretErrors, ThrowOnError>({ url: '/api/secrets/{secret_id}/reveal', ...options });
+
+/**
+ * Delete Override
+ */
+export const deleteSecretOverride = <ThrowOnError extends boolean = false>(options: Options<DeleteSecretOverrideData, ThrowOnError>): RequestResult<DeleteSecretOverrideResponses, DeleteSecretOverrideErrors, ThrowOnError> => (options.client ?? client).delete<DeleteSecretOverrideResponses, DeleteSecretOverrideErrors, ThrowOnError>({ url: '/api/secrets/{secret_id}/override', ...options });
+
+/**
+ * Set Override
+ */
+export const setSecretOverride = <ThrowOnError extends boolean = false>(options: Options<SetSecretOverrideData, ThrowOnError>): RequestResult<SetSecretOverrideResponses, SetSecretOverrideErrors, ThrowOnError> => (options.client ?? client).put<SetSecretOverrideResponses, SetSecretOverrideErrors, ThrowOnError>({
+    url: '/api/secrets/{secret_id}/override',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Reveal Override
+ */
+export const revealSecretOverride = <ThrowOnError extends boolean = false>(options: Options<RevealSecretOverrideData, ThrowOnError>): RequestResult<RevealSecretOverrideResponses, RevealSecretOverrideErrors, ThrowOnError> => (options.client ?? client).post<RevealSecretOverrideResponses, RevealSecretOverrideErrors, ThrowOnError>({ url: '/api/secrets/{secret_id}/override/reveal', ...options });
 
 /**
  * List Workflows

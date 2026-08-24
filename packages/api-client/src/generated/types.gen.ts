@@ -75,6 +75,20 @@ export type AssignableRole = 'admin' | 'member';
 export type CandidateKind = 'testid' | 'role' | 'placeholder' | 'label' | 'alt' | 'text' | 'title' | 'css';
 
 /**
+ * ChangeSecret
+ */
+export type ChangeSecret = {
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Value
+     */
+    value?: string | null;
+};
+
+/**
  * ClickPayload
  */
 export type ClickPayload = {
@@ -171,6 +185,20 @@ export type ConnectRequest = {
  */
 export type Connected = {
     [key: string]: unknown;
+};
+
+/**
+ * CreateSecret
+ */
+export type CreateSecret = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Value
+     */
+    value: string;
 };
 
 /**
@@ -593,6 +621,26 @@ export type OrganizationRequest = {
 };
 
 /**
+ * OverrideSummary
+ */
+export type OverrideSummary = {
+    /**
+     * Updated At
+     */
+    updated_at: string;
+};
+
+/**
+ * OverrideValue
+ */
+export type OverrideValue = {
+    /**
+     * Value
+     */
+    value: string;
+};
+
+/**
  * OwnershipTransfer
  *
  * Who the Organization is being handed to.
@@ -627,6 +675,16 @@ export type PendingInvitation = {
      * Expires At
      */
     expires_at: string;
+};
+
+/**
+ * RevealedValue
+ */
+export type RevealedValue = {
+    /**
+     * Value
+     */
+    value: string;
 };
 
 /**
@@ -667,6 +725,39 @@ export type ScalarExtractPayload = {
      * Attribute
      */
     attribute?: string | null;
+};
+
+/**
+ * SecretIdentity
+ */
+export type SecretIdentity = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+};
+
+/**
+ * SecretSummary
+ */
+export type SecretSummary = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+    my_override: OverrideSummary | null;
 };
 
 /**
@@ -1922,6 +2013,318 @@ export type ConnectExtensionResponses = {
 };
 
 export type ConnectExtensionResponse = ConnectExtensionResponses[keyof ConnectExtensionResponses];
+
+export type ListSecretsData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/secrets';
+};
+
+export type ListSecretsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListSecretsError = ListSecretsErrors[keyof ListSecretsErrors];
+
+export type ListSecretsResponses = {
+    /**
+     * Response Listsecrets
+     *
+     * Successful Response
+     */
+    200: Array<SecretSummary>;
+};
+
+export type ListSecretsResponse = ListSecretsResponses[keyof ListSecretsResponses];
+
+export type CreateSecretData = {
+    body: CreateSecret;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/secrets';
+};
+
+export type CreateSecretErrors = {
+    /**
+     * Conflict
+     */
+    409: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateSecretError = CreateSecretErrors[keyof CreateSecretErrors];
+
+export type CreateSecretResponses = {
+    /**
+     * Successful Response
+     */
+    201: SecretIdentity;
+};
+
+export type CreateSecretResponse = CreateSecretResponses[keyof CreateSecretResponses];
+
+export type DeleteSecretData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Secret Id
+         */
+        secret_id: string;
+    };
+    query?: never;
+    url: '/api/secrets/{secret_id}';
+};
+
+export type DeleteSecretErrors = {
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteSecretError = DeleteSecretErrors[keyof DeleteSecretErrors];
+
+export type DeleteSecretResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteSecretResponse = DeleteSecretResponses[keyof DeleteSecretResponses];
+
+export type UpdateSecretData = {
+    body: ChangeSecret;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Secret Id
+         */
+        secret_id: string;
+    };
+    query?: never;
+    url: '/api/secrets/{secret_id}';
+};
+
+export type UpdateSecretErrors = {
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Conflict
+     */
+    409: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateSecretError = UpdateSecretErrors[keyof UpdateSecretErrors];
+
+export type UpdateSecretResponses = {
+    /**
+     * Successful Response
+     */
+    200: SecretIdentity;
+};
+
+export type UpdateSecretResponse = UpdateSecretResponses[keyof UpdateSecretResponses];
+
+export type RevealSecretData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Secret Id
+         */
+        secret_id: string;
+    };
+    query?: never;
+    url: '/api/secrets/{secret_id}/reveal';
+};
+
+export type RevealSecretErrors = {
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RevealSecretError = RevealSecretErrors[keyof RevealSecretErrors];
+
+export type RevealSecretResponses = {
+    /**
+     * Successful Response
+     */
+    200: RevealedValue;
+};
+
+export type RevealSecretResponse = RevealSecretResponses[keyof RevealSecretResponses];
+
+export type DeleteSecretOverrideData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Secret Id
+         */
+        secret_id: string;
+    };
+    query?: never;
+    url: '/api/secrets/{secret_id}/override';
+};
+
+export type DeleteSecretOverrideErrors = {
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteSecretOverrideError = DeleteSecretOverrideErrors[keyof DeleteSecretOverrideErrors];
+
+export type DeleteSecretOverrideResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteSecretOverrideResponse = DeleteSecretOverrideResponses[keyof DeleteSecretOverrideResponses];
+
+export type SetSecretOverrideData = {
+    body: OverrideValue;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Secret Id
+         */
+        secret_id: string;
+    };
+    query?: never;
+    url: '/api/secrets/{secret_id}/override';
+};
+
+export type SetSecretOverrideErrors = {
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SetSecretOverrideError = SetSecretOverrideErrors[keyof SetSecretOverrideErrors];
+
+export type SetSecretOverrideResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type SetSecretOverrideResponse = SetSecretOverrideResponses[keyof SetSecretOverrideResponses];
+
+export type RevealSecretOverrideData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Secret Id
+         */
+        secret_id: string;
+    };
+    query?: never;
+    url: '/api/secrets/{secret_id}/override/reveal';
+};
+
+export type RevealSecretOverrideErrors = {
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RevealSecretOverrideError = RevealSecretOverrideErrors[keyof RevealSecretOverrideErrors];
+
+export type RevealSecretOverrideResponses = {
+    /**
+     * Successful Response
+     */
+    200: RevealedValue;
+};
+
+export type RevealSecretOverrideResponse = RevealSecretOverrideResponses[keyof RevealSecretOverrideResponses];
 
 export type ListWorkflowsData = {
     body?: never;
