@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from step_by_step_api.accounts.routes import router as accounts_router
 from step_by_step_api.accounts.service import signup_mode
+from step_by_step_api.auth_states.routes import router as auth_states_router
 from step_by_step_api.envelope import master_key
 from step_by_step_api.errors import install_error_handler
 from step_by_step_api.extension.routes import router as extension_router
@@ -42,6 +43,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="step-by-step-api", lifespan=lifespan)
 install_error_handler(app)
 app.include_router(accounts_router)
+app.include_router(auth_states_router)
 app.include_router(extension_router)
 app.include_router(secrets_router)
 app.include_router(workflows_router)

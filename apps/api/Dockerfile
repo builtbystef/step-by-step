@@ -16,6 +16,12 @@ ENV UV_COMPILE_BYTECODE=1 \
 
 WORKDIR /app
 
+# Registrable domains are Auth State's keys. libpsl supplies the maintained
+# public-suffix list; string splitting cannot distinguish co.uk from github.io.
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends libpsl5 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Dependencies first, from the manifests alone, so that editing source does not
 # re-resolve or re-download anything. Every workspace member's manifest has to
 # be here, because uv.lock covers the whole workspace and is validated against

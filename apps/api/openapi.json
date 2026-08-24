@@ -1083,6 +1083,121 @@
         }
       }
     },
+    "/api/auth-states": {
+      "get": {
+        "tags": [
+          "auth-states"
+        ],
+        "summary": "List Auth States",
+        "operationId": "listAuthStates",
+        "parameters": [
+          {
+            "name": "X-Organization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuthStateSummary"
+                  },
+                  "title": "Response Listauthstates"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth-states/{auth_state_id}": {
+      "delete": {
+        "tags": [
+          "auth-states"
+        ],
+        "summary": "Delete Auth State",
+        "operationId": "deleteAuthState",
+        "parameters": [
+          {
+            "name": "auth_state_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Auth State Id"
+            }
+          },
+          {
+            "name": "X-Organization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/extension/version": {
       "get": {
         "summary": "Get Extension Version",
@@ -3952,6 +4067,49 @@
         ],
         "title": "AssignableRole",
         "description": "The two roles a Membership may be given.\n\nNot owner: an Organization has exactly one, and it changes hands by the\ntransfer that replaces its holder \u2014 never by an offer somebody might never\ntake up, and never by a role change that would leave two."
+      },
+      "AuthStateScope": {
+        "type": "string",
+        "enum": [
+          "organization",
+          "personal"
+        ],
+        "title": "AuthStateScope"
+      },
+      "AuthStateSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "domain": {
+            "type": "string",
+            "title": "Domain"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/AuthStateScope"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "domain",
+          "scope",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "AuthStateSummary"
       },
       "CandidateKind": {
         "type": "string",

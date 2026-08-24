@@ -1,7 +1,8 @@
 ---
 id: gl1cnk
 title: 'Auth State: the store, registrable domains, and Saved logins'
-state: todo
+state: done
+assignee: agent
 priority: medium
 depends_on:
     - i1osfd
@@ -9,7 +10,7 @@ depends_on:
     - hat4cf
 parent: 54i6da
 created: 2026-08-14T06:14:58Z
-updated: 2026-08-15T04:32:52Z
+updated: 2026-08-24T07:34:52Z
 ---
 
 ## What to build
@@ -53,3 +54,7 @@ The Settings vault surface gains its second section, Saved logins: the Organizat
 **claude** — 2026-08-15T04:14:42Z
 
 Re-scope per ADR 0005 before building: Auth State is org-scoped (unique per Organization and domain) with Personal Overrides per the note on 54i6da — a member's own signed-in state for a domain, used for Runs they start. Registrable-domain and blob-shape decisions are unchanged.
+
+**agent** — 2026-08-24T07:34:52Z
+
+Completed the Auth State slice: libpsl-backed registrable domains; the envelope-sealed two-layer store with stable upserts, partial Organization uniqueness, and Membership/Organization cascades; metadata-only list and scoped forget endpoints; generated API contract; and the Saved logins Settings surface with immediate per-row Forget. The blob contract preserves cookies (including extension fields), per-origin local storage, and session storage. Used the platform libpsl dependency rather than a Python PSL package so the deployed image and host use the maintained public-suffix implementation. Added direct domain tests, real-Postgres store/API/cascade tests, and Saved-login wording coverage. pnpm check, pnpm test, and pnpm build pass.

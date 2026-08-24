@@ -68,6 +68,34 @@ export type AccountUpdate = {
 export type AssignableRole = 'admin' | 'member';
 
 /**
+ * AuthStateScope
+ */
+export type AuthStateScope = 'organization' | 'personal';
+
+/**
+ * AuthStateSummary
+ */
+export type AuthStateSummary = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Domain
+     */
+    domain: string;
+    scope: AuthStateScope;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+};
+
+/**
  * CandidateKind
  *
  * The ways of finding an element, in the order the recorder ranks them.
@@ -2300,6 +2328,79 @@ export type TransferOwnershipResponses = {
 };
 
 export type TransferOwnershipResponse = TransferOwnershipResponses[keyof TransferOwnershipResponses];
+
+export type ListAuthStatesData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/auth-states';
+};
+
+export type ListAuthStatesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListAuthStatesError = ListAuthStatesErrors[keyof ListAuthStatesErrors];
+
+export type ListAuthStatesResponses = {
+    /**
+     * Response Listauthstates
+     *
+     * Successful Response
+     */
+    200: Array<AuthStateSummary>;
+};
+
+export type ListAuthStatesResponse = ListAuthStatesResponses[keyof ListAuthStatesResponses];
+
+export type DeleteAuthStateData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Auth State Id
+         */
+        auth_state_id: string;
+    };
+    query?: never;
+    url: '/api/auth-states/{auth_state_id}';
+};
+
+export type DeleteAuthStateErrors = {
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteAuthStateError = DeleteAuthStateErrors[keyof DeleteAuthStateErrors];
+
+export type DeleteAuthStateResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteAuthStateResponse = DeleteAuthStateResponses[keyof DeleteAuthStateResponses];
 
 export type GetExtensionVersionData = {
     body?: never;

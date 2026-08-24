@@ -95,6 +95,14 @@ Migrations run with `pnpm --filter api run migrate` (`alembic upgrade head`). Re
 
 The Settings Secrets client consumes only the generated API client. A revealed org value or Personal Override lives in that row component's memory and is discarded after thirty seconds; create, edit, delete confirmation, and the caller's override controls all invalidate the one vault query.
 
+### Auth State
+
+`step_by_step_api.auth_states` owns saved browser Auth State. `domains.py` computes the registrable domain through libpsl's maintained public-suffix list, so private suffixes such as `github.io` and multi-label suffixes such as `co.uk` become correct vault keys rather than guesses. `blob.py` is the document capture, injection, and write-back share; `store.py` envelope-seals that whole document and upserts it without changing the row identity or creation time.
+
+One `auth_states` table carries both destinations: a NULL `user_id` is the Organization record and a set `user_id` is that member's Personal Override. The Organization destination has a partial unique index because SQL NULLs are not equal; the personal destination has the ordinary three-column unique constraint. Its composite Membership foreign key removes only that member's records when a Membership ends, while its Organization foreign key removes both layers with the Organization.
+
+The signed-in routes list Organization records plus only the caller's own Personal Overrides and expose metadata only. Settings Saved logins consumes that generated contract and forgets a row immediately; no route or UI response can carry the sealed blob.
+
 ### The mailer
 
 `step_by_step_api.mail` is the one place email leaves the system. Callers say
