@@ -4184,6 +4184,10 @@ export type CancelRunErrors = {
      */
     404: ErrorBody;
     /**
+     * Conflict
+     */
+    409: ErrorBody;
+    /**
      * Validation Error
      */
     422: HttpValidationError;

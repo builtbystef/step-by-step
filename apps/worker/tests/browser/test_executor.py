@@ -10,6 +10,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from step_by_step_core.document import WorkflowDocument
+from step_by_step_worker.control import ControlFlags
 from step_by_step_worker.dispatch import work_once
 from step_by_step_worker.executor import RunWork, StepOutcome, execute
 from step_by_step_worker.heartbeat import RunTerminal
@@ -493,3 +494,104 @@ def test_a_terminal_heartbeat_abandons_the_run_and_closes_the_browser(
     assert beats >= 1
     assert all(result.status != "passed" for result in recorded.results)
     assert list(tmp_path.iterdir()) == []
+
+
+def test_cancel_during_an_in_flight_step_completes_it_and_skips_the_rest(
+    playwright_driver: Any, fixture_site: str, tmp_path: Path
+) -> None:
+    recorded = RecordedRun()
+    polls = 0
+
+    def flags() -> ControlFlags:
+        nonlocal polls
+        polls += 1
+        return ControlFlags(cancel_requested=polls > 1)
+
+    run = work(
+        {
+            "variables": [],
+            "steps": [
+                step(
+                    "wait",
+                    "Hold the browser",
+                    {"mode": "duration", "durationMs": 50},
+                ),
+                step(
+                    "navigate",
+                    "Must not run",
+                    {"url": f"{fixture_site}/executor.html"},
+                ),
+            ],
+        }
+    )
+
+    execute(
+        run,
+        playwright_driver.chromium,
+        recorded,
+        tmp_path,
+        headless=True,
+        control=flags,
+    )
+
+    assert [result.status for result in recorded.results] == ["passed", "skipped"]
+    assert recorded.results[0].started_at is not None
+    assert recorded.results[0].ended_at is not None
+    assert recorded.terminal is not None
+    assert recorded.terminal[:2] == ("cancelled", None)
+
+
+def test_cancel_during_resolve_skips_before_the_action(
+    playwright_driver: Any, fixture_site: str, tmp_path: Path
+) -> None:
+    recorded = RecordedRun()
+
+    def flags() -> ControlFlags:
+        started_click = any(
+            event_type == "step.started" and payload.get("position") == 1
+            for event_type, payload in recorded.events
+        )
+        return ControlFlags(cancel_requested=started_click)
+
+    run = work(
+        {
+            "variables": [],
+            "steps": [
+                step(
+                    "navigate",
+                    "Open form",
+                    {"url": f"{fixture_site}/executor.html"},
+                ),
+                step(
+                    "click",
+                    "Missing",
+                    {"target": target(("testid", "gone"))},
+                    timeoutMs=5_000,
+                ),
+                step(
+                    "click",
+                    "Must not run",
+                    {"target": target(("testid", "save"))},
+                ),
+            ],
+        }
+    )
+    begun = monotonic()
+
+    execute(
+        run,
+        playwright_driver.chromium,
+        recorded,
+        tmp_path,
+        headless=True,
+        control=flags,
+    )
+
+    assert monotonic() - begun < 2
+    assert [result.status for result in recorded.results] == [
+        "passed",
+        "skipped",
+        "skipped",
+    ]
+    assert recorded.terminal is not None
+    assert recorded.terminal[:2] == ("cancelled", None)

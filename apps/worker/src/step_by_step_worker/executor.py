@@ -36,6 +36,7 @@ from step_by_step_core.document import (
     WorkflowDocument,
 )
 
+from step_by_step_worker.control import ControlFlags, RunCancelled
 from step_by_step_worker.heartbeat import RunTerminal
 from step_by_step_worker.selectors import Deadline, Resolved, SelectorFailure, resolve
 
@@ -116,6 +117,7 @@ def execute(
     headless: bool = False,
     heartbeat: Callable[[], None] | None = None,
     heartbeat_every: float = HEARTBEAT_INTERVAL_SECONDS,
+    control: Callable[[], ControlFlags] | None = None,
 ) -> None:
     """Drive every Step in one claimed Run and leave no browser profile behind."""
     run_started = now()
@@ -128,6 +130,10 @@ def execute(
     lost = Event()
     context_holder: list[Any] = []
     watcher = start_heartbeat(heartbeat, heartbeat_every, stop, lost, context_holder)
+
+    def check_control(*_: object) -> None:
+        if control is not None and control().cancel_requested:
+            raise RunCancelled
 
     with TemporaryDirectory(prefix=f"run-{work.run_id}-", dir=profile_root) as profile:
         try:
@@ -144,6 +150,12 @@ def execute(
                 for position, step in enumerate(work.document.steps):
                     if lost.is_set():
                         break
+                    try:
+                        check_control()
+                    except RunCancelled:
+                        terminal_status = "cancelled"
+                        _skip_remaining(work, store, position)
+                        break
                     elapsed_ms = int((monotonic() - clock_started) * 1000)
                     if elapsed_ms >= work.timeout_ms:
                         terminal_status = "failed"
@@ -153,13 +165,19 @@ def execute(
                         break
 
                     announce_started(store, work, step, position)
-                    outcome = execute_step(
-                        page,
-                        step,
-                        position,
-                        work.default_step_timeout_ms,
-                        work.variables,
-                    )
+                    try:
+                        outcome = execute_step(
+                            page,
+                            step,
+                            position,
+                            work.default_step_timeout_ms,
+                            work.variables,
+                            on_control=check_control,
+                        )
+                    except RunCancelled:
+                        terminal_status = "cancelled"
+                        _skip_remaining(work, store, position)
+                        break
                     if lost.is_set():
                         break
                     store.add_result(work.run_id, outcome)
@@ -168,6 +186,12 @@ def execute(
                         terminal_status = "failed"
                         failure_reason = "step_failed"
                         failure_detail = outcome.error_message
+                        _skip_remaining(work, store, position + 1)
+                        break
+                    try:
+                        check_control()
+                    except RunCancelled:
+                        terminal_status = "cancelled"
                         _skip_remaining(work, store, position + 1)
                         break
                     elapsed_ms = int((monotonic() - clock_started) * 1000)
@@ -307,6 +331,7 @@ def execute_step(
     position: int,
     default_timeout_ms: int,
     variables: Mapping[str, Any],
+    on_control: Callable[..., None] | None = None,
 ) -> StepOutcome:
     """Execute one Step, returning only after its observable outcome is complete."""
     started_at = now()
@@ -315,7 +340,7 @@ def execute_step(
 
     deadline = Deadline.in_ms(step.timeout_ms or default_timeout_ms)
     try:
-        matched, extracted = perform(page, step, deadline, variables)
+        matched, extracted = perform(page, step, deadline, variables, on_control)
     except StepFailure as failure:
         status = "skipped" if step.optional and failure.target_missing else "failed"
         return StepOutcome(
@@ -359,8 +384,13 @@ class StepFailure(Exception):
     candidate_count: int | None = None
 
 
-def resolved(page: Page, target: Any, deadline: Deadline) -> Resolved:
-    result = resolve(page, target, deadline)
+def resolved(
+    page: Page,
+    target: Any,
+    deadline: Deadline,
+    on_walk: Callable[..., None] | None = None,
+) -> Resolved:
+    result = resolve(page, target, deadline, on_walk=on_walk)
     if isinstance(result, SelectorFailure):
         raise StepFailure(
             code=result.reason.value,
@@ -376,6 +406,7 @@ def perform(
     step: Step,
     deadline: Deadline,
     variables: Mapping[str, Any],
+    on_control: Callable[..., None] | None = None,
 ) -> tuple[Resolved | None, Any | None]:
     """Perform the action named by one parsed Step."""
     if isinstance(step, NavigateStep):
@@ -384,7 +415,7 @@ def perform(
         )
         return None, None
     if isinstance(step, ClickStep):
-        found = resolved(page, step.payload.target, deadline)
+        found = resolved(page, step.payload.target, deadline, on_control)
         if step.payload.asserted_navigation:
             with page.expect_navigation(timeout=deadline.remaining_ms):
                 found.locator.click(timeout=deadline.remaining_ms)
@@ -392,22 +423,22 @@ def perform(
             found.locator.click(timeout=deadline.remaining_ms)
         return found, None
     if isinstance(step, TypeStep):
-        found = resolved(page, step.payload.target, deadline)
+        found = resolved(page, step.payload.target, deadline, on_control)
         found.locator.fill(
             interpolate(step.payload.value, variables), timeout=deadline.remaining_ms
         )
         return found, None
     if isinstance(step, SelectStep):
-        found = resolved(page, step.payload.target, deadline)
+        found = resolved(page, step.payload.target, deadline, on_control)
         found.locator.select_option(step.payload.value, timeout=deadline.remaining_ms)
         return found, None
     if isinstance(step, DownloadStep):
-        found = resolved(page, step.payload.target, deadline)
+        found = resolved(page, step.payload.target, deadline, on_control)
         with page.expect_download(timeout=deadline.remaining_ms):
             found.locator.click(timeout=deadline.remaining_ms)
         return found, None
     if isinstance(step, ExtractStep):
-        found = resolved(page, step.payload.target, deadline)
+        found = resolved(page, step.payload.target, deadline, on_control)
         if isinstance(step.payload, ScalarExtractPayload):
             value = (
                 found.locator.get_attribute(
@@ -444,7 +475,7 @@ def perform(
             page.wait_for_timeout(step.payload.duration_ms)
             return None, None
         if isinstance(step.payload, ElementWaitPayload):
-            return resolved(page, step.payload.target, deadline), None
+            return resolved(page, step.payload.target, deadline, on_control), None
     if isinstance(step, TakeoverStep):
         raise StepFailure(
             "takeover_not_available",

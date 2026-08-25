@@ -9,6 +9,7 @@ from uuid import UUID
 from playwright.sync_api import BrowserType
 from step_by_step_core.bus import DISPATCH_LIST
 
+from step_by_step_worker.control import ControlWatch
 from step_by_step_worker.executor import ResultStore, RunWork, execute
 from step_by_step_worker.heartbeat import (
     API_URL_VARIABLE,
@@ -41,6 +42,7 @@ def work_once(
     vnc_endpoint: str,
     headless: bool = False,
     pop_timeout: int = 1,
+    follow_control: bool = False,
 ) -> bool:
     """Execute the next claimable id, dropping stale ids along the way.
 
@@ -69,13 +71,19 @@ def work_once(
             if environ.get(API_URL_VARIABLE) and environ.get(INTERNAL_TOKEN_VARIABLE)
             else None
         )
-        execute(
-            work,
-            browser_type,
-            store,
-            profile_root,
-            headless=headless,
-            heartbeat=heartbeat,
-        )
+        watcher = ControlWatch(work.run_id) if follow_control else None
+        try:
+            execute(
+                work,
+                browser_type,
+                store,
+                profile_root,
+                headless=headless,
+                heartbeat=heartbeat,
+                control=watcher.poll if watcher is not None else None,
+            )
+        finally:
+            if watcher is not None:
+                watcher.close()
         return True
     return False

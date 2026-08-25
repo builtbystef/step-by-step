@@ -1,4 +1,4 @@
-"""The user-facing Run start, list, detail, events, logs, and queued cancellation."""
+"""The user-facing Run start, list, detail, events, logs, and cancellation."""
 
 import json
 from base64 import urlsafe_b64decode, urlsafe_b64encode
@@ -11,7 +11,7 @@ from fastapi import APIRouter, Query, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import case, func, literal, select, tuple_
-from step_by_step_core.bus import DISPATCH_LIST, get_redis
+from step_by_step_core.bus import DISPATCH_LIST, control_channel, get_redis
 from step_by_step_core.events import events_channel
 
 from step_by_step_api import clock
@@ -459,15 +459,22 @@ def list_run_logs(
     "/api/runs/{run_id}/cancel",
     operation_id="cancelRun",
     status_code=202,
-    responses=errors(400, 401, 403, 404),
+    responses=errors(400, 401, 403, 404, 409),
 )
 def cancel_run(run_id: UUID, member: ActiveMembership, db: SessionDep) -> Response:
-    """Cancel queued work now; active cancellation belongs to the control slice."""
+    """Cancel queued work now; stamp a request on a running Run and leave it running."""
     run = owned_run(db, member.org_id, run_id)
+    if run.status.value not in NON_TERMINAL:
+        raise ApiError(409, "run_terminal", "this Run has already ended")
     if run.status is RunStatus.QUEUED:
         run.status = RunStatus.CANCELLED
         run.ended_at = clock.now()
         db.commit()
+        return Response(status_code=202)
+    if run.cancel_requested_at is None:
+        run.cancel_requested_at = clock.now()
+    db.commit()
+    get_redis().publish(control_channel(run.id), json.dumps({"cancel_requested": True}))
     return Response(status_code=202)
 
 

@@ -630,7 +630,7 @@ export const listRunLogs = <ThrowOnError extends boolean = false>(options: Optio
 /**
  * Cancel Run
  *
- * Cancel queued work now; active cancellation belongs to the control slice.
+ * Cancel queued work now; stamp a request on a running Run and leave it running.
  */
 export const cancelRun = <ThrowOnError extends boolean = false>(options: Options<CancelRunData, ThrowOnError>): RequestResult<CancelRunResponses, CancelRunErrors, ThrowOnError> => (options.client ?? client).post<CancelRunResponses, CancelRunErrors, ThrowOnError>({ url: '/api/runs/{run_id}/cancel', ...options });
 

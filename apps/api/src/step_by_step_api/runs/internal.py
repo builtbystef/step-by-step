@@ -21,6 +21,27 @@ class Heartbeat(BaseModel):
     vnc_endpoint: str
 
 
+class RunControl(BaseModel):
+    cancel_requested: bool
+    pause_requested: bool
+    takeover_phase: str | None
+    auto_handback_disabled: bool
+
+
+@router.get("/internal/runs/{run_id}/control")
+def control(run_id: UUID, db: SessionDep, _: InternalToken) -> RunControl:
+    """The row's request flags. The Worker re-reads these at every boundary."""
+    run = db.get(Run, run_id)
+    if run is None:
+        raise ApiError(404, "run_not_found", "no such Run")
+    return RunControl(
+        cancel_requested=run.cancel_requested_at is not None,
+        pause_requested=run.pause_requested_at is not None,
+        takeover_phase=None,
+        auto_handback_disabled=run.auto_handback_disabled,
+    )
+
+
 @router.post("/internal/runs/{run_id}/heartbeat", status_code=204)
 def heartbeat(
     run_id: UUID,

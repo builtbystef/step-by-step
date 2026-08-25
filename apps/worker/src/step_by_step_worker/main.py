@@ -38,6 +38,7 @@ def consume(log: logging.Logger) -> None:
                 profile_root,
                 worker_id=identity,
                 vnc_endpoint=vnc_endpoint,
+                follow_control=True,
             )
             if worked:
                 log.info("Run finished; waiting for the next one")

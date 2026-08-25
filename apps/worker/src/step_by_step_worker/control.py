@@ -1,0 +1,98 @@
+"""The flags a Worker re-reads at every safe boundary."""
+
+import json
+from dataclasses import dataclass
+from threading import Event, Thread
+from uuid import UUID
+
+from sqlalchemy import text
+from step_by_step_core.bus import control_channel, get_redis
+from step_by_step_core.db import session_scope
+
+
+@dataclass(frozen=True, slots=True)
+class ControlFlags:
+    """What the Run row currently asks of automation."""
+
+    cancel_requested: bool = False
+    pause_requested: bool = False
+    takeover_phase: str | None = None
+    auto_handback_disabled: bool = False
+
+
+class RunCancelled(Exception):
+    """Stop at the next boundary; an action already in flight still finishes."""
+
+
+def flags_from_row(run_id: UUID) -> ControlFlags:
+    """Read the Run row. A dropped control message never hides a stamp here."""
+    with session_scope() as session:
+        row = (
+            session.execute(
+                text(
+                    """
+                    SELECT cancel_requested_at, pause_requested_at,
+                           auto_handback_disabled
+                    FROM runs WHERE id = :run_id
+                    """
+                ),
+                {"run_id": run_id},
+            )
+            .mappings()
+            .one_or_none()
+        )
+    if row is None:
+        return ControlFlags()
+    return ControlFlags(
+        cancel_requested=row["cancel_requested_at"] is not None,
+        pause_requested=row["pause_requested_at"] is not None,
+        auto_handback_disabled=bool(row["auto_handback_disabled"]),
+    )
+
+
+class ControlWatch:
+    """Act on a control message when it arrives; re-read the row on every poll."""
+
+    def __init__(self, run_id: UUID) -> None:
+        self.run_id = run_id
+        self._heard_cancel = False
+        self._stop = Event()
+        self._ready = Event()
+        self._thread = Thread(target=self._listen, name="run-control", daemon=True)
+        self._thread.start()
+        self._ready.wait(timeout=1)
+
+    def _listen(self) -> None:
+        pubsub = None
+        try:
+            pubsub = get_redis().pubsub(ignore_subscribe_messages=True)
+            pubsub.subscribe(control_channel(self.run_id))
+            self._ready.set()
+            while not self._stop.is_set():
+                message = pubsub.get_message(timeout=0.1)
+                if message is None or message.get("type") != "message":
+                    continue
+                raw = message["data"]
+                if isinstance(raw, bytes):
+                    raw = raw.decode()
+                if json.loads(raw).get("cancel_requested"):
+                    self._heard_cancel = True
+        finally:
+            self._ready.set()
+            if pubsub is not None:
+                pubsub.close()
+
+    def poll(self) -> ControlFlags:
+        flags = flags_from_row(self.run_id)
+        if not self._heard_cancel:
+            return flags
+        return ControlFlags(
+            cancel_requested=True,
+            pause_requested=flags.pause_requested,
+            takeover_phase=flags.takeover_phase,
+            auto_handback_disabled=flags.auto_handback_disabled,
+        )
+
+    def close(self) -> None:
+        self._stop.set()
+        self._thread.join(timeout=1)

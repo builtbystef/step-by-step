@@ -11,11 +11,17 @@ process needs no Redis.
 
 from functools import lru_cache
 from os import environ
+from uuid import UUID
 
 from redis import Redis
 
 DISPATCH_LIST = "runs:dispatch"
 """The one list carrying queued Run ids to Workers."""
+
+
+def control_channel(run_id: UUID) -> str:
+    """The pub/sub channel one Run's control commands travel on."""
+    return f"run:{run_id}:control"
 
 
 @lru_cache(maxsize=1)

@@ -4142,7 +4142,7 @@
           "runs"
         ],
         "summary": "Cancel Run",
-        "description": "Cancel queued work now; active cancellation belongs to the control slice.",
+        "description": "Cancel queued work now; stamp a request on a running Run and leave it running.",
         "operationId": "cancelRun",
         "parameters": [
           {
@@ -4220,6 +4220,16 @@
               }
             },
             "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "422": {
             "description": "Validation Error",
