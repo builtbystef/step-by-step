@@ -1,6 +1,7 @@
 """Claim Run ids from Redis and hand exactly one claimed Run to the executor."""
 
 from datetime import UTC, datetime
+from os import environ
 from pathlib import Path
 from typing import Any, Protocol
 from uuid import UUID
@@ -9,6 +10,11 @@ from playwright.sync_api import BrowserType
 from step_by_step_core.bus import DISPATCH_LIST
 
 from step_by_step_worker.executor import ResultStore, RunWork, execute
+from step_by_step_worker.heartbeat import (
+    API_URL_VARIABLE,
+    INTERNAL_TOKEN_VARIABLE,
+    pulse,
+)
 
 
 class DispatchQueue(Protocol):
@@ -58,6 +64,18 @@ def work_once(
         )
         if work is None:
             continue
-        execute(work, browser_type, store, profile_root, headless=headless)
+        heartbeat = (
+            pulse(work.run_id, worker_id, vnc_endpoint)
+            if environ.get(API_URL_VARIABLE) and environ.get(INTERNAL_TOKEN_VARIABLE)
+            else None
+        )
+        execute(
+            work,
+            browser_type,
+            store,
+            profile_root,
+            headless=headless,
+            heartbeat=heartbeat,
+        )
         return True
     return False

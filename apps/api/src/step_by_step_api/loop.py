@@ -1,9 +1,9 @@
 """The backend's minute loop.
 
-One directly-invokable `tick` is the whole surface: this slice fires due
-Schedules; later reaping duties (stale heartbeats, takeover deadlines, the
-queued-Run backstop) join the same function rather than starting a second
-loop. Tests call `tick()` themselves. The process starts the minute waiter
+One directly-invokable `tick` is the whole surface: it fires due Schedules,
+reaps stale-heartbeat Runs, and re-enqueues queued Runs the dispatch list
+dropped. Takeover-deadline reaping joins the same function when that slice
+lands. Tests call `tick()` themselves. The process starts the minute waiter
 from the app lifespan.
 """
 
@@ -17,6 +17,7 @@ from step_by_step_core.bus import DISPATCH_LIST, get_redis
 from step_by_step_core.db import session_scope
 
 from step_by_step_api import clock
+from step_by_step_api.runs.reap import reap_and_backstop
 from step_by_step_api.schedules.fire import fire_due_schedules
 
 log = logging.getLogger(__name__)
@@ -27,7 +28,9 @@ TICK_INTERVAL_SECONDS = 60
 def tick() -> None:
     """One pass of the loop. Safe to call from a test without waiting a minute."""
     with session_scope() as db:
-        run_ids = fire_due_schedules(db, clock.now())
+        now = clock.now()
+        run_ids = fire_due_schedules(db, now)
+        run_ids.extend(reap_and_backstop(db, now))
         db.commit()
     if not run_ids:
         return

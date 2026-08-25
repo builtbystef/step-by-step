@@ -5,11 +5,13 @@ Run reached it. Dispatch supplies a claimed :class:`RunWork`; the store protocol
 keeps each Step Result durable before the next Step can touch the page.
 """
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from logging import getLogger
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from threading import Event, Thread
 from time import monotonic
 from typing import Any, Protocol
 from uuid import UUID
@@ -34,7 +36,12 @@ from step_by_step_core.document import (
     WorkflowDocument,
 )
 
+from step_by_step_worker.heartbeat import RunTerminal
 from step_by_step_worker.selectors import Deadline, Resolved, SelectorFailure, resolve
+
+log = getLogger(__name__)
+
+HEARTBEAT_INTERVAL_SECONDS = 5.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,6 +114,8 @@ def execute(
     profile_root: Path,
     *,
     headless: bool = False,
+    heartbeat: Callable[[], None] | None = None,
+    heartbeat_every: float = HEARTBEAT_INTERVAL_SECONDS,
 ) -> None:
     """Drive every Step in one claimed Run and leave no browser profile behind."""
     run_started = now()
@@ -115,10 +124,15 @@ def execute(
     terminal_status = "succeeded"
     failure_reason: str | None = None
     failure_detail: str | None = None
+    stop = Event()
+    lost = Event()
+    context_holder: list[Any] = []
+    watcher = start_heartbeat(heartbeat, heartbeat_every, stop, lost, context_holder)
 
     with TemporaryDirectory(prefix=f"run-{work.run_id}-", dir=profile_root) as profile:
         try:
             context = browser_type.launch_persistent_context(profile, headless=headless)
+            context_holder.append(context)
         except PlaywrightError as error:
             terminal_status = "failed"
             failure_reason = "startup_failed"
@@ -128,6 +142,8 @@ def execute(
             try:
                 page = context.pages[0] if context.pages else context.new_page()
                 for position, step in enumerate(work.document.steps):
+                    if lost.is_set():
+                        break
                     elapsed_ms = int((monotonic() - clock_started) * 1000)
                     if elapsed_ms >= work.timeout_ms:
                         terminal_status = "failed"
@@ -144,6 +160,8 @@ def execute(
                         work.default_step_timeout_ms,
                         work.variables,
                     )
+                    if lost.is_set():
+                        break
                     store.add_result(work.run_id, outcome)
                     announce_finished(store, work, outcome)
                     if outcome.status == "failed":
@@ -160,7 +178,15 @@ def execute(
                         _skip_remaining(work, store, position + 1)
                         break
             finally:
-                context.close()
+                close_quietly(context)
+
+    stop.set()
+    if watcher is not None:
+        watcher.join(timeout=heartbeat_every + 1)
+    if lost.is_set():
+        # A 409 means the row is already terminal; do not overwrite it.
+        store.end_interval(interval, now())
+        return
 
     ended_at = now()
     automation_ms = int((monotonic() - clock_started) * 1000)
@@ -183,6 +209,41 @@ def execute(
     if failure_detail is not None:
         status_payload["failure_detail"] = failure_detail
     store.emit(work.run_id, "run.status", status_payload)
+
+
+def start_heartbeat(
+    heartbeat: Callable[[], None] | None,
+    every: float,
+    stop: Event,
+    lost: Event,
+    context_holder: list[Any],
+) -> Thread | None:
+    """Beat in the background; a terminal Run closes the browser from this thread."""
+    if heartbeat is None:
+        return None
+
+    def watch() -> None:
+        while not stop.wait(every):
+            try:
+                heartbeat()
+            except RunTerminal:
+                lost.set()
+                if context_holder:
+                    close_quietly(context_holder[0])
+                return
+            except Exception:
+                log.exception("heartbeat failed")
+
+    watcher = Thread(target=watch, name="run-heartbeat", daemon=True)
+    watcher.start()
+    return watcher
+
+
+def close_quietly(context: Any) -> None:
+    try:
+        context.close()
+    except Exception:
+        return
 
 
 def _skip_remaining(work: RunWork, store: ResultStore, start: int) -> None:

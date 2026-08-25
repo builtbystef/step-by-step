@@ -13,6 +13,7 @@ from step_by_step_api.extension.routes import router as extension_router
 from step_by_step_api.logs import configure as configure_logging
 from step_by_step_api.loop import start_in_lifespan
 from step_by_step_api.mail import mailer
+from step_by_step_api.runs.internal import router as internal_runs_router
 from step_by_step_api.runs.routes import router as runs_router
 from step_by_step_api.schedules.routes import router as schedules_router
 from step_by_step_api.secrets.routes import router as secrets_router
@@ -55,6 +56,7 @@ app.include_router(workflows_router)
 app.include_router(recording_router)
 app.include_router(workflow_catalog_router)
 app.include_router(runs_router)
+app.include_router(internal_runs_router)
 app.include_router(schedules_router)
 
 

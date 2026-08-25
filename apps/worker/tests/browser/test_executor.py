@@ -2,7 +2,9 @@
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from itertools import pairwise
 from pathlib import Path
+from time import monotonic
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -10,6 +12,7 @@ import pytest
 from step_by_step_core.document import WorkflowDocument
 from step_by_step_worker.dispatch import work_once
 from step_by_step_worker.executor import RunWork, StepOutcome, execute
+from step_by_step_worker.heartbeat import RunTerminal
 from step_by_step_worker.store import work_from_claim
 
 pytestmark = pytest.mark.browser
@@ -411,3 +414,82 @@ def test_run_timeout_is_checked_at_a_step_boundary(
     assert [result.status for result in recorded.results] == ["skipped", "skipped"]
     assert recorded.terminal is not None
     assert recorded.terminal[:2] == ("failed", "run_timeout")
+
+
+def test_a_running_executor_heartbeats_every_few_seconds(
+    playwright_driver: Any, fixture_site: str, tmp_path: Path
+) -> None:
+    recorded = RecordedRun()
+    beats: list[float] = []
+    run = work(
+        {
+            "variables": [],
+            "steps": [
+                step(
+                    "wait",
+                    "Hold the browser",
+                    {"mode": "duration", "durationMs": 200},
+                )
+            ],
+        }
+    )
+
+    execute(
+        run,
+        playwright_driver.chromium,
+        recorded,
+        tmp_path,
+        headless=True,
+        heartbeat=lambda: beats.append(monotonic()),
+        heartbeat_every=0.05,
+    )
+
+    assert len(beats) >= 2
+    gaps = [later - earlier for earlier, later in pairwise(beats)]
+    assert gaps and min(gaps) >= 0.04
+
+
+def test_a_terminal_heartbeat_abandons_the_run_and_closes_the_browser(
+    playwright_driver: Any, fixture_site: str, tmp_path: Path
+) -> None:
+    recorded = RecordedRun()
+    beats = 0
+
+    def beat() -> None:
+        nonlocal beats
+        beats += 1
+        raise RunTerminal
+
+    run = work(
+        {
+            "variables": [],
+            "steps": [
+                step(
+                    "wait",
+                    "Hold the browser",
+                    {"mode": "duration", "durationMs": 5_000},
+                ),
+                step(
+                    "navigate",
+                    "Must not run",
+                    {"url": f"{fixture_site}/executor.html"},
+                ),
+            ],
+        }
+    )
+    started = monotonic()
+
+    execute(
+        run,
+        playwright_driver.chromium,
+        recorded,
+        tmp_path,
+        headless=True,
+        heartbeat=beat,
+        heartbeat_every=0.05,
+    )
+
+    assert monotonic() - started < 2
+    assert beats >= 1
+    assert all(result.status != "passed" for result in recorded.results)
+    assert list(tmp_path.iterdir()) == []
