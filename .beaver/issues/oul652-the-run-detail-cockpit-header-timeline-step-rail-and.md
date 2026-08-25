@@ -1,7 +1,8 @@
 ---
 id: oul652
 title: 'The run detail cockpit: header, timeline, step rail, and terminal states'
-state: todo
+state: done
+assignee: agent
 priority: medium
 depends_on:
     - 1q7qp8
@@ -11,7 +12,7 @@ depends_on:
     - tls69i
 parent: 9gea5p
 created: 2026-08-14T07:44:24Z
-updated: 2026-08-17T04:03:58Z
+updated: 2026-08-25T20:42:11Z
 ---
 
 ## What to build
@@ -42,3 +43,28 @@ The screen where a Run is understood, settled by the prototypes and restated as 
 **claude** — 2026-08-17T04:03:58Z
 
 Added blocking edge on tls69i: the cockpit's ACs render failure screenshots and per-step artifact expansions that tls69i lands.
+
+**agent** — 2026-08-25T20:27:56Z
+
+Seams: the parent spec names HTTP and the Worker executor; this slice is the cockpit UI. Following the established frontend seam (5rkj33): pure functions for header/timeline/rail/banner/cancel/run-again/live-event reduction, read back with no DOM. StatusChip remains the only lifecycle renderer.
+
+**agent** — 2026-08-25T20:42:03Z
+
+Done. The run detail cockpit at /runs/[id].
+
+Seams: pure frontend functions (presentation.ts, events.ts) read back with no DOM, matching 5rkj33. StatusChip remains the only lifecycle renderer (visual-language.test.ts).
+
+What landed
+- Header: workflow name, run id, Version, trigger, StatusChip, meta row (elapsed · automation · time with you · steps done · worker · timeout), failure_reason once terminal, ⚠ N steps drifted.
+- Timeline from control_intervals: four kinds, proportional flex, markers (paused / you took control / handed back / resumed), legend. Waiting is wait-hatched; verifying is an accent stripe — the visual language has five hues and no teal token, so verifying reuses accent rather than adding a sixth.
+- Step rail from the Version (or test-run draft_snapshot): number, label, editor sentence, duration, badges (drift, completed by you, selector failure, skipped, records, files). Expansion: error, ranked candidates (died/matched/untried), Re-pick link, screenshots, extracted data, that Step's log lines. Control bands between Steps.
+- Live: SSE via streamRunEvents; step.started/finished tick the rail; reconnect refetches REST then resubscribes. No Last-Event-ID.
+- Terminal banner: `succeeded in 0:39 · 8 of 8 steps · 24 records · 1 download`; failed names step, reason, skipped count, with Re-pick. Cancel: inline confirm of the boundary rule, then the cancelling band, then the terminal banner on run.status.
+- Run again dialog prefilled with this Run's Variable values (secrets as LockedCell), startRun of the latest published Version.
+- Pane holds placeholders until 2aybf8. Output tab stays on e181q4.
+
+Decisions
+- matched_candidate_rank is 0-indexed in the API; the badge is 1-indexed (`found on candidate 3/5` for rank 2 of 5). Drift is any rank > 0.
+- cancelling is not a RunStatus: the chip maps cancel_requested_at on a non-terminal Run to the cancelling LifecycleState.
+- Re-pick href is `/workflows/{id}/editor?repick={stepId}` so m6s5me can honor it; repair stays in the editor.
+- The Run again dialog lives on this screen. immifu's shared start dialog is a later consumer, not a blocker.
