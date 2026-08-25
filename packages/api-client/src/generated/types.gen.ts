@@ -125,6 +125,24 @@ export type AuthStateSummary = {
 export type CandidateKind = 'testid' | 'role' | 'placeholder' | 'label' | 'alt' | 'text' | 'title' | 'css';
 
 /**
+ * ChangeSchedule
+ */
+export type ChangeSchedule = {
+    /**
+     * Cron
+     */
+    cron?: string | null;
+    /**
+     * Timezone
+     */
+    timezone?: string | null;
+    /**
+     * Enabled
+     */
+    enabled?: boolean | null;
+};
+
+/**
  * ChangeSecret
  */
 export type ChangeSecret = {
@@ -270,6 +288,24 @@ export type ControlIntervalRecord = {
      * Ended At
      */
     ended_at: string | null;
+};
+
+/**
+ * CreateSchedule
+ */
+export type CreateSchedule = {
+    /**
+     * Cron
+     */
+    cron: string;
+    /**
+     * Timezone
+     */
+    timezone: string;
+    /**
+     * Enabled
+     */
+    enabled: boolean;
 };
 
 /**
@@ -1091,6 +1127,40 @@ export type ScalarExtractPayload = {
      * Attribute
      */
     attribute?: string | null;
+};
+
+/**
+ * ScheduleRecord
+ */
+export type ScheduleRecord = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Cron
+     */
+    cron: string;
+    /**
+     * Timezone
+     */
+    timezone: string;
+    /**
+     * Enabled
+     */
+    enabled: boolean;
+    /**
+     * Last Fired At
+     */
+    last_fired_at: string | null;
+    /**
+     * Next Due At
+     */
+    next_due_at: string;
+    /**
+     * Last Skip Reason
+     */
+    last_skip_reason: string | null;
 };
 
 /**
@@ -4074,6 +4144,216 @@ export type CancelRunResponses = {
      */
     202: unknown;
 };
+
+export type ListSchedulesData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+    };
+    query?: never;
+    url: '/api/workflows/{workflow_id}/schedules';
+};
+
+export type ListSchedulesErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListSchedulesError = ListSchedulesErrors[keyof ListSchedulesErrors];
+
+export type ListSchedulesResponses = {
+    /**
+     * Response Listschedules
+     *
+     * Successful Response
+     */
+    200: Array<ScheduleRecord>;
+};
+
+export type ListSchedulesResponse = ListSchedulesResponses[keyof ListSchedulesResponses];
+
+export type CreateScheduleData = {
+    body: CreateSchedule;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+    };
+    query?: never;
+    url: '/api/workflows/{workflow_id}/schedules';
+};
+
+export type CreateScheduleErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateScheduleError = CreateScheduleErrors[keyof CreateScheduleErrors];
+
+export type CreateScheduleResponses = {
+    /**
+     * Successful Response
+     */
+    201: ScheduleRecord;
+};
+
+export type CreateScheduleResponse = CreateScheduleResponses[keyof CreateScheduleResponses];
+
+export type DeleteScheduleData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Schedule Id
+         */
+        schedule_id: string;
+    };
+    query?: never;
+    url: '/api/schedules/{schedule_id}';
+};
+
+export type DeleteScheduleErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteScheduleError = DeleteScheduleErrors[keyof DeleteScheduleErrors];
+
+export type DeleteScheduleResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteScheduleResponse = DeleteScheduleResponses[keyof DeleteScheduleResponses];
+
+export type UpdateScheduleData = {
+    body: ChangeSchedule;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Schedule Id
+         */
+        schedule_id: string;
+    };
+    query?: never;
+    url: '/api/schedules/{schedule_id}';
+};
+
+export type UpdateScheduleErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateScheduleError = UpdateScheduleErrors[keyof UpdateScheduleErrors];
+
+export type UpdateScheduleResponses = {
+    /**
+     * Successful Response
+     */
+    200: ScheduleRecord;
+};
+
+export type UpdateScheduleResponse = UpdateScheduleResponses[keyof UpdateScheduleResponses];
 
 export type GetHealthData = {
     body?: never;

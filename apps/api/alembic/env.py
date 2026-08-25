@@ -9,8 +9,10 @@ from step_by_step_core.db import Base
 config = context.config
 
 # The connection URL comes from the environment, never from alembic.ini —
-# the compose stack and CI inject it per deployment.
-config.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL"])
+# the compose stack and CI inject it per deployment. ConfigParser
+# interpolates `%`, so a unix-socket URL that encodes the path as `%2F`
+# has to be escaped before it is stored.
+config.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL"].replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -21,6 +23,7 @@ import step_by_step_api.accounts.models  # noqa: E402
 import step_by_step_api.auth_states.models  # noqa: E402
 import step_by_step_api.extension.models  # noqa: E402
 import step_by_step_api.runs.models  # noqa: E402
+import step_by_step_api.schedules.models  # noqa: E402
 import step_by_step_api.secrets.models  # noqa: E402
 import step_by_step_api.workflows.models  # noqa: E402, F401
 

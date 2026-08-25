@@ -113,7 +113,9 @@ class Run(Base):
     trigger: Mapped[RunTrigger] = mapped_column(
         enum_column(RunTrigger, "run_trigger", 16), default=RunTrigger.MANUAL
     )
-    schedule_id: Mapped[UUID | None] = mapped_column(default=None)
+    schedule_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("schedules.id", ondelete="SET NULL"), index=True, default=None
+    )
     batch_row_id: Mapped[UUID | None] = mapped_column(default=None)
     status: Mapped[RunStatus] = mapped_column(
         enum_column(RunStatus, "run_status", 32), default=RunStatus.QUEUED

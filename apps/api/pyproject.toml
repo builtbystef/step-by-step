@@ -5,6 +5,9 @@ description = "FastAPI backend"
 requires-python = ">=3.14"
 dependencies = [
   "alembic>=1.19.1",
+  # Cron parsing and next-occurrence (issue g461z0 / spec 9gea5p).
+  # Timezones stay on the standard library's zoneinfo.
+  "croniter>=6.2",
   "fastapi>=0.115",
   # The Resend mailer adapter's HTTP client (and what fastapi's TestClient
   # drives the app through).

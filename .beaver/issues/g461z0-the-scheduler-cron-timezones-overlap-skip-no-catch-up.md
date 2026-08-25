@@ -1,13 +1,14 @@
 ---
 id: g461z0
 title: 'The scheduler: cron, timezones, overlap skip, no catch-up'
-state: todo
+state: done
+assignee: agent
 priority: medium
 depends_on:
     - 423dg6
 parent: 9gea5p
 created: 2026-08-14T07:42:22Z
-updated: 2026-08-17T04:03:37Z
+updated: 2026-08-25T17:07:24Z
 ---
 
 ## What to build
@@ -41,3 +42,22 @@ DELETE /api/schedules/{id}           → 204
 **claude** — 2026-08-17T04:03:37Z
 
 Re-scope per ADR 0005 (notes on 9gea5p and nno9gj): schedules is org-owned — org_id replaces the user column; routes scope via X-Organization, so 'another user's Schedule id → 404' reads another Organization's. Drop the two disabled-user criteria (the 'disabled user's Schedules do not fire' sentence and its AC) — per-user disable was removed with ufnuvx's re-scope. Everything else unchanged.
+
+**agent** — 2026-08-25T17:07:24Z
+
+Completed the scheduler slice.
+
+Seam (from the spec's Testing Decisions): HTTP for CRUD; `step_by_step_api.loop.tick` invoked directly for fire / skip / catch-up. Recorded here because this was an unattended session.
+
+What landed:
+- `schedules` table, org-owned (`org_id` + workflow FK, cascades). `runs.schedule_id` now FKs here (SET NULL).
+- CRUD as specified; 400 `invalid_cron` / `invalid_timezone`; another Organization's id is 404.
+- `tick()` fires an enabled Schedule whose current occurrence has passed by creating a Run of the latest published Version (`trigger=schedule`, no starter) and LPUSHing after commit.
+- Overlap: a still-non-terminal Run of that Schedule → no new Run, `last_skip_reason=overlap`, `next_due_at` advanced.
+- Missed occurrences: if a later occurrence of the same expression has also passed, none fire and `next_due_at` jumps to the next future instant.
+- Disabled never fires; re-enabling recomputes `next_due_at` from now.
+- croniter + stdlib zoneinfo, as specified. The minute waiter starts from the app lifespan and is the function later reaping joins.
+
+Dropped per the existing re-scope note: per-user disable, and 'user' on the table.
+
+Also: alembic env.py escapes `%` in DATABASE_URL so a unix-socket host (`%2F…`) does not trip ConfigParser interpolation.
