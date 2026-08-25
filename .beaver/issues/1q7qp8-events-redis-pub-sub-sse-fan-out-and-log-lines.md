@@ -1,13 +1,14 @@
 ---
 id: 1q7qp8
 title: 'Events: Redis pub/sub, SSE fan-out, and log lines'
-state: todo
+state: done
+assignee: agent
 priority: high
 depends_on:
     - 6ewr2p
 parent: 9gea5p
 created: 2026-08-14T07:41:51Z
-updated: 2026-08-25T16:18:21Z
+updated: 2026-08-25T16:44:32Z
 ---
 
 ## What to build
@@ -54,3 +55,18 @@ Re-scope per ADR 0005: the SSE route's ownership check is the org Membership gat
 **agent** — 2026-08-25T16:18:21Z
 
 Previous loop iteration timed out after ~14 min of work and ~46 min silence. Partial events/SSE/logs code was reverted; start fresh.
+
+**agent** — 2026-08-25T16:28:44Z
+
+Seams: HTTP+Postgres+Redis integration for SSE fan-out, logs, ownership (org Membership → 404), reconnection (no replay; REST detail is the missed state), the 10 000-line cap, after_seq/step_id, and artifact events carrying ids only. Executor emission of step.started/step.finished/run.status and log lines is asserted at the existing Worker browser harness via the ResultStore protocol — that tier has no Redis, and the integration tier has no browser, so the two halves together observe AC1/AC2.
+
+**agent** — 2026-08-25T16:44:32Z
+
+Done. Live Run events and log lines.
+
+- step_by_step_core.events: publish to run:{id}:events; publish_log dual-writes a run_log_lines row and a log event. Cap is 10 000 real lines plus one "log truncated" row; further publishes return None. Artifact events keep only run_id, step_id, artifact_id, kind, at.
+- GET /api/runs/{id}/events is SSE after the org Membership gate (foreign org → 404, no subscribe). Reconnects replay nothing. GET /api/runs/{id}/logs?after_seq=&step_id= reads the rows.
+- The executor emits step.started / step.finished (and a log line of the Step label) as it walks, then one terminal run.status. PostgresRunStore.emit/log are the Redis+Postgres implementations.
+- Seams as noted: HTTP+Redis integration (live uvicorn, because TestClient buffers the body) and the existing executor browser harness.
+
+OpenAPI + generated client updated (streamRunEvents, listRunLogs).

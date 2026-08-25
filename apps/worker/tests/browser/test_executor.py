@@ -1,5 +1,6 @@
 """The Worker executor drives fixture pages and records the Run at its seam."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,8 @@ class RecordedRun:
     available: dict[UUID, RunWork] = field(default_factory=dict)
     claim_attempts: list[UUID] = field(default_factory=list)
     claimed: set[UUID] = field(default_factory=set)
+    events: list[tuple[str, Mapping[str, Any]]] = field(default_factory=list)
+    logs: list[tuple[str, str, UUID | None]] = field(default_factory=list)
 
     def claim(
         self, run_id: UUID, worker_id: str, vnc_endpoint: str, at: Any
@@ -57,6 +60,18 @@ class RecordedRun:
         at: Any,
     ) -> None:
         self.terminal = (status, failure_reason, automation_ms)
+
+    def emit(self, run_id: UUID, event_type: str, payload: Mapping[str, Any]) -> None:
+        self.events.append((event_type, payload))
+
+    def log(
+        self,
+        run_id: UUID,
+        level: str,
+        text: str,
+        step_id: UUID | None = None,
+    ) -> None:
+        self.logs.append((level, text, step_id))
 
 
 def step(
@@ -123,6 +138,22 @@ def test_three_steps_succeed_in_one_automation_interval(
     assert kind == "automation"
     assert started <= ended
     assert list(tmp_path.iterdir()) == []
+    kinds = [event_type for event_type, _ in recorded.events]
+    assert kinds == [
+        "step.started",
+        "step.finished",
+        "step.started",
+        "step.finished",
+        "step.started",
+        "step.finished",
+        "run.status",
+    ]
+    assert recorded.events[-1][1]["status"] == "succeeded"
+    assert [payload["position"] for _, payload in recorded.events[:6:2]] == [0, 1, 2]
+    assert kinds.count("run.status") == 1
+    assert [step_id for _, _, step_id in recorded.logs] == [
+        result.step_id for result in recorded.results
+    ]
 
 
 def test_selector_drift_and_candidate_count_are_recorded(

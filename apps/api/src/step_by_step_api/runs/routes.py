@@ -1,15 +1,18 @@
-"""The user-facing Run start, list, detail, and queued cancellation routes."""
+"""The user-facing Run start, list, detail, events, logs, and queued cancellation."""
 
 import json
 from base64 import urlsafe_b64decode, urlsafe_b64encode
+from collections.abc import Iterator
 from datetime import datetime
 from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Query, Response
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import case, func, literal, select, tuple_
 from step_by_step_core.bus import DISPATCH_LIST, get_redis
+from step_by_step_core.events import events_channel
 
 from step_by_step_api import clock
 from step_by_step_api.accounts.orgs import ActiveMembership
@@ -19,9 +22,11 @@ from step_by_step_api.runs.models import (
     DEFAULT_RUN_TIMEOUT_MS,
     NON_TERMINAL,
     FailureReason,
+    LogLevel,
     Run,
     RunControlInterval,
     RunControlKind,
+    RunLogLine,
     RunStatus,
     RunTrigger,
     StepResult,
@@ -128,6 +133,14 @@ class RunDetail(BaseModel):
     control_intervals: list[ControlIntervalRecord]
     artifacts: list[dict[str, Any]]
     batch_row: dict[str, Any] | None
+
+
+class LogLine(BaseModel):
+    seq: int
+    step_id: UUID | None
+    level: LogLevel
+    text: str
+    at: datetime
 
 
 def workflow_to_run(
@@ -354,6 +367,92 @@ def get_run(run_id: UUID, member: ActiveMembership, db: SessionDep) -> RunDetail
         artifacts=[],
         batch_row=None,
     )
+
+
+@router.get(
+    "/api/runs/{run_id}/events",
+    operation_id="streamRunEvents",
+    response_class=StreamingResponse,
+    responses={
+        **errors(400, 401, 403, 404),
+        200: {
+            "content": {"text/event-stream": {"schema": {"type": "string"}}},
+            "description": "Live Run events. Reconnection replays nothing.",
+        },
+    },
+)
+def stream_run_events(
+    run_id: UUID, member: ActiveMembership, db: SessionDep
+) -> StreamingResponse:
+    """Fan out `run:{id}:events` after the Organization gate; never replay."""
+    owned_run(db, member.org_id, run_id)
+    pubsub = get_redis().pubsub(ignore_subscribe_messages=True)
+    pubsub.subscribe(events_channel(run_id))
+    return StreamingResponse(
+        fan_out(pubsub),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+def fan_out(pubsub: Any) -> Iterator[str]:
+    """Yield SSE frames until the client hangs up. Comments keep the socket alive."""
+    try:
+        while True:
+            message = pubsub.get_message(timeout=1.0)
+            if message is None:
+                yield ":\n\n"
+                continue
+            if message.get("type") != "message":
+                continue
+            raw = message["data"]
+            if isinstance(raw, bytes):
+                raw = raw.decode()
+            body = json.loads(raw)
+            event_type = body.pop("type")
+            yield f"event: {event_type}\ndata: {json.dumps(body)}\n\n"
+    finally:
+        pubsub.unsubscribe()
+        pubsub.close()
+
+
+@router.get(
+    "/api/runs/{run_id}/logs",
+    operation_id="listRunLogs",
+    response_model_exclude_none=True,
+    responses=errors(400, 401, 403, 404),
+)
+def list_run_logs(
+    run_id: UUID,
+    member: ActiveMembership,
+    db: SessionDep,
+    after_seq: int | None = None,
+    step_id: UUID | None = None,
+) -> list[LogLine]:
+    """The persisted log, optionally after a seq or for one Step."""
+    owned_run(db, member.org_id, run_id)
+    conditions = [RunLogLine.run_id == run_id]
+    if after_seq is not None:
+        conditions.append(RunLogLine.seq > after_seq)
+    if step_id is not None:
+        conditions.append(RunLogLine.step_id == step_id)
+    rows = db.execute(
+        select(RunLogLine).where(*conditions).order_by(RunLogLine.seq)
+    ).scalars()
+    return [
+        LogLine(
+            seq=row.seq,
+            step_id=row.step_id,
+            level=row.level,
+            text=row.text,
+            at=row.at,
+        )
+        for row in rows
+    ]
 
 
 @router.post(

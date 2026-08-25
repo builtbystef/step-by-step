@@ -605,6 +605,34 @@ export type ListExtractPayload = {
 };
 
 /**
+ * LogLevel
+ */
+export type LogLevel = 'debug' | 'info' | 'warning' | 'error';
+
+/**
+ * LogLine
+ */
+export type LogLine = {
+    /**
+     * Seq
+     */
+    seq: number;
+    /**
+     * Step Id
+     */
+    step_id: string | null;
+    level: LogLevel;
+    /**
+     * Text
+     */
+    text: string;
+    /**
+     * At
+     */
+    at: string;
+};
+
+/**
  * Member
  *
  * One person in an Organization, as its members screen shows them.
@@ -3881,6 +3909,121 @@ export type GetRunResponses = {
 };
 
 export type GetRunResponse = GetRunResponses[keyof GetRunResponses];
+
+export type StreamRunEventsData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Run Id
+         */
+        run_id: string;
+    };
+    query?: never;
+    url: '/api/runs/{run_id}/events';
+};
+
+export type StreamRunEventsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type StreamRunEventsError = StreamRunEventsErrors[keyof StreamRunEventsErrors];
+
+export type StreamRunEventsResponses = {
+    /**
+     * Live Run events. Reconnection replays nothing.
+     */
+    200: string;
+};
+
+export type StreamRunEventsResponse = StreamRunEventsResponses[keyof StreamRunEventsResponses];
+
+export type ListRunLogsData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Run Id
+         */
+        run_id: string;
+    };
+    query?: {
+        /**
+         * After Seq
+         */
+        after_seq?: number | null;
+        /**
+         * Step Id
+         */
+        step_id?: string | null;
+    };
+    url: '/api/runs/{run_id}/logs';
+};
+
+export type ListRunLogsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListRunLogsError = ListRunLogsErrors[keyof ListRunLogsErrors];
+
+export type ListRunLogsResponses = {
+    /**
+     * Response Listrunlogs
+     *
+     * Successful Response
+     */
+    200: Array<LogLine>;
+};
+
+export type ListRunLogsResponse = ListRunLogsResponses[keyof ListRunLogsResponses];
 
 export type CancelRunData = {
     body?: never;

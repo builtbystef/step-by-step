@@ -9,6 +9,7 @@ from sqlalchemy import bindparam, text
 from sqlalchemy.dialects.postgresql import JSONB
 from step_by_step_core.db import session_scope
 from step_by_step_core.document import WorkflowDocument
+from step_by_step_core.events import publish, publish_log
 
 from step_by_step_worker.executor import RunWork, StepOutcome
 
@@ -162,6 +163,18 @@ class PostgresRunStore:
                 },
             )
             session.commit()
+
+    def emit(self, run_id: UUID, event_type: str, payload: Mapping[str, Any]) -> None:
+        publish(run_id, event_type, dict(payload))
+
+    def log(
+        self,
+        run_id: UUID,
+        level: str,
+        text: str,
+        step_id: UUID | None = None,
+    ) -> None:
+        publish_log(run_id, level=level, text=text, step_id=step_id)
 
 
 def work_from_claim(claimed: Mapping[str, Any]) -> RunWork:

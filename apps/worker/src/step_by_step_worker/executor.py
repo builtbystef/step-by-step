@@ -83,6 +83,18 @@ class ResultStore(Protocol):
         at: datetime,
     ) -> None: ...
 
+    def emit(
+        self, run_id: UUID, event_type: str, payload: Mapping[str, Any]
+    ) -> None: ...
+
+    def log(
+        self,
+        run_id: UUID,
+        level: str,
+        text: str,
+        step_id: UUID | None = None,
+    ) -> None: ...
+
 
 def now() -> datetime:
     return datetime.now(UTC)
@@ -124,6 +136,7 @@ def execute(
                         _skip_remaining(work, store, position)
                         break
 
+                    announce_started(store, work, step, position)
                     outcome = execute_step(
                         page,
                         step,
@@ -132,6 +145,7 @@ def execute(
                         work.variables,
                     )
                     store.add_result(work.run_id, outcome)
+                    announce_finished(store, work, outcome)
                     if outcome.status == "failed":
                         terminal_status = "failed"
                         failure_reason = "step_failed"
@@ -159,21 +173,71 @@ def execute(
         automation_ms,
         ended_at,
     )
+    status_payload: dict[str, Any] = {
+        "run_id": work.run_id,
+        "status": terminal_status,
+        "at": ended_at,
+    }
+    if failure_reason is not None:
+        status_payload["failure_reason"] = failure_reason
+    if failure_detail is not None:
+        status_payload["failure_detail"] = failure_detail
+    store.emit(work.run_id, "run.status", status_payload)
 
 
 def _skip_remaining(work: RunWork, store: ResultStore, start: int) -> None:
     at = now()
     for position, step in enumerate(work.document.steps[start:], start=start):
-        store.add_result(
-            work.run_id,
-            StepOutcome(
-                step_id=step.id,
-                position=position,
-                status="skipped",
-                started_at=None,
-                ended_at=at,
-            ),
+        outcome = StepOutcome(
+            step_id=step.id,
+            position=position,
+            status="skipped",
+            started_at=None,
+            ended_at=at,
         )
+        store.add_result(work.run_id, outcome)
+        announce_finished(store, work, outcome)
+
+
+def announce_started(
+    store: ResultStore, work: RunWork, step: Step, position: int
+) -> None:
+    at = now()
+    store.emit(
+        work.run_id,
+        "step.started",
+        {
+            "run_id": work.run_id,
+            "step_id": step.id,
+            "position": position,
+            "at": at,
+        },
+    )
+    store.log(work.run_id, "info", step.label, step_id=step.id)
+
+
+def announce_finished(store: ResultStore, work: RunWork, outcome: StepOutcome) -> None:
+    payload: dict[str, Any] = {
+        "run_id": work.run_id,
+        "step_id": outcome.step_id,
+        "status": outcome.status,
+        "matched_candidate_rank": outcome.matched_candidate_rank,
+        "candidate_count": outcome.candidate_count,
+        "completed_by_human": False,
+        "at": outcome.ended_at,
+    }
+    extracted = extracted_count(outcome.extracted_value)
+    if extracted is not None:
+        payload["extracted_count"] = extracted
+    store.emit(work.run_id, "step.finished", payload)
+
+
+def extracted_count(value: Any) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, list):
+        return len(value)
+    return 1
 
 
 def execute_step(
