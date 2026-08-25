@@ -4,12 +4,18 @@ from uuid import UUID
 
 from fastapi import APIRouter, Response
 from pydantic import BaseModel
+from sqlalchemy import select
 
 from step_by_step_api import clock
 from step_by_step_api.db import SessionDep
 from step_by_step_api.errors import ApiError
 from step_by_step_api.internal import InternalToken
-from step_by_step_api.runs.models import Run, RunStatus
+from step_by_step_api.runs.models import (
+    Run,
+    RunControlInterval,
+    RunControlKind,
+    RunStatus,
+)
 
 router = APIRouter(include_in_schema=False)
 
@@ -37,9 +43,25 @@ def control(run_id: UUID, db: SessionDep, _: InternalToken) -> RunControl:
     return RunControl(
         cancel_requested=run.cancel_requested_at is not None,
         pause_requested=run.pause_requested_at is not None,
-        takeover_phase=None,
+        takeover_phase=open_takeover_phase(db, run_id),
         auto_handback_disabled=run.auto_handback_disabled,
     )
+
+
+def open_takeover_phase(db: SessionDep, run_id: UUID) -> str | None:
+    """The open control interval's kind, when it is not automation."""
+    interval = db.execute(
+        select(RunControlInterval)
+        .where(
+            RunControlInterval.run_id == run_id,
+            RunControlInterval.ended_at.is_(None),
+        )
+        .order_by(RunControlInterval.started_at.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+    if interval is None or interval.kind is RunControlKind.AUTOMATION:
+        return None
+    return interval.kind.value
 
 
 @router.post("/internal/runs/{run_id}/heartbeat", status_code=204)

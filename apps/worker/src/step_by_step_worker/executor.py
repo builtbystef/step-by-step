@@ -7,12 +7,12 @@ keeps each Step Result durable before the next Step can touch the page.
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from logging import getLogger
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from threading import Event, Thread
-from time import monotonic
+from time import monotonic, sleep
 from typing import Any, Protocol
 from uuid import UUID
 
@@ -36,13 +36,15 @@ from step_by_step_core.document import (
     WorkflowDocument,
 )
 
-from step_by_step_worker.control import ControlFlags, RunCancelled
+from step_by_step_worker.control import ControlFlags, RunCancelled, RunPaused
 from step_by_step_worker.heartbeat import RunTerminal
 from step_by_step_worker.selectors import Deadline, Resolved, SelectorFailure, resolve
 
 log = getLogger(__name__)
 
 HEARTBEAT_INTERVAL_SECONDS = 5.0
+DEFAULT_TAKEOVER_TIMEOUT_MS = 30 * 60 * 1000
+PARK_POLL_SECONDS = 0.05
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,6 +56,7 @@ class RunWork:
     default_step_timeout_ms: int
     timeout_ms: int
     variables: Mapping[str, Any]
+    takeover_timeout_ms: int = DEFAULT_TAKEOVER_TIMEOUT_MS
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,6 +106,10 @@ class ResultStore(Protocol):
         step_id: UUID | None = None,
     ) -> None: ...
 
+    def park(self, run_id: UUID, deadline_at: datetime, at: datetime) -> None: ...
+
+    def resume(self, run_id: UUID, at: datetime) -> None: ...
+
 
 def now() -> datetime:
     return datetime.now(UTC)
@@ -121,8 +128,12 @@ def execute(
 ) -> None:
     """Drive every Step in one claimed Run and leave no browser profile behind."""
     run_started = now()
-    clock_started = monotonic()
-    interval = store.start_interval(work.run_id, "automation", run_started)
+    automation_clock = monotonic()
+    automation_ms = 0
+    in_automation = True
+    interval: list[object | None] = [
+        store.start_interval(work.run_id, "automation", run_started)
+    ]
     terminal_status = "succeeded"
     failure_reason: str | None = None
     failure_detail: str | None = None
@@ -131,9 +142,83 @@ def execute(
     context_holder: list[Any] = []
     watcher = start_heartbeat(heartbeat, heartbeat_every, stop, lost, context_holder)
 
+    def close_open(at: datetime) -> None:
+        handle = interval[0]
+        if handle is not None:
+            store.end_interval(handle, at)
+            interval[0] = None
+
+    def open_kind(kind: str, at: datetime) -> None:
+        interval[0] = store.start_interval(work.run_id, kind, at)
+
+    def leave_automation(at: datetime) -> None:
+        nonlocal automation_ms, in_automation
+        if in_automation:
+            automation_ms += int((monotonic() - automation_clock) * 1000)
+            in_automation = False
+        close_open(at)
+
+    def enter_automation(at: datetime) -> None:
+        nonlocal automation_clock, in_automation
+        open_kind("automation", at)
+        automation_clock = monotonic()
+        in_automation = True
+
+    def elapsed() -> int:
+        running = int((monotonic() - automation_clock) * 1000) if in_automation else 0
+        return automation_ms + running
+
+    def emit_control(
+        phase: str, at: datetime, deadline_at: datetime | None = None
+    ) -> None:
+        payload: dict[str, Any] = {
+            "run_id": work.run_id,
+            "phase": phase,
+            "at": at,
+        }
+        if deadline_at is not None:
+            payload["deadline_at"] = deadline_at
+        store.emit(work.run_id, "control", payload)
+
+    def park_for_human(timeout_ms: int) -> str:
+        at = now()
+        leave_automation(at)
+        deadline_at = at + timedelta(milliseconds=timeout_ms)
+        open_kind("waiting", at)
+        store.park(work.run_id, deadline_at, at)
+        emit_control("waiting", at, deadline_at)
+        phase = "waiting"
+        while not lost.is_set():
+            flags = control() if control is not None else ControlFlags()
+            if flags.holder_present and phase == "waiting":
+                at = now()
+                close_open(at)
+                open_kind("human", at)
+                emit_control("human", at, deadline_at)
+                phase = "human"
+            elif flags.handback_requested and phase == "human":
+                at = now()
+                close_open(at)
+                open_kind("verifying", at)
+                emit_control("verifying", at, deadline_at)
+                at = now()
+                close_open(at)
+                store.resume(work.run_id, at)
+                enter_automation(at)
+                emit_control("automation", at)
+                return "handback"
+            sleep(PARK_POLL_SECONDS)
+        close_open(now())
+        return "lost"
+
     def check_control(*_: object) -> None:
-        if control is not None and control().cancel_requested:
+        if control is None:
+            return
+        flags = control()
+        if flags.cancel_requested:
             raise RunCancelled
+        if flags.pause_requested:
+            raise RunPaused
 
     with TemporaryDirectory(prefix=f"run-{work.run_id}-", dir=profile_root) as profile:
         try:
@@ -156,13 +241,20 @@ def execute(
                         terminal_status = "cancelled"
                         _skip_remaining(work, store, position)
                         break
-                    elapsed_ms = int((monotonic() - clock_started) * 1000)
-                    if elapsed_ms >= work.timeout_ms:
+                    except RunPaused:
+                        if park_for_human(work.takeover_timeout_ms) == "lost":
+                            break
+                    if elapsed() >= work.timeout_ms:
                         terminal_status = "failed"
                         failure_reason = "run_timeout"
                         failure_detail = "the Run exhausted its automation timeout"
                         _skip_remaining(work, store, position)
                         break
+
+                    if isinstance(step, TakeoverStep) and not step.disabled:
+                        timeout = step.payload.timeout_ms or work.takeover_timeout_ms
+                        if park_for_human(timeout) == "lost":
+                            break
 
                     announce_started(store, work, step, position)
                     try:
@@ -174,6 +266,22 @@ def execute(
                             work.variables,
                             on_control=check_control,
                         )
+                    except RunPaused:
+                        if park_for_human(work.takeover_timeout_ms) == "lost":
+                            break
+                        try:
+                            outcome = execute_step(
+                                page,
+                                step,
+                                position,
+                                work.default_step_timeout_ms,
+                                work.variables,
+                                on_control=check_control,
+                            )
+                        except RunCancelled:
+                            terminal_status = "cancelled"
+                            _skip_remaining(work, store, position)
+                            break
                     except RunCancelled:
                         terminal_status = "cancelled"
                         _skip_remaining(work, store, position)
@@ -194,8 +302,10 @@ def execute(
                         terminal_status = "cancelled"
                         _skip_remaining(work, store, position + 1)
                         break
-                    elapsed_ms = int((monotonic() - clock_started) * 1000)
-                    if elapsed_ms >= work.timeout_ms:
+                    except RunPaused:
+                        if park_for_human(work.takeover_timeout_ms) == "lost":
+                            break
+                    if elapsed() >= work.timeout_ms:
                         terminal_status = "failed"
                         failure_reason = "run_timeout"
                         failure_detail = "the Run exhausted its automation timeout"
@@ -209,12 +319,13 @@ def execute(
         watcher.join(timeout=heartbeat_every + 1)
     if lost.is_set():
         # A 409 means the row is already terminal; do not overwrite it.
-        store.end_interval(interval, now())
+        close_open(now())
         return
 
     ended_at = now()
-    automation_ms = int((monotonic() - clock_started) * 1000)
-    store.end_interval(interval, ended_at)
+    if in_automation:
+        automation_ms += int((monotonic() - automation_clock) * 1000)
+    close_open(ended_at)
     store.finish_run(
         work.run_id,
         terminal_status,
@@ -477,10 +588,7 @@ def perform(
         if isinstance(step.payload, ElementWaitPayload):
             return resolved(page, step.payload.target, deadline, on_control), None
     if isinstance(step, TakeoverStep):
-        raise StepFailure(
-            "takeover_not_available",
-            "pause-for-takeover is owned by the Run control slice",
-        )
+        return None, None
     raise AssertionError(f"unhandled Step type: {step.type}")
 
 

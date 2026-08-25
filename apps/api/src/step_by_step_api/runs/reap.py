@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from step_by_step_api.runs.models import (
     FailureReason,
     Run,
+    RunControlInterval,
     RunStatus,
     StepResult,
     StepResultStatus,
@@ -25,8 +26,9 @@ LIVE = (RunStatus.RUNNING, RunStatus.WAITING_FOR_HUMAN)
 
 
 def reap_and_backstop(db: Session, now: datetime) -> list[UUID]:
-    """Fail lost Workers' Runs, and return queued ids the list should hold again."""
+    """Fail lost Workers' Runs, time out takeovers, and return queued ids."""
     reap_lost_workers(db, now)
+    reap_takeover_deadlines(db, now)
     return queued_without_a_worker(db, now)
 
 
@@ -51,6 +53,83 @@ def fail_worker_lost(db: Session, run: Run, now: datetime) -> None:
     run.failure_detail = "the Worker stopped heartbeating"
     run.ended_at = now
     skip_unreached(db, run, now)
+
+
+def reap_takeover_deadlines(db: Session, now: datetime) -> None:
+    overdue = db.execute(
+        select(Run)
+        .where(
+            Run.status == RunStatus.WAITING_FOR_HUMAN,
+            Run.takeover_deadline_at.is_not(None),
+            Run.takeover_deadline_at < now,
+        )
+        .with_for_update()
+        .order_by(Run.id)
+    ).scalars()
+    for run in overdue:
+        close_waiting_run(
+            db,
+            run,
+            now,
+            status=RunStatus.FAILED,
+            failure_reason=FailureReason.TAKEOVER_TIMEOUT,
+            fail_paused=True,
+        )
+
+
+def end_open_intervals(db: Session, run_id: UUID, now: datetime) -> None:
+    open_rows = db.execute(
+        select(RunControlInterval).where(
+            RunControlInterval.run_id == run_id,
+            RunControlInterval.ended_at.is_(None),
+        )
+    ).scalars()
+    for interval in open_rows:
+        interval.ended_at = now
+
+
+def close_waiting_run(
+    db: Session,
+    run: Run,
+    now: datetime,
+    *,
+    status: RunStatus,
+    failure_reason: FailureReason | None = None,
+    fail_paused: bool = False,
+) -> None:
+    """End a waiting Run from the API: nothing is in flight, so this is immediate."""
+    run.status = status
+    run.failure_reason = failure_reason
+    run.ended_at = now
+    run.takeover_holder_session_id = None
+    end_open_intervals(db, run.id, now)
+    if fail_paused:
+        fail_paused_and_skip_rest(db, run, now)
+    else:
+        skip_unreached(db, run, now)
+
+
+def fail_paused_and_skip_rest(db: Session, run: Run, now: datetime) -> None:
+    """The Step the Run parked on fails; every later Step is skipped."""
+    written = set(
+        db.execute(select(StepResult.position).where(StepResult.run_id == run.id))
+        .scalars()
+        .all()
+    )
+    pending = True
+    for position, step in enumerate(steps_of(db, run)):
+        if position in written:
+            continue
+        db.add(
+            StepResult(
+                run_id=run.id,
+                step_id=UUID(str(step["id"])),
+                position=position,
+                status=StepResultStatus.FAILED if pending else StepResultStatus.SKIPPED,
+                ended_at=now,
+            )
+        )
+        pending = False
 
 
 def skip_unreached(db: Session, run: Run, now: datetime) -> None:

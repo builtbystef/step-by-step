@@ -1,10 +1,9 @@
 """The backend's minute loop.
 
 One directly-invokable `tick` is the whole surface: it fires due Schedules,
-reaps stale-heartbeat Runs, and re-enqueues queued Runs the dispatch list
-dropped. Takeover-deadline reaping joins the same function when that slice
-lands. Tests call `tick()` themselves. The process starts the minute waiter
-from the app lifespan.
+reaps stale-heartbeat Runs, times out over-deadline takeovers, and re-enqueues
+queued Runs the dispatch list dropped. Tests call `tick()` themselves. The
+process starts the minute waiter from the app lifespan.
 """
 
 from __future__ import annotations

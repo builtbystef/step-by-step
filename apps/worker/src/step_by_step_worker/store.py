@@ -31,7 +31,8 @@ CLAIM = text(
            claimed.timeout_ms,
            claimed.variables,
            workflow_versions.document AS version_document,
-           workflows.default_step_timeout_ms
+           workflows.default_step_timeout_ms,
+           workflows.takeover_timeout_ms
     FROM claimed
     JOIN workflows ON workflows.id = claimed.workflow_id
     LEFT JOIN workflow_versions
@@ -176,6 +177,41 @@ class PostgresRunStore:
     ) -> None:
         publish_log(run_id, level=level, text=text, step_id=step_id)
 
+    def park(self, run_id: UUID, deadline_at: datetime, at: datetime) -> None:
+        with session_scope() as session:
+            session.execute(
+                text(
+                    """
+                    UPDATE runs
+                    SET status = 'waiting_for_human',
+                        takeover_deadline_at = :deadline_at,
+                        pause_requested_at = NULL,
+                        handback_requested_at = NULL,
+                        heartbeat_at = :at
+                    WHERE id = :run_id AND status = 'running'
+                    """
+                ),
+                {"run_id": run_id, "deadline_at": deadline_at, "at": at},
+            )
+            session.commit()
+
+    def resume(self, run_id: UUID, at: datetime) -> None:
+        with session_scope() as session:
+            session.execute(
+                text(
+                    """
+                    UPDATE runs
+                    SET status = 'running',
+                        takeover_holder_session_id = NULL,
+                        handback_requested_at = NULL,
+                        heartbeat_at = :at
+                    WHERE id = :run_id AND status = 'waiting_for_human'
+                    """
+                ),
+                {"run_id": run_id, "at": at},
+            )
+            session.commit()
+
 
 def work_from_claim(claimed: Mapping[str, Any]) -> RunWork:
     """Select the immutable execution document from one conditionally claimed row."""
@@ -190,4 +226,5 @@ def work_from_claim(claimed: Mapping[str, Any]) -> RunWork:
         default_step_timeout_ms=claimed["default_step_timeout_ms"],
         timeout_ms=claimed["timeout_ms"],
         variables=claimed["variables"],
+        takeover_timeout_ms=claimed.get("takeover_timeout_ms", 1_800_000),
     )

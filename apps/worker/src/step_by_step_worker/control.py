@@ -18,10 +18,16 @@ class ControlFlags:
     pause_requested: bool = False
     takeover_phase: str | None = None
     auto_handback_disabled: bool = False
+    holder_present: bool = False
+    handback_requested: bool = False
 
 
 class RunCancelled(Exception):
     """Stop at the next boundary; an action already in flight still finishes."""
+
+
+class RunPaused(Exception):
+    """Park between resolve walks; the Step's action has not started."""
 
 
 def flags_from_row(run_id: UUID) -> ControlFlags:
@@ -32,7 +38,8 @@ def flags_from_row(run_id: UUID) -> ControlFlags:
                 text(
                     """
                     SELECT cancel_requested_at, pause_requested_at,
-                           auto_handback_disabled
+                           auto_handback_disabled, takeover_holder_session_id,
+                           handback_requested_at
                     FROM runs WHERE id = :run_id
                     """
                 ),
@@ -47,6 +54,8 @@ def flags_from_row(run_id: UUID) -> ControlFlags:
         cancel_requested=row["cancel_requested_at"] is not None,
         pause_requested=row["pause_requested_at"] is not None,
         auto_handback_disabled=bool(row["auto_handback_disabled"]),
+        holder_present=row["takeover_holder_session_id"] is not None,
+        handback_requested=row["handback_requested_at"] is not None,
     )
 
 
@@ -56,6 +65,8 @@ class ControlWatch:
     def __init__(self, run_id: UUID) -> None:
         self.run_id = run_id
         self._heard_cancel = False
+        self._heard_pause = False
+        self._heard_handback = False
         self._stop = Event()
         self._ready = Event()
         self._thread = Thread(target=self._listen, name="run-control", daemon=True)
@@ -75,8 +86,13 @@ class ControlWatch:
                 raw = message["data"]
                 if isinstance(raw, bytes):
                     raw = raw.decode()
-                if json.loads(raw).get("cancel_requested"):
+                body = json.loads(raw)
+                if body.get("cancel_requested"):
                     self._heard_cancel = True
+                if body.get("pause_requested"):
+                    self._heard_pause = True
+                if body.get("handback"):
+                    self._heard_handback = True
         finally:
             self._ready.set()
             if pubsub is not None:
@@ -84,13 +100,13 @@ class ControlWatch:
 
     def poll(self) -> ControlFlags:
         flags = flags_from_row(self.run_id)
-        if not self._heard_cancel:
-            return flags
         return ControlFlags(
-            cancel_requested=True,
-            pause_requested=flags.pause_requested,
+            cancel_requested=flags.cancel_requested or self._heard_cancel,
+            pause_requested=flags.pause_requested or self._heard_pause,
             takeover_phase=flags.takeover_phase,
             auto_handback_disabled=flags.auto_handback_disabled,
+            holder_present=flags.holder_present,
+            handback_requested=flags.handback_requested or self._heard_handback,
         )
 
     def close(self) -> None:

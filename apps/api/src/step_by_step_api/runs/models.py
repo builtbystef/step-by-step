@@ -133,6 +133,9 @@ class Run(Base):
         DateTime(timezone=True)
     )
     pause_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    handback_requested_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
     takeover_holder_session_id: Mapped[str | None] = mapped_column(
         String(64), default=None
     )
@@ -208,6 +211,20 @@ class RunControlInterval(Base):
     )
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class RunTakeoverTicket(Base):
+    """A single-use, short-TTL ticket that admits one VNC connection."""
+
+    __tablename__ = "run_takeover_tickets"
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    run_id: Mapped[UUID] = mapped_column(
+        ForeignKey("runs.id", ondelete="CASCADE"), index=True
+    )
+    session_id: Mapped[str] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    redeemed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class RunLogLine(Base):

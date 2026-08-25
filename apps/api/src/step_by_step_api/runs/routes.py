@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Query, Response
+from fastapi import APIRouter, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import case, func, literal, select, tuple_
@@ -16,6 +16,7 @@ from step_by_step_core.events import events_channel
 
 from step_by_step_api import clock
 from step_by_step_api.accounts.orgs import ActiveMembership
+from step_by_step_api.accounts.sessions import SESSION_COOKIE, token_digest
 from step_by_step_api.db import SessionDep
 from step_by_step_api.errors import ApiError, errors
 from step_by_step_api.runs.models import (
@@ -32,6 +33,8 @@ from step_by_step_api.runs.models import (
     StepResult,
     StepResultStatus,
 )
+from step_by_step_api.runs.reap import close_waiting_run
+from step_by_step_api.runs.tickets import mint_ticket
 from step_by_step_api.workflows.models import Workflow, WorkflowDraft, WorkflowVersion
 
 router = APIRouter(tags=["runs"])
@@ -141,6 +144,13 @@ class LogLine(BaseModel):
     level: LogLevel
     text: str
     at: datetime
+
+
+class TakeoverTicket(BaseModel):
+    ticket: str
+    ws_url: str
+    expires_at: datetime
+    deadline_at: datetime | None
 
 
 def workflow_to_run(
@@ -462,7 +472,7 @@ def list_run_logs(
     responses=errors(400, 401, 403, 404, 409),
 )
 def cancel_run(run_id: UUID, member: ActiveMembership, db: SessionDep) -> Response:
-    """Cancel queued work now; stamp a request on a running Run and leave it running."""
+    """Cancel queued or waiting work now; stamp a request on a running Run."""
     run = owned_run(db, member.org_id, run_id)
     if run.status.value not in NON_TERMINAL:
         raise ApiError(409, "run_terminal", "this Run has already ended")
@@ -471,10 +481,113 @@ def cancel_run(run_id: UUID, member: ActiveMembership, db: SessionDep) -> Respon
         run.ended_at = clock.now()
         db.commit()
         return Response(status_code=202)
+    if run.status is RunStatus.WAITING_FOR_HUMAN:
+        close_waiting_run(db, run, clock.now(), status=RunStatus.CANCELLED)
+        db.commit()
+        return Response(status_code=202)
     if run.cancel_requested_at is None:
         run.cancel_requested_at = clock.now()
     db.commit()
     get_redis().publish(control_channel(run.id), json.dumps({"cancel_requested": True}))
+    return Response(status_code=202)
+
+
+@router.post(
+    "/api/runs/{run_id}/pause",
+    operation_id="pauseRun",
+    status_code=202,
+    responses=errors(400, 401, 403, 404, 409),
+)
+def pause_run(run_id: UUID, member: ActiveMembership, db: SessionDep) -> Response:
+    """Request takeover at the next safe boundary. Status stays running."""
+    run = owned_run(db, member.org_id, run_id)
+    if run.status.value not in NON_TERMINAL:
+        raise ApiError(409, "run_terminal", "this Run has already ended")
+    if run.pause_requested_at is None:
+        run.pause_requested_at = clock.now()
+    db.commit()
+    get_redis().publish(control_channel(run.id), json.dumps({"pause_requested": True}))
+    return Response(status_code=202)
+
+
+def caller_session(request: Request) -> str:
+    token = request.cookies.get(SESSION_COOKIE)
+    if not token:
+        raise ApiError(401, "unauthenticated", "no session")
+    return token_digest(token)
+
+
+@router.post(
+    "/api/runs/{run_id}/takeover",
+    operation_id="takeOverRun",
+    responses=errors(400, 401, 403, 404, 409),
+)
+def take_over_run(
+    run_id: UUID, request: Request, member: ActiveMembership, db: SessionDep
+) -> TakeoverTicket:
+    """Mint a control ticket for a waiting Run. One session holds it at a time."""
+    run = owned_run(db, member.org_id, run_id)
+    if run.status is not RunStatus.WAITING_FOR_HUMAN:
+        raise ApiError(409, "not_waiting", "this Run is not waiting for a person")
+    session_id = caller_session(request)
+    holder = run.takeover_holder_session_id
+    if holder is not None and holder != session_id:
+        raise ApiError(409, "already_held", "another session already holds control")
+    run.takeover_holder_session_id = session_id
+    ticket, expires_at = mint_ticket(db, run.id, session_id)
+    db.commit()
+    return TakeoverTicket(
+        ticket=ticket,
+        ws_url=f"/api/runs/{run.id}/vnc?ticket={ticket}",
+        expires_at=expires_at,
+        deadline_at=run.takeover_deadline_at,
+    )
+
+
+@router.post(
+    "/api/runs/{run_id}/handback",
+    operation_id="handBackRun",
+    status_code=202,
+    responses=errors(400, 401, 403, 404, 409),
+)
+def hand_back_run(
+    run_id: UUID, request: Request, member: ActiveMembership, db: SessionDep
+) -> Response:
+    """Ask the Worker to resume after a manual hand-back."""
+    run = owned_run(db, member.org_id, run_id)
+    if run.status is not RunStatus.WAITING_FOR_HUMAN:
+        raise ApiError(409, "not_waiting", "this Run is not waiting for a person")
+    if run.takeover_holder_session_id != caller_session(request):
+        raise ApiError(409, "not_held", "this session does not hold control")
+    if run.handback_requested_at is None:
+        run.handback_requested_at = clock.now()
+    db.commit()
+    get_redis().publish(control_channel(run.id), json.dumps({"handback": True}))
+    return Response(status_code=202)
+
+
+@router.post(
+    "/api/runs/{run_id}/takeover/abandon",
+    operation_id="abandonTakeover",
+    status_code=202,
+    responses=errors(400, 401, 403, 404, 409),
+)
+def abandon_takeover(
+    run_id: UUID, member: ActiveMembership, db: SessionDep
+) -> Response:
+    """Give up during takeover: the Run fails and the browser can close."""
+    run = owned_run(db, member.org_id, run_id)
+    if run.status is not RunStatus.WAITING_FOR_HUMAN:
+        raise ApiError(409, "not_waiting", "this Run is not waiting for a person")
+    close_waiting_run(
+        db,
+        run,
+        clock.now(),
+        status=RunStatus.FAILED,
+        failure_reason=FailureReason.TAKEOVER_ABANDONED,
+        fail_paused=True,
+    )
+    db.commit()
     return Response(status_code=202)
 
 

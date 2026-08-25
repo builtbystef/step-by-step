@@ -1,10 +1,11 @@
 """The Worker executor drives fixture pages and records the Run at its seam."""
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
+from datetime import timedelta
 from itertools import pairwise
 from pathlib import Path
-from time import monotonic
+from time import monotonic, sleep
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -29,6 +30,7 @@ class RecordedRun:
     claimed: set[UUID] = field(default_factory=set)
     events: list[tuple[str, Mapping[str, Any]]] = field(default_factory=list)
     logs: list[tuple[str, str, UUID | None]] = field(default_factory=list)
+    parks: list[tuple[Any, Any]] = field(default_factory=list)
 
     def claim(
         self, run_id: UUID, worker_id: str, vnc_endpoint: str, at: Any
@@ -76,6 +78,12 @@ class RecordedRun:
         step_id: UUID | None = None,
     ) -> None:
         self.logs.append((level, text, step_id))
+
+    def park(self, run_id: UUID, deadline_at: Any, at: Any) -> None:
+        self.parks.append((deadline_at, at))
+
+    def resume(self, run_id: UUID, at: Any) -> None:
+        return
 
 
 def step(
@@ -595,3 +603,208 @@ def test_cancel_during_resolve_skips_before_the_action(
     ]
     assert recorded.terminal is not None
     assert recorded.terminal[:2] == ("cancelled", None)
+
+
+def open_kinds(recorded: RecordedRun) -> set[str]:
+    return {kind for kind, _, ended in recorded.intervals if ended is None}
+
+
+def kinds_in_order(recorded: RecordedRun) -> list[str]:
+    return [kind for kind, _, _ in recorded.intervals]
+
+
+def take_control_then_hand_back(recorded: RecordedRun) -> Callable[[], ControlFlags]:
+    def flags() -> ControlFlags:
+        opened = open_kinds(recorded)
+        if "human" in opened:
+            return ControlFlags(holder_present=True, handback_requested=True)
+        if "waiting" in opened:
+            return ControlFlags(holder_present=True)
+        return ControlFlags()
+
+    return flags
+
+
+def test_pause_for_takeover_parks_before_acting(
+    playwright_driver: Any, fixture_site: str, tmp_path: Path
+) -> None:
+    recorded = RecordedRun()
+    run = work(
+        {
+            "variables": [],
+            "steps": [
+                step("navigate", "Open form", {"url": f"{fixture_site}/executor.html"}),
+                step("pause-for-takeover", "Need a person", {"message": "Solve this"}),
+                step("click", "Save", {"target": target(("testid", "save"))}),
+            ],
+        }
+    )
+
+    execute(
+        run,
+        playwright_driver.chromium,
+        recorded,
+        tmp_path,
+        headless=True,
+        control=take_control_then_hand_back(recorded),
+    )
+
+    assert [result.status for result in recorded.results] == [
+        "passed",
+        "passed",
+        "passed",
+    ]
+    assert kinds_in_order(recorded)[:4] == [
+        "automation",
+        "waiting",
+        "human",
+        "verifying",
+    ]
+    assert kinds_in_order(recorded)[-1] == "automation"
+    assert recorded.parks
+    parked_at, started = recorded.parks[0]
+    assert parked_at - started == timedelta(milliseconds=1_800_000)
+    assert recorded.terminal is not None
+    assert recorded.terminal[:2] == ("succeeded", None)
+
+
+def test_pause_for_takeover_override_changes_the_deadline(
+    playwright_driver: Any, fixture_site: str, tmp_path: Path
+) -> None:
+    recorded = RecordedRun()
+    run = work(
+        {
+            "variables": [],
+            "steps": [
+                step(
+                    "pause-for-takeover",
+                    "Short wait",
+                    {"timeoutMs": 5_000},
+                )
+            ],
+        }
+    )
+
+    execute(
+        run,
+        playwright_driver.chromium,
+        recorded,
+        tmp_path,
+        headless=True,
+        control=take_control_then_hand_back(recorded),
+    )
+
+    assert recorded.parks
+    parked_at, started = recorded.parks[0]
+    assert parked_at - started == timedelta(milliseconds=5_000)
+
+
+def test_pause_during_resolve_retries_the_step_after_handback(
+    playwright_driver: Any, fixture_site: str, tmp_path: Path
+) -> None:
+    recorded = RecordedRun()
+    asked = {"pause": False}
+
+    def flags() -> ControlFlags:
+        opened = open_kinds(recorded)
+        click_started = any(
+            event_type == "step.started" and payload.get("position") == 1
+            for event_type, payload in recorded.events
+        )
+        if "human" in opened:
+            return ControlFlags(holder_present=True, handback_requested=True)
+        if "waiting" in opened:
+            asked["pause"] = True
+            return ControlFlags(holder_present=True)
+        if click_started and not asked["pause"]:
+            return ControlFlags(pause_requested=True)
+        return ControlFlags()
+
+    run = work(
+        {
+            "variables": [],
+            "steps": [
+                step("navigate", "Open form", {"url": f"{fixture_site}/executor.html"}),
+                step("click", "Save", {"target": target(("testid", "save"))}),
+            ],
+        }
+    )
+
+    execute(
+        run,
+        playwright_driver.chromium,
+        recorded,
+        tmp_path,
+        headless=True,
+        control=flags,
+    )
+
+    assert [result.status for result in recorded.results] == ["passed", "passed"]
+    click = recorded.results[1]
+    waiting = next(
+        started for kind, started, _ in recorded.intervals if kind == "waiting"
+    )
+    announced = next(
+        payload["at"]
+        for event_type, payload in recorded.events
+        if event_type == "step.started" and payload.get("position") == 1
+    )
+    assert announced <= waiting <= click.ended_at
+    assert "verifying" in kinds_in_order(recorded)
+    assert recorded.terminal is not None
+    assert recorded.terminal[:2] == ("succeeded", None)
+
+
+def test_waiting_time_is_excluded_from_automation_ms(
+    playwright_driver: Any, fixture_site: str, tmp_path: Path
+) -> None:
+    recorded = RecordedRun()
+    waited = {"done": False}
+
+    def flags() -> ControlFlags:
+        opened = open_kinds(recorded)
+        if "waiting" in opened and not waited["done"]:
+            sleep(0.3)
+            waited["done"] = True
+        if "human" in opened:
+            return ControlFlags(holder_present=True, handback_requested=True)
+        if "waiting" in opened:
+            return ControlFlags(holder_present=True)
+        return ControlFlags()
+
+    run = work(
+        {
+            "variables": [],
+            "steps": [
+                step(
+                    "wait",
+                    "A little work",
+                    {"mode": "duration", "durationMs": 50},
+                ),
+                step("pause-for-takeover", "Need a person", {}),
+            ],
+        }
+    )
+    begun = monotonic()
+
+    execute(
+        run,
+        playwright_driver.chromium,
+        recorded,
+        tmp_path,
+        headless=True,
+        control=flags,
+    )
+    wall_ms = int((monotonic() - begun) * 1000)
+
+    assert recorded.terminal is not None
+    automation_ms = recorded.terminal[2]
+    assert automation_ms < 250
+    assert wall_ms >= 300
+    assert automation_ms < wall_ms - 200
+    assert {kind for kind, _, _ in recorded.intervals} >= {
+        "automation",
+        "waiting",
+        "human",
+        "verifying",
+    }

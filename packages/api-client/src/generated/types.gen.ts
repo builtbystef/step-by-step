@@ -1479,6 +1479,28 @@ export type TakeoverStep = {
 };
 
 /**
+ * TakeoverTicket
+ */
+export type TakeoverTicket = {
+    /**
+     * Ticket
+     */
+    ticket: string;
+    /**
+     * Ws Url
+     */
+    ws_url: string;
+    /**
+     * Expires At
+     */
+    expires_at: string;
+    /**
+     * Deadline At
+     */
+    deadline_at: string | null;
+};
+
+/**
  * Target
  *
  * How a Step finds its element: candidates best-first, and where they live.
@@ -4196,6 +4218,224 @@ export type CancelRunErrors = {
 export type CancelRunError = CancelRunErrors[keyof CancelRunErrors];
 
 export type CancelRunResponses = {
+    /**
+     * Successful Response
+     */
+    202: unknown;
+};
+
+export type PauseRunData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Run Id
+         */
+        run_id: string;
+    };
+    query?: never;
+    url: '/api/runs/{run_id}/pause';
+};
+
+export type PauseRunErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Conflict
+     */
+    409: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PauseRunError = PauseRunErrors[keyof PauseRunErrors];
+
+export type PauseRunResponses = {
+    /**
+     * Successful Response
+     */
+    202: unknown;
+};
+
+export type TakeOverRunData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Run Id
+         */
+        run_id: string;
+    };
+    query?: never;
+    url: '/api/runs/{run_id}/takeover';
+};
+
+export type TakeOverRunErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Conflict
+     */
+    409: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type TakeOverRunError = TakeOverRunErrors[keyof TakeOverRunErrors];
+
+export type TakeOverRunResponses = {
+    /**
+     * Successful Response
+     */
+    200: TakeoverTicket;
+};
+
+export type TakeOverRunResponse = TakeOverRunResponses[keyof TakeOverRunResponses];
+
+export type HandBackRunData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Run Id
+         */
+        run_id: string;
+    };
+    query?: never;
+    url: '/api/runs/{run_id}/handback';
+};
+
+export type HandBackRunErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Conflict
+     */
+    409: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type HandBackRunError = HandBackRunErrors[keyof HandBackRunErrors];
+
+export type HandBackRunResponses = {
+    /**
+     * Successful Response
+     */
+    202: unknown;
+};
+
+export type AbandonTakeoverData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Run Id
+         */
+        run_id: string;
+    };
+    query?: never;
+    url: '/api/runs/{run_id}/takeover/abandon';
+};
+
+export type AbandonTakeoverErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Conflict
+     */
+    409: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AbandonTakeoverError = AbandonTakeoverErrors[keyof AbandonTakeoverErrors];
+
+export type AbandonTakeoverResponses = {
     /**
      * Successful Response
      */
