@@ -4431,6 +4431,16 @@
             },
             "description": "Not Found"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -4917,6 +4927,29 @@
               }
             ],
             "title": "Enabled"
+          },
+          "variables": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variables"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
           }
         },
         "type": "object",
@@ -5161,6 +5194,22 @@
           "enabled": {
             "type": "boolean",
             "title": "Enabled"
+          },
+          "variables": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Variables"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
           }
         },
         "type": "object",
@@ -6593,6 +6642,17 @@
             "format": "uuid",
             "title": "Id"
           },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
           "cron": {
             "type": "string",
             "title": "Cron"
@@ -6604,6 +6664,27 @@
           "enabled": {
             "type": "boolean",
             "title": "Enabled"
+          },
+          "variables": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Variables"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "paused",
+              "needs_values"
+            ],
+            "title": "State"
+          },
+          "missing_variable_names": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Variable Names"
           },
           "last_fired_at": {
             "anyOf": [
@@ -6637,9 +6718,13 @@
         "type": "object",
         "required": [
           "id",
+          "name",
           "cron",
           "timezone",
           "enabled",
+          "variables",
+          "state",
+          "missing_variable_names",
           "last_fired_at",
           "next_due_at",
           "last_skip_reason"

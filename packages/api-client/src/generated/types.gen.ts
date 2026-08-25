@@ -140,6 +140,16 @@ export type ChangeSchedule = {
      * Enabled
      */
     enabled?: boolean | null;
+    /**
+     * Variables
+     */
+    variables?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Name
+     */
+    name?: string | null;
 };
 
 /**
@@ -306,6 +316,16 @@ export type CreateSchedule = {
      * Enabled
      */
     enabled: boolean;
+    /**
+     * Variables
+     */
+    variables?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Name
+     */
+    name?: string | null;
 };
 
 /**
@@ -1138,6 +1158,10 @@ export type ScheduleRecord = {
      */
     id: string;
     /**
+     * Name
+     */
+    name: string | null;
+    /**
      * Cron
      */
     cron: string;
@@ -1149,6 +1173,20 @@ export type ScheduleRecord = {
      * Enabled
      */
     enabled: boolean;
+    /**
+     * Variables
+     */
+    variables: {
+        [key: string]: unknown;
+    };
+    /**
+     * State
+     */
+    state: 'active' | 'paused' | 'needs_values';
+    /**
+     * Missing Variable Names
+     */
+    missing_variable_names: Array<string>;
     /**
      * Last Fired At
      */
@@ -4234,6 +4272,10 @@ export type CreateScheduleErrors = {
      * Not Found
      */
     404: ErrorBody;
+    /**
+     * Conflict
+     */
+    409: ErrorBody;
     /**
      * Validation Error
      */

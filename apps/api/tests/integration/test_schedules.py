@@ -13,7 +13,7 @@ from step_by_step_core.bus import get_redis
 from step_by_step_core.db import session_scope
 from test_runs import published_workflow
 from test_workflow_versions import publish
-from test_workflows import NewAccount, a_navigate_step, save_draft
+from test_workflows import NewAccount, a_navigate_step, a_workflow, save_draft
 
 pytestmark = pytest.mark.integration
 BELGRADE = ZoneInfo("Europe/Belgrade")
@@ -278,3 +278,217 @@ def test_delete_removes_the_schedule(new_account: NewAccount) -> None:
 
     assert deleted.status_code == 204
     assert list_schedules(account, workflow_id).json() == []
+
+
+def test_post_requires_every_non_secret_variable_and_rejects_secrets(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    workflow_id = published_workflow(
+        account,
+        variables=[{"name": "city"}, {"name": "password", "secret": True}],
+    )
+
+    refused = create_schedule(
+        account,
+        workflow_id,
+        cron="0 9 * * *",
+        timezone="Europe/Belgrade",
+        enabled=True,
+        variables={},
+    )
+    created = create_schedule(
+        account,
+        workflow_id,
+        cron="0 9 * * *",
+        timezone="Europe/Belgrade",
+        enabled=True,
+        variables={"city": "Belgrade", "password": "do-not-store"},
+    )
+
+    assert refused.status_code == 400
+    body = refused.json()
+    assert body["code"] == "missing_variable_values"
+    assert body["variable_names"] == ["city"]
+    assert created.status_code == 201, created.text
+    assert created.json()["variables"] == {"city": "Belgrade"}
+
+
+def test_patch_refuses_a_value_set_that_drops_a_required_variable(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    workflow_id = published_workflow(account, variables=[{"name": "city"}])
+    created = create_schedule(
+        account,
+        workflow_id,
+        cron="0 9 * * *",
+        timezone="Europe/Belgrade",
+        enabled=True,
+        variables={"city": "Belgrade"},
+    )
+    assert created.status_code == 201, created.text
+
+    dropped = account.client.patch(
+        f"/api/schedules/{created.json()['id']}", json={"variables": {}}
+    )
+
+    assert dropped.status_code == 400
+    assert dropped.json()["code"] == "missing_variable_values"
+    assert dropped.json()["variable_names"] == ["city"]
+
+
+def test_post_refuses_a_workflow_with_no_published_version(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    workflow_id = a_workflow(account)
+
+    refused = create_schedule(
+        account,
+        workflow_id,
+        cron="0 9 * * *",
+        timezone="Europe/Belgrade",
+        enabled=True,
+        variables={},
+    )
+
+    assert refused.status_code == 409
+    assert refused.json()["code"] == "no_published_version"
+
+
+def test_a_new_variable_derives_needs_values_until_patched(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    workflow_id = published_workflow(account, variables=[{"name": "city"}])
+    created = create_schedule(
+        account,
+        workflow_id,
+        cron="0 9 * * *",
+        timezone="Europe/Belgrade",
+        enabled=True,
+        variables={"city": "Belgrade"},
+    )
+    assert created.status_code == 201, created.text
+    assert created.json()["state"] == "active"
+    assert created.json()["missing_variable_names"] == []
+
+    assert (
+        save_draft(
+            account,
+            workflow_id,
+            steps=[a_navigate_step(str(uuid4()))],
+            variables=[{"name": "city"}, {"name": "region"}],
+        ).status_code
+        == 200
+    )
+    assert publish(account, workflow_id).status_code == 201
+
+    listed = list_schedules(account, workflow_id).json()[0]
+    assert listed["state"] == "needs_values"
+    assert listed["missing_variable_names"] == ["region"]
+    assert listed["variables"] == {"city": "Belgrade"}
+
+    patched = account.client.patch(
+        f"/api/schedules/{created.json()['id']}",
+        json={"variables": {"city": "Belgrade", "region": "EU"}},
+    )
+    assert patched.status_code == 200, patched.text
+    assert patched.json()["state"] == "active"
+    assert patched.json()["missing_variable_names"] == []
+    assert patched.json()["variables"] == {"city": "Belgrade", "region": "EU"}
+
+
+def test_a_disabled_schedule_reads_paused_even_when_values_are_missing(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    workflow_id = published_workflow(account, variables=[{"name": "city"}])
+    created = create_schedule(
+        account,
+        workflow_id,
+        cron="0 9 * * *",
+        timezone="Europe/Belgrade",
+        enabled=False,
+        variables={"city": "Belgrade"},
+    )
+    assert created.status_code == 201, created.text
+    assert created.json()["state"] == "paused"
+
+    assert (
+        save_draft(
+            account,
+            workflow_id,
+            steps=[a_navigate_step(str(uuid4()))],
+            variables=[{"name": "city"}, {"name": "region"}],
+        ).status_code
+        == 200
+    )
+    assert publish(account, workflow_id).status_code == 201
+
+    listed = list_schedules(account, workflow_id).json()[0]
+    assert listed["state"] == "paused"
+    assert listed["state"] != "needs_values"
+    assert listed["missing_variable_names"] == ["region"]
+
+
+def test_a_fired_run_carries_the_schedule_variables_at_fire_time(
+    new_account: NewAccount, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    account = new_account()
+    workflow_id = published_workflow(account, variables=[{"name": "city"}])
+    freeze(monkeypatch, datetime(2026, 8, 25, 8, 59, tzinfo=BELGRADE))
+    created = create_schedule(
+        account,
+        workflow_id,
+        cron="0 9 * * *",
+        timezone="Europe/Belgrade",
+        enabled=True,
+        variables={"city": "Belgrade"},
+    )
+    assert created.status_code == 201, created.text
+    patched = account.client.patch(
+        f"/api/schedules/{created.json()['id']}",
+        json={"variables": {"city": "Novi Sad"}},
+    )
+    assert patched.status_code == 200, patched.text
+
+    freeze(monkeypatch, datetime(2026, 8, 25, 9, 0, tzinfo=BELGRADE))
+    tick()
+
+    fired = runs_of(account, workflow_id)
+    assert len(fired) == 1
+    detail = account.client.get(f"/api/runs/{fired[0]['id']}")
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["run"]["variables"] == {"city": "Novi Sad"}
+
+
+def test_a_schedule_name_is_stored_patchable_and_nullable(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    workflow_id = published_workflow(account)
+    created = create_schedule(
+        account,
+        workflow_id,
+        cron="0 9 * * *",
+        timezone="Europe/Belgrade",
+        enabled=True,
+        name="Weekday invoices",
+    )
+    assert created.status_code == 201, created.text
+    assert created.json()["name"] == "Weekday invoices"
+
+    renamed = account.client.patch(
+        f"/api/schedules/{created.json()['id']}", json={"name": "Month-end"}
+    )
+    assert renamed.status_code == 200, renamed.text
+    assert renamed.json()["name"] == "Month-end"
+
+    cleared = account.client.patch(
+        f"/api/schedules/{created.json()['id']}", json={"name": None}
+    )
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json()["name"] is None
+    assert list_schedules(account, workflow_id).json()[0]["name"] is None

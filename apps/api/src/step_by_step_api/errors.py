@@ -22,11 +22,12 @@ class ErrorBody(BaseModel):
 class ApiError(Exception):
     """A refusal with a status and a code, raised from anywhere in a request."""
 
-    def __init__(self, status: int, code: str, message: str) -> None:
+    def __init__(self, status: int, code: str, message: str, **extra: Any) -> None:
         super().__init__(f"{status} {code}: {message}")
         self.status = status
         self.code = code
         self.message = message
+        self.extra = extra
 
 
 def errors(*statuses: int) -> dict[int | str, dict[str, Any]]:
@@ -46,5 +47,8 @@ def install_error_handler(app: FastAPI) -> None:
     async def handle(request: Request, raised: ApiError) -> JSONResponse:
         return JSONResponse(
             status_code=raised.status,
-            content=ErrorBody(code=raised.code, message=raised.message).model_dump(),
+            content={
+                **ErrorBody(code=raised.code, message=raised.message).model_dump(),
+                **raised.extra,
+            },
         )

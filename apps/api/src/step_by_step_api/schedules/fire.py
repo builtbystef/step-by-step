@@ -76,7 +76,7 @@ def enqueue_latest(db: Session, schedule: Schedule, now: datetime) -> UUID | Non
         trigger=RunTrigger.SCHEDULE,
         schedule_id=schedule.id,
         status=RunStatus.QUEUED,
-        variables={},
+        variables=dict(schedule.variables),
         timeout_ms=DEFAULT_RUN_TIMEOUT_MS,
     )
     db.add(run)

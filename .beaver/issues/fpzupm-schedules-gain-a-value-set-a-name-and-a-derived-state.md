@@ -1,13 +1,14 @@
 ---
 id: fpzupm
 title: Schedules gain a value set, a name, and a derived state
-state: todo
+state: done
+assignee: agent
 priority: high
 depends_on:
     - g461z0
 parent: nno9gj
 created: 2026-08-14T19:51:01Z
-updated: 2026-08-14T19:51:01Z
+updated: 2026-08-25T17:21:31Z
 ---
 
 ## What to build
@@ -36,3 +37,20 @@ A Schedule's state is **derived on read, never stored**: `paused` when `enabled`
 - [ ] The stored `variables` of a Schedule of a Workflow with a secret Variable contain nothing for the secret one.
 - [ ] A Run fired by the scheduler carries the Schedule's `variables` as they are at fire time.
 - [ ] `name` is stored, patchable, and nullable.
+
+## Notes
+
+**agent** — 2026-08-25T17:21:31Z
+
+Completed the Schedule value set, name, and derived-state slice.
+
+Seam (from the spec's Testing Decisions): HTTP for CRUD; `step_by_step_api.loop.tick` invoked directly for the fire-time copy. Recorded here because this was an unattended session.
+
+What landed:
+- `schedules` gains nullable `name` and `variables` JSONB (non-secret values only). A secret Variable is stripped on write and neither required nor accepted.
+- `POST` refuses a Workflow with no published Version (`409 no_published_version`) and a value set that omits a declared non-secret Variable (`400 missing_variable_values` with `variable_names`). `PATCH` of `variables` is a replace of the set and applies the same 400.
+- State is derived on read, never stored: `paused` when `enabled` is false (even if values are missing); otherwise `needs_values` when the latest published Version declares a non-secret Variable absent from the set; otherwise `active`. `missing_variable_names` is still reported when paused.
+- A fired Run copies the Schedule's `variables` as they are at fire time.
+- `name` is stored, patchable, and nullable (`PATCH {"name": null}` clears it).
+
+`ApiError` now accepts extra JSON fields so `variable_names` can ride with the code. Skipping a `needs_values` Schedule at tick time is the Occurrences slice (`69nls1`).
