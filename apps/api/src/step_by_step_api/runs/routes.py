@@ -4,15 +4,17 @@ import json
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from collections.abc import Iterator
 from datetime import datetime
+from pathlib import Path
 from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Query, Request, Response
-from fastapi.responses import StreamingResponse
+from fastapi.responses import RedirectResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import case, func, literal, select, tuple_
 from step_by_step_core.bus import DISPATCH_LIST, control_channel, get_redis
 from step_by_step_core.events import events_channel
+from step_by_step_core.objects import artifact_bucket, object_store, signing_store
 
 from step_by_step_api import clock
 from step_by_step_api.accounts.orgs import ActiveMembership
@@ -22,6 +24,8 @@ from step_by_step_api.errors import ApiError, errors
 from step_by_step_api.runs.models import (
     DEFAULT_RUN_TIMEOUT_MS,
     NON_TERMINAL,
+    Artifact,
+    ArtifactKind,
     FailureReason,
     LogLevel,
     Run,
@@ -40,6 +44,7 @@ from step_by_step_api.workflows.models import Workflow, WorkflowDraft, WorkflowV
 router = APIRouter(tags=["runs"])
 PAGE_SIZE = 25
 MAX_PAGE_SIZE = 100
+PRESIGN_SECONDS = 60
 
 
 class StartRun(BaseModel):
@@ -130,11 +135,22 @@ class ControlIntervalRecord(BaseModel):
     ended_at: datetime | None
 
 
+class ArtifactRecord(BaseModel):
+    id: UUID
+    step_id: UUID | None
+    kind: ArtifactKind
+    content_type: str
+    size_bytes: int
+    index: int
+    created_at: datetime
+    filename: str
+
+
 class RunDetail(BaseModel):
     run: RunRecord
     step_results: list[StepResultRecord]
     control_intervals: list[ControlIntervalRecord]
-    artifacts: list[dict[str, Any]]
+    artifacts: list[ArtifactRecord]
     batch_row: dict[str, Any] | None
 
 
@@ -380,11 +396,16 @@ def get_run(run_id: UUID, member: ActiveMembership, db: SessionDep) -> RunDetail
         .where(RunControlInterval.run_id == run_id)
         .order_by(RunControlInterval.started_at, RunControlInterval.id)
     ).scalars()
+    stored = db.execute(
+        select(Artifact)
+        .where(Artifact.run_id == run_id)
+        .order_by(Artifact.created_at, Artifact.id)
+    ).scalars()
     return RunDetail(
         run=run_record(run),
         step_results=[step_result_record(result) for result in results],
         control_intervals=[interval_record(interval) for interval in intervals],
-        artifacts=[],
+        artifacts=[artifact_record(row) for row in stored],
         batch_row=None,
     )
 
@@ -473,6 +494,74 @@ def list_run_logs(
         )
         for row in rows
     ]
+
+
+def presign_download(object_key: str, filename: str) -> str:
+    """A short-lived GET URL the user's browser can follow."""
+    safe = filename.replace('"', "")
+    return signing_store().generate_presigned_url(
+        "get_object",
+        Params={
+            "Bucket": artifact_bucket(),
+            "Key": object_key,
+            "ResponseContentDisposition": f'attachment; filename="{safe}"',
+        },
+        ExpiresIn=PRESIGN_SECONDS,
+    )
+
+
+@router.get(
+    "/api/runs/{run_id}/artifacts/{artifact_id}/download",
+    operation_id="downloadRunArtifact",
+    status_code=307,
+    response_class=RedirectResponse,
+    responses={
+        **errors(400, 401, 403, 404),
+        307: {"description": "Redirect to a short-lived presigned URL"},
+    },
+)
+def download_run_artifact(
+    run_id: UUID,
+    artifact_id: UUID,
+    member: ActiveMembership,
+    db: SessionDep,
+) -> RedirectResponse:
+    """Mint a presigned GET after the Organization gate; never leak existence."""
+    owned_run(db, member.org_id, run_id)
+    artifact = db.execute(
+        select(Artifact).where(Artifact.id == artifact_id, Artifact.run_id == run_id)
+    ).scalar_one_or_none()
+    if artifact is None:
+        raise ApiError(404, "artifact_not_found", "no such Artifact")
+    filename = Path(artifact.object_key).name
+    return RedirectResponse(
+        url=presign_download(artifact.object_key, filename), status_code=307
+    )
+
+
+@router.delete(
+    "/api/runs/{run_id}",
+    operation_id="deleteRun",
+    status_code=204,
+    responses=errors(400, 401, 403, 404, 409),
+)
+def delete_run(run_id: UUID, member: ActiveMembership, db: SessionDep) -> Response:
+    """Purge a terminal Run, its rows, and its Garage objects."""
+    run = owned_run(db, member.org_id, run_id)
+    if run.status.value in NON_TERMINAL:
+        raise ApiError(409, "run_active", "this Run is still active")
+    keys = list(
+        db.execute(select(Artifact.object_key).where(Artifact.run_id == run.id))
+        .scalars()
+        .all()
+    )
+    bucket = artifact_bucket()
+    store = object_store()
+    for key in keys:
+        store.delete_object(Bucket=bucket, Key=key)
+    db.delete(run)
+    db.commit()
+    return Response(status_code=204)
 
 
 @router.post(
@@ -718,4 +807,17 @@ def interval_record(interval: RunControlInterval) -> ControlIntervalRecord:
         kind=interval.kind,
         started_at=interval.started_at,
         ended_at=interval.ended_at,
+    )
+
+
+def artifact_record(row: Artifact) -> ArtifactRecord:
+    return ArtifactRecord(
+        id=row.id,
+        step_id=row.step_id,
+        kind=row.kind,
+        content_type=row.content_type,
+        size_bytes=row.size_bytes,
+        index=row.index,
+        created_at=row.created_at,
+        filename=Path(row.object_key).name,
     )

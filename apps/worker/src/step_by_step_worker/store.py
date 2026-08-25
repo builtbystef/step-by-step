@@ -1,7 +1,8 @@
 """Postgres persistence for claims and the rows produced by execution."""
 
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any, cast
 from uuid import UUID, uuid4
 
@@ -10,6 +11,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from step_by_step_core.db import session_scope
 from step_by_step_core.document import WorkflowDocument
 from step_by_step_core.events import publish, publish_log
+from step_by_step_core.objects import artifact_bucket, object_store
 
 from step_by_step_worker.executor import RunWork, StepOutcome
 
@@ -235,6 +237,66 @@ class PostgresRunStore:
                 {"run_id": run_id, "at": at},
             )
             session.commit()
+
+    def add_artifact(
+        self,
+        run_id: UUID,
+        *,
+        kind: str,
+        body: bytes,
+        content_type: str,
+        index: int,
+        step_id: UUID | None = None,
+        filename: str = "",
+    ) -> UUID:
+        artifact_id = uuid4()
+        name = Path(filename).name or kind
+        object_key = f"runs/{run_id}/{artifact_id}/{name}"
+        safe_name = name.replace('"', "")
+        object_store().put_object(
+            Bucket=artifact_bucket(),
+            Key=object_key,
+            Body=body,
+            ContentType=content_type,
+            ContentDisposition=f'attachment; filename="{safe_name}"',
+        )
+        with session_scope() as session:
+            session.execute(
+                text(
+                    """
+                    INSERT INTO artifacts (
+                        id, run_id, step_id, kind, object_key, content_type,
+                        size_bytes, index
+                    ) VALUES (
+                        :id, :run_id, :step_id, :kind, :object_key, :content_type,
+                        :size_bytes, :index
+                    )
+                    """
+                ),
+                {
+                    "id": artifact_id,
+                    "run_id": run_id,
+                    "step_id": step_id,
+                    "kind": kind,
+                    "object_key": object_key,
+                    "content_type": content_type,
+                    "size_bytes": len(body),
+                    "index": index,
+                },
+            )
+            session.commit()
+        publish(
+            run_id,
+            "artifact",
+            {
+                "run_id": run_id,
+                "step_id": step_id,
+                "artifact_id": artifact_id,
+                "kind": kind,
+                "at": datetime.now(UTC),
+            },
+        )
+        return artifact_id
 
 
 def work_from_claim(claimed: Mapping[str, Any]) -> RunWork:

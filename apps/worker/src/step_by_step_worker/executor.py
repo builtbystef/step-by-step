@@ -5,6 +5,7 @@ Run reached it. Dispatch supplies a claimed :class:`RunWork`; the store protocol
 keeps each Step Result durable before the next Step can touch the page.
 """
 
+import mimetypes
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -116,6 +117,27 @@ class ResultStore(Protocol):
     def resume(self, run_id: UUID, at: datetime) -> None: ...
 
     def release_holder(self, run_id: UUID, at: datetime) -> None: ...
+
+    def add_artifact(
+        self,
+        run_id: UUID,
+        *,
+        kind: str,
+        body: bytes,
+        content_type: str,
+        index: int,
+        step_id: UUID | None = None,
+        filename: str = "",
+    ) -> UUID: ...
+
+
+@dataclass(frozen=True, slots=True)
+class DownloadCapture:
+    """The file a download Step produced, before it is stored as an Artifact."""
+
+    filename: str
+    content_type: str
+    body: bytes
 
 
 def now() -> datetime:
@@ -305,7 +327,11 @@ def execute(
             failure_detail = str(error)
             _skip_remaining(work, store, 0)
         else:
+            tracing = False
+            download_index = 0
             try:
+                context.tracing.start(snapshots=True, screenshots=True)
+                tracing = True
                 page = context.pages[0] if context.pages else context.new_page()
                 for position, step in enumerate(work.document.steps):
                     if lost.is_set():
@@ -346,11 +372,21 @@ def execute(
                                 ended_at=now(),
                                 completed_by_human=True,
                             )
+                            download_index = record_step_artifacts(
+                                page,
+                                store,
+                                work,
+                                step,
+                                outcome,
+                                [],
+                                download_index,
+                            )
                             store.add_result(work.run_id, outcome)
                             announce_finished(store, work, outcome)
                             continue
 
                     announce_started(store, work, step, position)
+                    downloads: list[DownloadCapture] = []
                     try:
                         outcome = execute_step(
                             page,
@@ -360,6 +396,7 @@ def execute(
                             work.variables,
                             on_control=check_control,
                             on_challenge=report_challenge(store, work, step),
+                            downloads=downloads,
                         )
                     except RunPaused:
                         if (
@@ -367,6 +404,7 @@ def execute(
                             == "lost"
                         ):
                             break
+                        downloads = []
                         try:
                             outcome = execute_step(
                                 page,
@@ -376,6 +414,7 @@ def execute(
                                 work.variables,
                                 on_control=check_control,
                                 on_challenge=report_challenge(store, work, step),
+                                downloads=downloads,
                             )
                         except RunCancelled:
                             terminal_status = "cancelled"
@@ -387,6 +426,15 @@ def execute(
                         break
                     if lost.is_set():
                         break
+                    download_index = record_step_artifacts(
+                        page,
+                        store,
+                        work,
+                        step,
+                        outcome,
+                        downloads,
+                        download_index,
+                    )
                     store.add_result(work.run_id, outcome)
                     announce_finished(store, work, outcome)
                     if outcome.status == "failed":
@@ -414,6 +462,8 @@ def execute(
                         _skip_remaining(work, store, position + 1)
                         break
             finally:
+                if tracing:
+                    save_trace_chunk(context, profile, store, work, 0)
                 close_quietly(context)
 
     stop.set()
@@ -566,6 +616,72 @@ def extracted_count(value: Any) -> int | None:
     return 1
 
 
+def should_screenshot(step: Step, outcome: StepOutcome) -> bool:
+    if outcome.status == "failed":
+        return True
+    return outcome.status == "passed" and step.screenshot
+
+
+def record_step_artifacts(
+    page: Page,
+    store: ResultStore,
+    work: RunWork,
+    step: Step,
+    outcome: StepOutcome,
+    downloads: list[DownloadCapture],
+    download_index: int,
+) -> int:
+    next_index = download_index
+    for captured in downloads:
+        store.add_artifact(
+            work.run_id,
+            kind="download",
+            body=captured.body,
+            content_type=captured.content_type,
+            index=next_index,
+            step_id=step.id,
+            filename=captured.filename,
+        )
+        next_index += 1
+    if should_screenshot(step, outcome):
+        try:
+            body = page.screenshot(type="png")
+        except PlaywrightError:
+            log.exception("screenshot failed")
+        else:
+            store.add_artifact(
+                work.run_id,
+                kind="screenshot",
+                body=body,
+                content_type="image/png",
+                index=0,
+                step_id=step.id,
+                filename="screenshot.png",
+            )
+    return next_index
+
+
+def save_trace_chunk(
+    context: Any, profile: str, store: ResultStore, work: RunWork, index: int
+) -> None:
+    path = Path(profile) / f"trace-{index}.zip"
+    try:
+        context.tracing.stop(path=str(path))
+    except Exception:
+        log.exception("trace stop failed")
+        return
+    if not path.is_file():
+        return
+    store.add_artifact(
+        work.run_id,
+        kind="trace",
+        body=path.read_bytes(),
+        content_type="application/zip",
+        index=index,
+        filename=f"trace-{index}.zip",
+    )
+
+
 def execute_step(
     page: Page,
     step: Step,
@@ -574,6 +690,7 @@ def execute_step(
     variables: Mapping[str, Any],
     on_control: Callable[..., None] | None = None,
     on_challenge: Callable[[Mapping[str, Any]], None] | None = None,
+    downloads: list[DownloadCapture] | None = None,
 ) -> StepOutcome:
     """Execute one Step, returning only after its observable outcome is complete."""
     started_at = now()
@@ -597,6 +714,7 @@ def execute_step(
             deadline,
             variables,
             watch_challenge(page, timeout_ms, on_control, capture),
+            downloads=downloads,
         )
     except StepFailure as failure:
         status = "skipped" if step.optional and failure.target_missing else "failed"
@@ -708,6 +826,7 @@ def perform(
     deadline: Deadline,
     variables: Mapping[str, Any],
     on_control: Callable[..., None] | None = None,
+    downloads: list[DownloadCapture] | None = None,
 ) -> tuple[Resolved | None, Any | None]:
     """Perform the action named by one parsed Step."""
     if isinstance(step, NavigateStep):
@@ -735,8 +854,10 @@ def perform(
         return found, None
     if isinstance(step, DownloadStep):
         found = resolved(page, step.payload.target, deadline, on_control)
-        with page.expect_download(timeout=deadline.remaining_ms):
+        with page.expect_download(timeout=deadline.remaining_ms) as pending:
             found.locator.click(timeout=deadline.remaining_ms)
+        if downloads is not None:
+            downloads.append(captured_download(pending.value))
         return found, None
     if isinstance(step, ExtractStep):
         found = resolved(page, step.payload.target, deadline, on_control)
@@ -788,3 +909,12 @@ def interpolate(value: str, variables: Mapping[str, Any]) -> str:
         lambda reference: str(variables.get(reference.group(1), reference.group(0))),
         value,
     )
+
+
+def captured_download(downloaded: Any) -> DownloadCapture:
+    """Read the file Playwright saved, with the name the site suggested."""
+    filename = Path(str(downloaded.suggested_filename)).name or "download"
+    path = downloaded.path()
+    body = Path(path).read_bytes() if path else b""
+    content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+    return DownloadCapture(filename=filename, content_type=content_type, body=body)

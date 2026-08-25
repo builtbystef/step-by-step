@@ -3,11 +3,13 @@
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from io import BytesIO
 from itertools import pairwise
 from pathlib import Path
 from time import monotonic, sleep
 from typing import Any
 from uuid import UUID, uuid4
+from zipfile import ZipFile
 
 import pytest
 from step_by_step_core.document import WorkflowDocument
@@ -18,6 +20,17 @@ from step_by_step_worker.heartbeat import RunTerminal
 from step_by_step_worker.store import work_from_claim
 
 pytestmark = pytest.mark.browser
+
+
+@dataclass(frozen=True, slots=True)
+class RecordedArtifact:
+    id: UUID
+    kind: str
+    step_id: UUID | None
+    content_type: str
+    index: int
+    filename: str
+    body: bytes
 
 
 @dataclass
@@ -31,6 +44,7 @@ class RecordedRun:
     events: list[tuple[str, Mapping[str, Any]]] = field(default_factory=list)
     logs: list[tuple[str, str, UUID | None]] = field(default_factory=list)
     parks: list[tuple[Any, Any]] = field(default_factory=list)
+    artifacts: list[RecordedArtifact] = field(default_factory=list)
 
     def claim(
         self, run_id: UUID, worker_id: str, vnc_endpoint: str, at: Any
@@ -87,6 +101,43 @@ class RecordedRun:
 
     def release_holder(self, run_id: UUID, at: Any) -> None:
         return
+
+    def add_artifact(
+        self,
+        run_id: UUID,
+        *,
+        kind: str,
+        body: bytes,
+        content_type: str,
+        index: int,
+        step_id: UUID | None = None,
+        filename: str = "",
+    ) -> UUID:
+        artifact_id = uuid4()
+        self.artifacts.append(
+            RecordedArtifact(
+                id=artifact_id,
+                kind=kind,
+                step_id=step_id,
+                content_type=content_type,
+                index=index,
+                filename=filename,
+                body=body,
+            )
+        )
+        self.events.append(
+            (
+                "artifact",
+                {
+                    "run_id": run_id,
+                    "step_id": step_id,
+                    "artifact_id": artifact_id,
+                    "kind": kind,
+                    "at": datetime.now(UTC),
+                },
+            )
+        )
+        return artifact_id
 
 
 def step(
@@ -154,17 +205,22 @@ def test_three_steps_succeed_in_one_automation_interval(
     assert started <= ended
     assert list(tmp_path.iterdir()) == []
     kinds = [event_type for event_type, _ in recorded.events]
-    assert kinds == [
+    steps = [event_type for event_type in kinds if event_type.startswith("step.")]
+    assert steps == [
         "step.started",
         "step.finished",
         "step.started",
         "step.finished",
         "step.started",
         "step.finished",
-        "run.status",
     ]
+    assert kinds[-1] == "run.status"
     assert recorded.events[-1][1]["status"] == "succeeded"
-    assert [payload["position"] for _, payload in recorded.events[:6:2]] == [0, 1, 2]
+    assert [
+        payload["position"]
+        for event_type, payload in recorded.events
+        if event_type == "step.started"
+    ] == [0, 1, 2]
     assert kinds.count("run.status") == 1
     assert [step_id for _, _, step_id in recorded.logs] == [
         result.step_id for result in recorded.results
@@ -1331,3 +1387,165 @@ def test_a_diagnostic_does_not_change_run_status_by_itself(
     assert diagnostic_at < finished_at < status_at
     assert "run.status" not in kinds[:finished_at]
     assert recorded.events[status_at][1]["status"] == "succeeded"
+
+
+def screenshots_of(recorded: RecordedRun) -> list[RecordedArtifact]:
+    return [
+        artifact for artifact in recorded.artifacts if artifact.kind == "screenshot"
+    ]
+
+
+def artifact_events_of(recorded: RecordedRun) -> list[Mapping[str, Any]]:
+    return [
+        payload for event_type, payload in recorded.events if event_type == "artifact"
+    ]
+
+
+def assert_artifact_events_carry_ids_only(recorded: RecordedRun) -> None:
+    events = artifact_events_of(recorded)
+    assert len(events) == len(recorded.artifacts)
+    for payload, artifact in zip(events, recorded.artifacts, strict=True):
+        assert set(payload) <= {"run_id", "step_id", "artifact_id", "kind", "at"}
+        assert payload["artifact_id"] == artifact.id
+        assert payload["kind"] == artifact.kind
+        assert payload.get("step_id") == artifact.step_id
+        assert all(
+            not isinstance(value, (bytes, bytearray)) for value in payload.values()
+        )
+        assert artifact.body not in payload.values()
+
+
+def test_screenshot_toggle_on_step_two_captures_only_that_step(
+    playwright_driver: Any, fixture_site: str, tmp_path: Path
+) -> None:
+    recorded = RecordedRun()
+    typed = step(
+        "type",
+        "Enter name",
+        {"target": target(("testid", "name")), "value": "Ada"},
+        screenshot=True,
+    )
+    run = work(
+        {
+            "variables": [],
+            "steps": [
+                step("navigate", "Open form", {"url": f"{fixture_site}/executor.html"}),
+                typed,
+                step("click", "Save", {"target": target(("testid", "save"))}),
+            ],
+        }
+    )
+
+    execute(run, playwright_driver.chromium, recorded, tmp_path, headless=True)
+
+    shots = screenshots_of(recorded)
+    assert recorded.terminal is not None
+    assert recorded.terminal[0] == "succeeded"
+    assert len(shots) == 1
+    assert shots[0].step_id == UUID(typed["id"])
+    assert shots[0].body.startswith(b"\x89PNG")
+    assert shots[0].content_type == "image/png"
+    assert_artifact_events_carry_ids_only(recorded)
+
+
+def test_a_failing_step_is_screenshotted_even_when_its_toggle_is_off(
+    playwright_driver: Any, fixture_site: str, tmp_path: Path
+) -> None:
+    recorded = RecordedRun()
+    typed = step(
+        "type",
+        "Enter name",
+        {"target": target(("testid", "name")), "value": "Ada"},
+        screenshot=True,
+    )
+    missing = step(
+        "click",
+        "Missing",
+        {"target": target(("testid", "gone"))},
+        timeoutMs=5,
+    )
+    run = work(
+        {
+            "variables": [],
+            "steps": [
+                step("navigate", "Open form", {"url": f"{fixture_site}/executor.html"}),
+                typed,
+                missing,
+            ],
+        }
+    )
+
+    execute(run, playwright_driver.chromium, recorded, tmp_path, headless=True)
+
+    shots = screenshots_of(recorded)
+    assert recorded.terminal is not None
+    assert recorded.terminal[:2] == ("failed", "step_failed")
+    assert len(shots) == 2
+    assert shots[0].step_id == UUID(typed["id"])
+    assert shots[1].step_id == UUID(missing["id"])
+    assert all(shot.body.startswith(b"\x89PNG") for shot in shots)
+    assert_artifact_events_carry_ids_only(recorded)
+
+
+def test_trace_chunks_increase_in_index_and_open_in_trace_viewer(
+    playwright_driver: Any, fixture_site: str, tmp_path: Path
+) -> None:
+    recorded = RecordedRun()
+    run = work(
+        {
+            "variables": [],
+            "steps": [
+                step("navigate", "Open form", {"url": f"{fixture_site}/executor.html"}),
+                step("click", "Save", {"target": target(("testid", "save"))}),
+            ],
+        }
+    )
+
+    execute(run, playwright_driver.chromium, recorded, tmp_path, headless=True)
+
+    traces = [artifact for artifact in recorded.artifacts if artifact.kind == "trace"]
+    assert traces
+    assert [artifact.index for artifact in traces] == list(range(len(traces)))
+    for chunk in traces:
+        assert chunk.step_id is None
+        assert chunk.content_type == "application/zip"
+        names = ZipFile(BytesIO(chunk.body)).namelist()
+        assert any(name == "trace.trace" or name.endswith(".trace") for name in names)
+    assert_artifact_events_carry_ids_only(recorded)
+
+
+def test_a_download_step_stores_the_fixture_bytes_and_suggested_filename(
+    playwright_driver: Any, fixture_site: str, tmp_path: Path
+) -> None:
+    recorded = RecordedRun()
+    download = step(
+        "download",
+        "Get report",
+        {"target": target(("testid", "file"))},
+    )
+    run = work(
+        {
+            "variables": [],
+            "steps": [
+                step(
+                    "navigate",
+                    "Open downloads",
+                    {"url": f"{fixture_site}/download.html"},
+                ),
+                download,
+            ],
+        }
+    )
+    fixture_bytes = (Path(__file__).parent / "pages" / "report.txt").read_bytes()
+
+    execute(run, playwright_driver.chromium, recorded, tmp_path, headless=True)
+
+    files = [artifact for artifact in recorded.artifacts if artifact.kind == "download"]
+    assert recorded.terminal is not None
+    assert recorded.terminal[0] == "succeeded"
+    assert len(files) == 1
+    assert files[0].step_id == UUID(download["id"])
+    assert files[0].filename == "report.txt"
+    assert files[0].content_type == "text/plain"
+    assert files[0].body == fixture_bytes
+    assert_artifact_events_carry_ids_only(recorded)

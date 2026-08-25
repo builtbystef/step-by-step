@@ -71,6 +71,12 @@ class LogLevel(StrEnum):
     ERROR = "error"
 
 
+class ArtifactKind(StrEnum):
+    SCREENSHOT = "screenshot"
+    TRACE = "trace"
+    DOWNLOAD = "download"
+
+
 def enum_column(kind: type[StrEnum], name: str, length: int) -> Enum:
     """A closed set stored as readable words with a named check constraint."""
     return Enum(
@@ -244,3 +250,25 @@ class RunLogLine(Base):
     level: Mapped[LogLevel] = mapped_column(enum_column(LogLevel, "run_log_level", 16))
     at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     text: Mapped[str] = mapped_column(Text)
+
+
+class Artifact(Base):
+    """A file a Run produced: a screenshot, a trace chunk, or a download."""
+
+    __tablename__ = "artifacts"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    run_id: Mapped[UUID] = mapped_column(
+        ForeignKey("runs.id", ondelete="CASCADE"), index=True
+    )
+    step_id: Mapped[UUID | None] = mapped_column(default=None)
+    kind: Mapped[ArtifactKind] = mapped_column(
+        enum_column(ArtifactKind, "artifact_kind", 16)
+    )
+    object_key: Mapped[str] = mapped_column(String(500))
+    content_type: Mapped[str] = mapped_column(String(200))
+    size_bytes: Mapped[int] = mapped_column(BigInteger)
+    index: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
+    )

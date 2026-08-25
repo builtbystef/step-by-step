@@ -57,6 +57,46 @@ export type AccountUpdate = {
 };
 
 /**
+ * ArtifactKind
+ */
+export type ArtifactKind = 'screenshot' | 'trace' | 'download';
+
+/**
+ * ArtifactRecord
+ */
+export type ArtifactRecord = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Step Id
+     */
+    step_id: string | null;
+    kind: ArtifactKind;
+    /**
+     * Content Type
+     */
+    content_type: string;
+    /**
+     * Size Bytes
+     */
+    size_bytes: number;
+    /**
+     * Index
+     */
+    index: number;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Filename
+     */
+    filename: string;
+};
+
+/**
  * AssignableRole
  *
  * The two roles a Membership may be given.
@@ -989,9 +1029,7 @@ export type RunDetail = {
     /**
      * Artifacts
      */
-    artifacts: Array<{
-        [key: string]: unknown;
-    }>;
+    artifacts: Array<ArtifactRecord>;
     /**
      * Batch Row
      */
@@ -4031,6 +4069,62 @@ export type GetAttentionResponses = {
 
 export type GetAttentionResponse = GetAttentionResponses[keyof GetAttentionResponses];
 
+export type DeleteRunData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Run Id
+         */
+        run_id: string;
+    };
+    query?: never;
+    url: '/api/runs/{run_id}';
+};
+
+export type DeleteRunErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Conflict
+     */
+    409: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteRunError = DeleteRunErrors[keyof DeleteRunErrors];
+
+export type DeleteRunResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteRunResponse = DeleteRunResponses[keyof DeleteRunResponses];
+
 export type GetRunData = {
     body?: never;
     headers?: {
@@ -4197,6 +4291,53 @@ export type ListRunLogsResponses = {
 };
 
 export type ListRunLogsResponse = ListRunLogsResponses[keyof ListRunLogsResponses];
+
+export type DownloadRunArtifactData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Run Id
+         */
+        run_id: string;
+        /**
+         * Artifact Id
+         */
+        artifact_id: string;
+    };
+    query?: never;
+    url: '/api/runs/{run_id}/artifacts/{artifact_id}/download';
+};
+
+export type DownloadRunArtifactErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DownloadRunArtifactError = DownloadRunArtifactErrors[keyof DownloadRunArtifactErrors];
 
 export type CancelRunData = {
     body?: never;

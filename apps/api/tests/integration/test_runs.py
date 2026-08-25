@@ -262,6 +262,14 @@ def test_every_run_route_hides_another_organizations_run(
     assert start(stranger, workflow_id, variables={}).status_code == 404
     assert detail(stranger, run_id).status_code == 404
     assert stranger.client.post(f"/api/runs/{run_id}/cancel").status_code == 404
+    assert stranger.client.delete(f"/api/runs/{run_id}").status_code == 404
+    assert (
+        stranger.client.get(
+            f"/api/runs/{run_id}/artifacts/{uuid4()}/download",
+            follow_redirects=False,
+        ).status_code
+        == 404
+    )
 
 
 def test_a_normal_run_requires_a_published_version_but_a_test_run_does_not(
