@@ -7,7 +7,7 @@ depends_on:
     - 6ewr2p
 parent: 9gea5p
 created: 2026-08-14T07:41:51Z
-updated: 2026-08-17T04:03:47Z
+updated: 2026-08-25T16:18:21Z
 ---
 
 ## What to build
@@ -50,3 +50,7 @@ GET /api/runs/{runId}/logs?after_seq=&step_id=  → 200 [LogLine]
 **claude** — 2026-08-17T04:03:47Z
 
 Re-scope per ADR 0005: the SSE route's ownership check is the org Membership gate — another Organization's Run id → 404; any member of the Run's Organization may subscribe.
+
+**agent** — 2026-08-25T16:18:21Z
+
+Previous loop iteration timed out after ~14 min of work and ~46 min silence. Partial events/SSE/logs code was reverted; start fresh.
