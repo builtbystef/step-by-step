@@ -1,10 +1,8 @@
 ---
 id: 7vuup5
 title: 'Recording end to end: starting from the app, the save screen, and surviving death'
-state: in-progress
+state: done
 priority: medium
-labels:
-    - needs-review
 depends_on:
     - bysmhd
     - rjklmp
@@ -13,7 +11,7 @@ depends_on:
     - 0zwbku
 parent: d8ux2s
 created: 2026-08-14T06:03:37Z
-updated: 2026-08-25T13:33:00Z
+updated: 2026-08-25T14:26:19Z
 ---
 
 ## What to build
@@ -64,3 +62,7 @@ Attended Test C found the recorder content script crashed on an insecure HTTP or
 **agent** — 2026-08-25T13:33:00Z
 
 Fixed Test C's insecure-origin crash. recorder-content.js now mints its page-load correlation id with crypto.getRandomValues, which remains available on ordinary HTTP pages, instead of secure-context-only crypto.randomUUID. Browser coverage now records a click through an actual http://0.0.0.0 fixture where randomUUID is absent. pnpm check, pnpm test, and pnpm test:browser pass. User must reload the unpacked extension and rerun Test C; remaining attended checks still apply.
+
+**agent** — 2026-08-25T14:26:19Z
+
+User completed attended verification and approved closure.
