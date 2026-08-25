@@ -13,7 +13,7 @@ depends_on:
     - 0zwbku
 parent: d8ux2s
 created: 2026-08-14T06:03:37Z
-updated: 2026-08-24T16:50:37Z
+updated: 2026-08-25T12:38:47Z
 ---
 
 ## What to build
@@ -48,3 +48,11 @@ Decision approved by the user: use extension-popup confirmation. Start recording
 Implemented the full recording loop. The editor now confirms replacement before minting, hands pending sessions to the connected extension, rotates an expired token against the same session, and refreshes the Draft after finalization. The popup owns target-tab confirmation and optional host permission, recording stop/review, password-Step binding to existing or new secret Variables, save, and discard. The service worker persists pending/active/ended state and full Step buffers in local storage, checkpoints and finalizes directly to the backend, retries the full checkpoint after token rotation, and announces expiry/finalization to app tabs. Automated coverage now exercises app-to-extension pending handoff, direct checkpoint/finalize, password binding with no literal leakage, and the existing recorder pipeline; pnpm check, pnpm test, and pnpm test:browser pass.
 
 Attended review is still required by the issue's verification plan: in real Chrome, verify the native target-origin permission grant/decline; replace a non-empty Draft and confirm the finished click/type/password recording appears in the editor; close the app tab during capture; force a service-worker stop and continue capture if Chrome permits that while debugger is attached; and exercise the expired-token resume path. Close to approve, or note requested changes and remove needs-review.
+
+**agent** — 2026-08-25T12:37:45Z
+
+Attended Test B found that the popup could not identify an ungranted target tab: without activeTab, chrome.tabs.query returned no URL before the optional host permission could be requested. Fixing this under the same acceptance criterion.
+
+**agent** — 2026-08-25T12:38:47Z
+
+Fixed the attended Test B failure by adding activeTab to the extension manifest. Invoking the toolbar action now gives the popup enough temporary access to read the current tab URL, after which the existing explicit optional-host permission request still controls whether recording may start. Added a manifest contract test and documented the boundary. All checks and browser tests pass. User must reload the unpacked extension on chrome://extensions and rerun Test B; the remaining attended checks still apply.

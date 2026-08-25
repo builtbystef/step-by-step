@@ -43,6 +43,7 @@ describe("the extension package", () => {
     expect(manifest.host_permissions).toBeUndefined();
     expect(manifest.optional_host_permissions).toEqual(["*://*/*"]);
     expect(manifest.permissions).toEqual([
+      "activeTab",
       "storage",
       "scripting",
       "debugger",
