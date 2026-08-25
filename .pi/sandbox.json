@@ -10,7 +10,8 @@
   "filesystem": {
     "allowRead": [
       "**/site-packages/certifi/cacert.pem",
-      "**/site-packages/botocore/cacert.pem"
+      "**/site-packages/botocore/cacert.pem",
+      "/"
     ],
     "denyRead": [
       "~/Main",
@@ -34,7 +35,8 @@
       "~/.npmrc",
       "~/.pgpass",
       "/run/docker.sock",
-      "/run/user/1000/podman/podman.sock"
+      "/run/user/1000/podman/podman.sock",
+      "/run/podman/podman.sock"
     ],
     "allowWrite": [
       ".",
