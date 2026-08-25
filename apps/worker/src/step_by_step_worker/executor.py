@@ -31,6 +31,7 @@ from step_by_step_core.document import (
     SelectStep,
     Step,
     TakeoverStep,
+    Target,
     TypeStep,
     WaitStep,
     WorkflowDocument,
@@ -45,6 +46,7 @@ log = getLogger(__name__)
 HEARTBEAT_INTERVAL_SECONDS = 5.0
 DEFAULT_TAKEOVER_TIMEOUT_MS = 30 * 60 * 1000
 PARK_POLL_SECONDS = 0.05
+HAND_BACK_GRACE = timedelta(seconds=6)
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,6 +75,7 @@ class StepOutcome:
     error_code: str | None = None
     error_message: str | None = None
     extracted_value: Any | None = None
+    completed_by_human: bool = False
 
 
 class ResultStore(Protocol):
@@ -109,6 +112,8 @@ class ResultStore(Protocol):
     def park(self, run_id: UUID, deadline_at: datetime, at: datetime) -> None: ...
 
     def resume(self, run_id: UUID, at: datetime) -> None: ...
+
+    def release_holder(self, run_id: UUID, at: datetime) -> None: ...
 
 
 def now() -> datetime:
@@ -180,7 +185,21 @@ def execute(
             payload["deadline_at"] = deadline_at
         store.emit(work.run_id, "control", payload)
 
-    def park_for_human(timeout_ms: int) -> str:
+    def emit_predicate(
+        met: bool, at: datetime, grace_ends_at: datetime | None = None
+    ) -> None:
+        payload: dict[str, Any] = {
+            "run_id": work.run_id,
+            "met": met,
+            "at": at,
+        }
+        if grace_ends_at is not None:
+            payload["grace_ends_at"] = grace_ends_at
+        store.emit(work.run_id, "predicate", payload)
+
+    def park_for_human(
+        timeout_ms: int, page: Page, success_check: Target | None
+    ) -> str:
         at = now()
         leave_automation(at)
         deadline_at = at + timedelta(milliseconds=timeout_ms)
@@ -188,25 +207,79 @@ def execute(
         store.park(work.run_id, deadline_at, at)
         emit_control("waiting", at, deadline_at)
         phase = "waiting"
+        last_met: bool | None = None
+        grace_ends_at: datetime | None = None
+
+        def poll_check() -> bool | None:
+            if success_check is None:
+                return None
+            return success_check_met(page, success_check)
+
+        met = poll_check()
+        if met is not None:
+            emit_predicate(met, now())
+            last_met = met
+
         while not lost.is_set():
             flags = control() if control is not None else ControlFlags()
+            met = poll_check()
+            if met is not None and met != last_met:
+                last_met = met
+                if not met:
+                    grace_ends_at = None
+                    emit_predicate(False, now())
+                elif phase != "human":
+                    emit_predicate(True, now())
             if flags.holder_present and phase == "waiting":
                 at = now()
                 close_open(at)
                 open_kind("human", at)
                 emit_control("human", at, deadline_at)
                 phase = "human"
-            elif flags.handback_requested and phase == "human":
+                grace_ends_at = None
+            if phase == "human" and flags.auto_handback_disabled:
+                if grace_ends_at is not None:
+                    grace_ends_at = None
+                    if met is True:
+                        emit_predicate(True, now())
+            elif (
+                phase == "human"
+                and met is True
+                and not flags.auto_handback_disabled
+                and grace_ends_at is None
+            ):
+                grace_ends_at = now() + HAND_BACK_GRACE
+                emit_predicate(True, now(), grace_ends_at)
+            auto_due = (
+                phase == "human"
+                and met is True
+                and not flags.auto_handback_disabled
+                and grace_ends_at is not None
+                and now() >= grace_ends_at
+            )
+            if phase == "human" and (flags.handback_requested or auto_due):
                 at = now()
                 close_open(at)
                 open_kind("verifying", at)
                 emit_control("verifying", at, deadline_at)
+                verdict = poll_check()
+                if verdict is False:
+                    at = now()
+                    close_open(at)
+                    store.release_holder(work.run_id, at)
+                    open_kind("waiting", at)
+                    emit_control("waiting", at, deadline_at)
+                    phase = "waiting"
+                    grace_ends_at = None
+                    last_met = verdict
+                    sleep(PARK_POLL_SECONDS)
+                    continue
                 at = now()
                 close_open(at)
                 store.resume(work.run_id, at)
                 enter_automation(at)
                 emit_control("automation", at)
-                return "handback"
+                return "verified" if verdict is True else "handback"
             sleep(PARK_POLL_SECONDS)
         close_open(now())
         return "lost"
@@ -242,7 +315,10 @@ def execute(
                         _skip_remaining(work, store, position)
                         break
                     except RunPaused:
-                        if park_for_human(work.takeover_timeout_ms) == "lost":
+                        if (
+                            park_for_human(work.takeover_timeout_ms, page, None)
+                            == "lost"
+                        ):
                             break
                     if elapsed() >= work.timeout_ms:
                         terminal_status = "failed"
@@ -253,8 +329,24 @@ def execute(
 
                     if isinstance(step, TakeoverStep) and not step.disabled:
                         timeout = step.payload.timeout_ms or work.takeover_timeout_ms
-                        if park_for_human(timeout) == "lost":
+                        parked = park_for_human(
+                            timeout, page, step.payload.success_check
+                        )
+                        if parked == "lost":
                             break
+                        if parked == "verified":
+                            announce_started(store, work, step, position)
+                            outcome = StepOutcome(
+                                step_id=step.id,
+                                position=position,
+                                status="passed",
+                                started_at=now(),
+                                ended_at=now(),
+                                completed_by_human=True,
+                            )
+                            store.add_result(work.run_id, outcome)
+                            announce_finished(store, work, outcome)
+                            continue
 
                     announce_started(store, work, step, position)
                     try:
@@ -267,7 +359,10 @@ def execute(
                             on_control=check_control,
                         )
                     except RunPaused:
-                        if park_for_human(work.takeover_timeout_ms) == "lost":
+                        if (
+                            park_for_human(work.takeover_timeout_ms, page, None)
+                            == "lost"
+                        ):
                             break
                         try:
                             outcome = execute_step(
@@ -303,7 +398,10 @@ def execute(
                         _skip_remaining(work, store, position + 1)
                         break
                     except RunPaused:
-                        if park_for_human(work.takeover_timeout_ms) == "lost":
+                        if (
+                            park_for_human(work.takeover_timeout_ms, page, None)
+                            == "lost"
+                        ):
                             break
                     if elapsed() >= work.timeout_ms:
                         terminal_status = "failed"
@@ -419,7 +517,7 @@ def announce_finished(store: ResultStore, work: RunWork, outcome: StepOutcome) -
         "status": outcome.status,
         "matched_candidate_rank": outcome.matched_candidate_rank,
         "candidate_count": outcome.candidate_count,
-        "completed_by_human": False,
+        "completed_by_human": outcome.completed_by_human,
         "at": outcome.ended_at,
     }
     extracted = extracted_count(outcome.extracted_value)
@@ -493,6 +591,15 @@ class StepFailure(Exception):
     message: str
     target_missing: bool = False
     candidate_count: int | None = None
+
+
+def success_check_met(page: Page, target: Target) -> bool:
+    """One read-only walk of the success check. Never an action."""
+    try:
+        found = resolve(page, target, Deadline(monotonic() - 1))
+    except PlaywrightError:
+        return False
+    return isinstance(found, Resolved)
 
 
 def resolved(

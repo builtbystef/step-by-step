@@ -1427,6 +1427,16 @@ export type StepResultRecord = {
 export type StepResultStatus = 'passed' | 'failed' | 'skipped';
 
 /**
+ * TakeoverHold
+ */
+export type TakeoverHold = {
+    /**
+     * Auto Handback
+     */
+    auto_handback: boolean;
+};
+
+/**
  * TakeoverPayload
  *
  * What the person is asked to do, and how the Run can tell they did it.
@@ -4333,6 +4343,62 @@ export type TakeOverRunResponses = {
 };
 
 export type TakeOverRunResponse = TakeOverRunResponses[keyof TakeOverRunResponses];
+
+export type HoldTakeoverData = {
+    body: TakeoverHold;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Run Id
+         */
+        run_id: string;
+    };
+    query?: never;
+    url: '/api/runs/{run_id}/takeover/hold';
+};
+
+export type HoldTakeoverErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Conflict
+     */
+    409: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type HoldTakeoverError = HoldTakeoverErrors[keyof HoldTakeoverErrors];
+
+export type HoldTakeoverResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type HoldTakeoverResponse = HoldTakeoverResponses[keyof HoldTakeoverResponses];
 
 export type HandBackRunData = {
     body?: never;

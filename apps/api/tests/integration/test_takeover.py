@@ -254,6 +254,75 @@ def test_pausing_publishes_on_the_control_channel(new_account: NewAccount) -> No
     assert json.loads(raw) == {"pause_requested": True}
 
 
+def test_hold_disables_auto_handback_on_a_held_run(new_account: NewAccount) -> None:
+    account = new_account()
+    run_id = claimed_run(account)
+    park(run_id)
+    taken = account.client.post(f"/api/runs/{run_id}/takeover")
+    assert taken.status_code == 200
+    deadline = taken.json()["deadline_at"]
+
+    held = account.client.post(
+        f"/api/runs/{run_id}/takeover/hold", json={"auto_handback": False}
+    )
+
+    assert held.status_code == 204, held.text
+    row = detail(account, run_id).json()["run"]
+    assert row["auto_handback_disabled"] is True
+    assert row["takeover_deadline_at"] == deadline
+    flags = account.client.get(
+        f"/internal/runs/{run_id}/control",
+        headers={"Authorization": f"Bearer {TOKEN}"},
+    )
+    assert flags.status_code == 200
+    assert flags.json()["auto_handback_disabled"] is True
+
+
+def test_hold_on_a_running_run_is_not_waiting(new_account: NewAccount) -> None:
+    account = new_account()
+    run_id = claimed_run(account)
+
+    refused = account.client.post(
+        f"/api/runs/{run_id}/takeover/hold", json={"auto_handback": False}
+    )
+
+    assert refused.status_code == 409
+    assert refused.json()["code"] == "not_waiting"
+
+
+def test_hold_without_control_is_not_held(new_account: NewAccount) -> None:
+    account = new_account()
+    run_id = claimed_run(account)
+    park(run_id)
+
+    refused = account.client.post(
+        f"/api/runs/{run_id}/takeover/hold", json={"auto_handback": False}
+    )
+
+    assert refused.status_code == 409
+    assert refused.json()["code"] == "not_held"
+
+
+def test_a_waiting_run_can_be_taken_again_after_the_holder_is_released(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    run_id = claimed_run(account)
+    park(run_id)
+    first = account.client.post(f"/api/runs/{run_id}/takeover")
+    assert first.status_code == 200
+    deadline = first.json()["deadline_at"]
+    PostgresRunStore().release_holder(UUID(run_id), clock.now())
+
+    second = account.client.post(f"/api/runs/{run_id}/takeover")
+
+    assert second.status_code == 200, second.text
+    row = detail(account, run_id).json()["run"]
+    assert row["status"] == "waiting_for_human"
+    assert row["auto_handback_disabled"] is False
+    assert row["takeover_deadline_at"] == deadline
+
+
 def datetime_of(value: str):
     from datetime import datetime
 

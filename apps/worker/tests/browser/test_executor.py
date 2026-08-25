@@ -2,7 +2,7 @@
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from itertools import pairwise
 from pathlib import Path
 from time import monotonic, sleep
@@ -83,6 +83,9 @@ class RecordedRun:
         self.parks.append((deadline_at, at))
 
     def resume(self, run_id: UUID, at: Any) -> None:
+        return
+
+    def release_holder(self, run_id: UUID, at: Any) -> None:
         return
 
 
@@ -666,6 +669,8 @@ def test_pause_for_takeover_parks_before_acting(
     assert parked_at - started == timedelta(milliseconds=1_800_000)
     assert recorded.terminal is not None
     assert recorded.terminal[:2] == ("succeeded", None)
+    assert "predicate" not in [event_type for event_type, _ in recorded.events]
+    assert recorded.results[1].completed_by_human is False
 
 
 def test_pause_for_takeover_override_changes_the_deadline(
@@ -808,3 +813,305 @@ def test_waiting_time_is_excluded_from_automation_ms(
         "human",
         "verifying",
     }
+
+
+def success_check(*candidates: tuple[str, str]) -> dict[str, Any]:
+    return {"successCheck": target(*candidates)}
+
+
+def predicate_events(recorded: RecordedRun) -> list[Mapping[str, Any]]:
+    return [
+        payload for event_type, payload in recorded.events if event_type == "predicate"
+    ]
+
+
+def test_waiting_on_a_success_check_streams_predicate_events(
+    playwright_driver: Any, fixture_site: str, tmp_path: Path
+) -> None:
+    recorded = RecordedRun()
+
+    def flags() -> ControlFlags:
+        mets = [payload["met"] for payload in predicate_events(recorded)]
+        opened = open_kinds(recorded)
+        if True in mets:
+            if "human" in opened:
+                return ControlFlags(holder_present=True, handback_requested=True)
+            if "waiting" in opened:
+                return ControlFlags(holder_present=True)
+        return ControlFlags()
+
+    run = work(
+        {
+            "variables": [],
+            "steps": [
+                step(
+                    "navigate",
+                    "Open late page",
+                    {"url": f"{fixture_site}/late-button.html"},
+                ),
+                step(
+                    "pause-for-takeover",
+                    "Wait for the button",
+                    success_check(("css", "#save-invoice")),
+                ),
+            ],
+        }
+    )
+
+    execute(
+        run,
+        playwright_driver.chromium,
+        recorded,
+        tmp_path,
+        headless=True,
+        control=flags,
+    )
+
+    mets = [payload["met"] for payload in predicate_events(recorded)]
+    assert False in mets
+    assert True in mets
+    first_met = next(
+        payload for payload in predicate_events(recorded) if payload["met"] is True
+    )
+    assert "grace_ends_at" not in first_met
+    assert recorded.terminal is not None
+    assert recorded.terminal[:2] == ("succeeded", None)
+
+
+def test_a_met_check_during_control_hands_back_after_the_grace(
+    playwright_driver: Any, fixture_site: str, tmp_path: Path
+) -> None:
+    recorded = RecordedRun()
+
+    def flags() -> ControlFlags:
+        opened = open_kinds(recorded)
+        if "human" in opened or "waiting" in opened:
+            return ControlFlags(holder_present=True)
+        return ControlFlags()
+
+    run = work(
+        {
+            "variables": [],
+            "steps": [
+                step("navigate", "Open form", {"url": f"{fixture_site}/executor.html"}),
+                step(
+                    "pause-for-takeover",
+                    "Need a person",
+                    success_check(("testid", "save")),
+                ),
+                step("click", "Save", {"target": target(("testid", "save"))}),
+            ],
+        }
+    )
+    begun = monotonic()
+
+    execute(
+        run,
+        playwright_driver.chromium,
+        recorded,
+        tmp_path,
+        headless=True,
+        control=flags,
+    )
+    elapsed = monotonic() - begun
+
+    grace = next(
+        payload
+        for payload in predicate_events(recorded)
+        if payload.get("grace_ends_at") is not None
+    )
+    assert grace["met"] is True
+    assert elapsed >= 5.5
+    assert elapsed < 12
+    assert [result.status for result in recorded.results] == [
+        "passed",
+        "passed",
+        "passed",
+    ]
+    assert recorded.results[1].completed_by_human is True
+    assert kinds_in_order(recorded)[:5] == [
+        "automation",
+        "waiting",
+        "human",
+        "verifying",
+        "automation",
+    ]
+    assert recorded.terminal is not None
+    assert recorded.terminal[:2] == ("succeeded", None)
+
+
+def test_hold_keeps_control_after_the_check_is_met(
+    playwright_driver: Any, fixture_site: str, tmp_path: Path
+) -> None:
+    recorded = RecordedRun()
+    handed = {"now": False}
+
+    def flags() -> ControlFlags:
+        opened = open_kinds(recorded)
+        grace = next(
+            (
+                payload.get("grace_ends_at")
+                for payload in predicate_events(recorded)
+                if payload.get("grace_ends_at") is not None
+            ),
+            None,
+        )
+        if "human" in opened and grace is not None:
+            human = next(
+                (started, ended)
+                for kind, started, ended in recorded.intervals
+                if kind == "human"
+            )
+            held_for = (human[1] or datetime.now(UTC)) - human[0]
+            if held_for.total_seconds() >= 7:
+                handed["now"] = True
+                return ControlFlags(
+                    holder_present=True,
+                    auto_handback_disabled=True,
+                    handback_requested=True,
+                )
+            return ControlFlags(holder_present=True, auto_handback_disabled=True)
+        if "human" in opened or "waiting" in opened:
+            return ControlFlags(holder_present=True)
+        return ControlFlags()
+
+    run = work(
+        {
+            "variables": [],
+            "steps": [
+                step("navigate", "Open form", {"url": f"{fixture_site}/executor.html"}),
+                step(
+                    "pause-for-takeover",
+                    "Need a person",
+                    success_check(("testid", "save")),
+                ),
+            ],
+        }
+    )
+
+    execute(
+        run,
+        playwright_driver.chromium,
+        recorded,
+        tmp_path,
+        headless=True,
+        control=flags,
+    )
+
+    assert handed["now"] is True
+    human = next(
+        (started, ended)
+        for kind, started, ended in recorded.intervals
+        if kind == "human"
+    )
+    assert human[1] is not None
+    assert (human[1] - human[0]).total_seconds() >= 6.5
+    assert kinds_in_order(recorded).count("verifying") == 1
+    assert recorded.results[-1].completed_by_human is True
+    assert recorded.terminal is not None
+    assert recorded.terminal[:2] == ("succeeded", None)
+
+
+def test_handback_with_the_check_met_completes_the_pause_step(
+    playwright_driver: Any, fixture_site: str, tmp_path: Path
+) -> None:
+    recorded = RecordedRun()
+    run = work(
+        {
+            "variables": [],
+            "steps": [
+                step("navigate", "Open form", {"url": f"{fixture_site}/executor.html"}),
+                step(
+                    "pause-for-takeover",
+                    "Need a person",
+                    success_check(("testid", "save")),
+                ),
+                step("click", "Save", {"target": target(("testid", "save"))}),
+            ],
+        }
+    )
+
+    execute(
+        run,
+        playwright_driver.chromium,
+        recorded,
+        tmp_path,
+        headless=True,
+        control=take_control_then_hand_back(recorded),
+    )
+
+    assert [result.status for result in recorded.results] == [
+        "passed",
+        "passed",
+        "passed",
+    ]
+    pause = recorded.results[1]
+    assert pause.completed_by_human is True
+    finished = next(
+        payload
+        for event_type, payload in recorded.events
+        if event_type == "step.finished" and payload.get("step_id") == pause.step_id
+    )
+    assert finished["completed_by_human"] is True
+    assert "verifying" in kinds_in_order(recorded)
+    assert recorded.terminal is not None
+    assert recorded.terminal[:2] == ("succeeded", None)
+
+
+def test_unmet_handback_returns_to_waiting_on_the_same_deadline(
+    playwright_driver: Any, fixture_site: str, tmp_path: Path
+) -> None:
+    recorded = RecordedRun()
+
+    def flags() -> ControlFlags:
+        opened = open_kinds(recorded)
+        humans = kinds_in_order(recorded).count("human")
+        if "human" in opened:
+            if humans <= 1:
+                return ControlFlags(holder_present=True, handback_requested=True)
+            return ControlFlags(holder_present=True)
+        if "waiting" in opened:
+            return ControlFlags(holder_present=True)
+        return ControlFlags()
+
+    def heartbeat() -> None:
+        if kinds_in_order(recorded).count("human") >= 2:
+            raise RunTerminal
+
+    run = work(
+        {
+            "variables": [],
+            "steps": [
+                step("navigate", "Open form", {"url": f"{fixture_site}/executor.html"}),
+                step(
+                    "pause-for-takeover",
+                    "Need a person",
+                    success_check(("testid", "never-appears")),
+                ),
+                step("click", "Save", {"target": target(("testid", "save"))}),
+            ],
+        }
+    )
+
+    execute(
+        run,
+        playwright_driver.chromium,
+        recorded,
+        tmp_path,
+        headless=True,
+        heartbeat=heartbeat,
+        heartbeat_every=0.05,
+        control=flags,
+    )
+
+    assert [result.status for result in recorded.results] == ["passed"]
+    assert kinds_in_order(recorded)[:5] == [
+        "automation",
+        "waiting",
+        "human",
+        "verifying",
+        "waiting",
+    ]
+    assert kinds_in_order(recorded).count("human") >= 2
+    assert len(recorded.parks) == 1
+    assert recorded.terminal is None

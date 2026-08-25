@@ -106,7 +106,7 @@ class PostgresRunStore:
                 error_code, error_message, diagnostics, extracted_value
             ) VALUES (
                 :id, :run_id, :step_id, :position, :status, :started_at, :ended_at,
-                :rank, :candidate_count, false,
+                :rank, :candidate_count, :completed_by_human,
                 :error_code, :error_message, NULL, :extracted_value
             )
             """
@@ -127,6 +127,7 @@ class PostgresRunStore:
                     "error_code": result.error_code,
                     "error_message": result.error_message,
                     "extracted_value": result.extracted_value,
+                    "completed_by_human": result.completed_by_human,
                 },
             )
             session.commit()
@@ -187,6 +188,7 @@ class PostgresRunStore:
                         takeover_deadline_at = :deadline_at,
                         pause_requested_at = NULL,
                         handback_requested_at = NULL,
+                        auto_handback_disabled = false,
                         heartbeat_at = :at
                     WHERE id = :run_id AND status = 'running'
                     """
@@ -204,6 +206,24 @@ class PostgresRunStore:
                     SET status = 'running',
                         takeover_holder_session_id = NULL,
                         handback_requested_at = NULL,
+                        auto_handback_disabled = false,
+                        heartbeat_at = :at
+                    WHERE id = :run_id AND status = 'waiting_for_human'
+                    """
+                ),
+                {"run_id": run_id, "at": at},
+            )
+            session.commit()
+
+    def release_holder(self, run_id: UUID, at: datetime) -> None:
+        with session_scope() as session:
+            session.execute(
+                text(
+                    """
+                    UPDATE runs
+                    SET takeover_holder_session_id = NULL,
+                        handback_requested_at = NULL,
+                        auto_handback_disabled = false,
                         heartbeat_at = :at
                     WHERE id = :run_id AND status = 'waiting_for_human'
                     """

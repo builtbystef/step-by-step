@@ -100,6 +100,8 @@ class ControlWatch:
 
     def poll(self) -> ControlFlags:
         flags = flags_from_row(self.run_id)
+        if flags.handback_requested or not flags.holder_present:
+            self._heard_handback = False
         return ControlFlags(
             cancel_requested=flags.cancel_requested or self._heard_cancel,
             pause_requested=flags.pause_requested or self._heard_pause,

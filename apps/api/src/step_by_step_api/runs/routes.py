@@ -153,6 +153,10 @@ class TakeoverTicket(BaseModel):
     deadline_at: datetime | None
 
 
+class TakeoverHold(BaseModel):
+    auto_handback: bool
+
+
 def workflow_to_run(
     db: SessionDep,
     member: ActiveMembership,
@@ -542,6 +546,33 @@ def take_over_run(
         expires_at=expires_at,
         deadline_at=run.takeover_deadline_at,
     )
+
+
+@router.post(
+    "/api/runs/{run_id}/takeover/hold",
+    operation_id="holdTakeover",
+    status_code=204,
+    responses=errors(400, 401, 403, 404, 409),
+)
+def hold_takeover(
+    run_id: UUID,
+    asked: TakeoverHold,
+    request: Request,
+    member: ActiveMembership,
+    db: SessionDep,
+) -> Response:
+    """Disable or re-enable auto hand-back for the rest of this takeover."""
+    run = owned_run(db, member.org_id, run_id)
+    if run.status is not RunStatus.WAITING_FOR_HUMAN:
+        raise ApiError(409, "not_waiting", "this Run is not waiting for a person")
+    if run.takeover_holder_session_id != caller_session(request):
+        raise ApiError(409, "not_held", "this session does not hold control")
+    run.auto_handback_disabled = not asked.auto_handback
+    db.commit()
+    get_redis().publish(
+        control_channel(run.id), json.dumps({"auto_handback": asked.auto_handback})
+    )
+    return Response(status_code=204)
 
 
 @router.post(

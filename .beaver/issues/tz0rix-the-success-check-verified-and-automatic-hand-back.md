@@ -1,13 +1,14 @@
 ---
 id: tz0rix
 title: 'The success check: verified and automatic hand-back'
-state: todo
+state: done
+assignee: agent
 priority: medium
 depends_on:
     - qmnvgr
 parent: 9gea5p
 created: 2026-08-14T07:43:25Z
-updated: 2026-08-14T07:43:25Z
+updated: 2026-08-25T19:11:27Z
 ---
 
 ## What to build
@@ -25,3 +26,19 @@ During control, the check becoming met starts a 6-second grace countdown and con
 - [ ] Hand-back with the check unmet → the Run returns to `waiting` without advancing; a fresh takeover is possible; abandoning yields `failed` / `takeover_abandoned`.
 - [ ] The one-clock rule holds through all of it: waiting → control → unmet hand-back → waiting consumes one deadline, and passing it in any phase → `takeover_timeout`.
 - [ ] A pause Step without a `successCheck` behaves exactly as before: no predicate events, manual hand-back, the paused Step retried.
+
+## Notes
+
+**agent** — 2026-08-25T18:58:55Z
+
+Seams from the parent spec: (1) backend HTTP against Postgres and Redis for POST /api/runs/{id}/takeover/hold {auto_handback}, 409 not_waiting / not_held, auto_handback_disabled on the row and on GET /internal/runs/{id}/control, deadline unchanged; (2) the Worker executor against Playwright fixture pages for predicate events while waiting and during control, the 6s grace and auto hand-back, hold disabling auto for the rest of that takeover, met hand-back advancing with completed_by_human, unmet hand-back returning to waiting on the same deadline, and a pause without a successCheck staying manual-only.
+
+**agent** — 2026-08-25T19:11:26Z
+
+Completed the success check and automatic hand-back.
+
+API: POST /api/runs/{id}/takeover/hold {auto_handback} sets auto_handback_disabled for the rest of that takeover (409 not_waiting / not_held). GET /internal/runs/{id}/control already exposes the flag. release_holder clears the holder, the hand-back stamp, and the hold flag without restamping takeover_deadline_at, so a fresh takeover is possible on the same clock.
+
+Worker: while parked on a pause Step with a successCheck, a read-only one-walk resolve publishes predicate events (initial state, changes, and grace_ends_at when the check becomes met during control). A met check starts a 6s grace and hands back unless hold disabled auto. Hand-back with the check met writes the pause Step passed / completed_by_human and resumes at the next Step; unmet returns to waiting on the same deadline; no check stays manual-only and retries the paused Step.
+
+OpenAPI and the generated client include holdTakeover.
