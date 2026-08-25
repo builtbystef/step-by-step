@@ -1,14 +1,15 @@
 ---
 id: bov3qu
 title: The challenge diagnostic and auth_challenge
-state: todo
+state: done
+assignee: agent
 priority: medium
 depends_on:
     - 6ewr2p
     - 1q7qp8
 parent: 9gea5p
 created: 2026-08-14T07:43:49Z
-updated: 2026-08-14T07:43:49Z
+updated: 2026-08-25T19:56:04Z
 ---
 
 ## What to build
@@ -25,3 +26,18 @@ The diagnostic streams as a `diagnostic` event (the UI's dismissible banner feed
 - [ ] When the flagged Step then fails → the Run is `failed` / `auth_challenge`, and the diagnostic is on the Step Result.
 - [ ] When the flagged Step eventually succeeds → the Run continues normally and the failure classification is untouched.
 - [ ] The diagnostic alone never changes the Run's status — the Run keeps running until the Step resolves or fails.
+
+## Notes
+
+**agent** — 2026-08-25T19:45:33Z
+
+Seam: the Worker executor against Playwright fixture pages (parent spec seam 2). Diagnostic events, Step Result diagnostics, and failure_reason are observed on the in-memory ResultStore the existing executor harness already records. The provider list and container selectors stay a Worker constant.
+
+**agent** — 2026-08-25T19:56:04Z
+
+Done. Challenge diagnostic and auth_challenge classification.
+
+- Worker constant: recaptcha.net, hcaptcha.com, challenges.cloudflare.com iframe hosts, plus a small set of well-known containers (.g-recaptcha, .h-captcha, .cf-turnstile, Cloudflare challenge form/stage ids).
+- During resolve, once a Step has used 50% of its timeout and the page shows a signal, one diagnostic event is emitted naming the Step. Time alone or signal alone is not enough.
+- If that Step fails, the diagnostic is stored on the Step Result and the Run ends failed / auth_challenge. If it succeeds, the Run continues and failure_reason is untouched. The diagnostic never changes Run status by itself.
+- Seam: executor browser tests against fixture pages (challenge.html, challenge-late.html). Postgres store now persists StepOutcome.diagnostics.

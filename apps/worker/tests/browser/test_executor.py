@@ -1115,3 +1115,219 @@ def test_unmet_handback_returns_to_waiting_on_the_same_deadline(
     assert kinds_in_order(recorded).count("human") >= 2
     assert len(recorded.parks) == 1
     assert recorded.terminal is None
+
+
+def diagnostic_events(recorded: RecordedRun) -> list[Mapping[str, Any]]:
+    return [
+        payload for event_type, payload in recorded.events if event_type == "diagnostic"
+    ]
+
+
+def test_a_stalling_step_on_a_challenge_page_emits_one_diagnostic(
+    playwright_driver: Any, fixture_site: str, tmp_path: Path
+) -> None:
+    recorded = RecordedRun()
+    run = work(
+        {
+            "variables": [],
+            "steps": [
+                step(
+                    "navigate",
+                    "Open challenge",
+                    {"url": f"{fixture_site}/challenge.html"},
+                ),
+                step(
+                    "click",
+                    "Missing",
+                    {"target": target(("testid", "gone"))},
+                    timeoutMs=800,
+                ),
+            ],
+        }
+    )
+
+    execute(run, playwright_driver.chromium, recorded, tmp_path, headless=True)
+
+    diagnostics = diagnostic_events(recorded)
+    assert len(diagnostics) == 1
+    assert diagnostics[0]["kind"] == "suspected_challenge"
+    assert diagnostics[0]["step_id"] == recorded.results[1].step_id
+
+
+def test_a_stall_without_a_challenge_signal_emits_no_diagnostic(
+    playwright_driver: Any, fixture_site: str, tmp_path: Path
+) -> None:
+    recorded = RecordedRun()
+    run = work(
+        {
+            "variables": [],
+            "steps": [
+                step(
+                    "navigate",
+                    "Open form",
+                    {"url": f"{fixture_site}/executor.html"},
+                ),
+                step(
+                    "click",
+                    "Missing",
+                    {"target": target(("testid", "gone"))},
+                    timeoutMs=800,
+                ),
+            ],
+        }
+    )
+
+    execute(run, playwright_driver.chromium, recorded, tmp_path, headless=True)
+
+    assert diagnostic_events(recorded) == []
+    assert recorded.terminal is not None
+    assert recorded.terminal[:2] == ("failed", "step_failed")
+
+
+def test_a_quick_resolve_on_a_challenge_page_emits_no_diagnostic(
+    playwright_driver: Any, fixture_site: str, tmp_path: Path
+) -> None:
+    recorded = RecordedRun()
+    run = work(
+        {
+            "variables": [],
+            "steps": [
+                step(
+                    "navigate",
+                    "Open challenge",
+                    {"url": f"{fixture_site}/challenge.html"},
+                ),
+                step("click", "Save", {"target": target(("testid", "save"))}),
+            ],
+        }
+    )
+
+    execute(run, playwright_driver.chromium, recorded, tmp_path, headless=True)
+
+    assert diagnostic_events(recorded) == []
+    assert recorded.terminal is not None
+    assert recorded.terminal[:2] == ("succeeded", None)
+
+
+def test_a_flagged_step_that_fails_classifies_the_run_as_auth_challenge(
+    playwright_driver: Any, fixture_site: str, tmp_path: Path
+) -> None:
+    recorded = RecordedRun()
+    run = work(
+        {
+            "variables": [],
+            "steps": [
+                step(
+                    "navigate",
+                    "Open challenge",
+                    {"url": f"{fixture_site}/challenge.html"},
+                ),
+                step(
+                    "click",
+                    "Missing",
+                    {"target": target(("testid", "gone"))},
+                    timeoutMs=800,
+                ),
+                step("click", "Unreached", {"target": target(("testid", "save"))}),
+            ],
+        }
+    )
+
+    execute(run, playwright_driver.chromium, recorded, tmp_path, headless=True)
+
+    assert [result.status for result in recorded.results] == [
+        "passed",
+        "failed",
+        "skipped",
+    ]
+    failed = recorded.results[1]
+    assert failed.diagnostics is not None
+    assert failed.diagnostics["kind"] == "suspected_challenge"
+    assert recorded.terminal is not None
+    assert recorded.terminal[:2] == ("failed", "auth_challenge")
+
+
+def test_a_flagged_step_that_succeeds_leaves_the_run_untouched(
+    playwright_driver: Any, fixture_site: str, tmp_path: Path
+) -> None:
+    recorded = RecordedRun()
+    run = work(
+        {
+            "variables": [],
+            "steps": [
+                step(
+                    "navigate",
+                    "Open late challenge",
+                    {"url": f"{fixture_site}/challenge-late.html"},
+                ),
+                step(
+                    "click",
+                    "Save",
+                    {"target": target(("testid", "save"))},
+                    timeoutMs=2_000,
+                ),
+                step(
+                    "extract",
+                    "Confirm the click",
+                    {
+                        "target": target(("testid", "save")),
+                        "outputName": "label",
+                        "mode": "scalar",
+                    },
+                ),
+            ],
+        }
+    )
+
+    execute(run, playwright_driver.chromium, recorded, tmp_path, headless=True)
+
+    diagnostics = diagnostic_events(recorded)
+    assert len(diagnostics) == 1
+    assert diagnostics[0]["step_id"] == recorded.results[1].step_id
+    assert [result.status for result in recorded.results] == [
+        "passed",
+        "passed",
+        "passed",
+    ]
+    assert recorded.results[1].diagnostics is None
+    assert recorded.terminal is not None
+    assert recorded.terminal[:2] == ("succeeded", None)
+
+
+def test_a_diagnostic_does_not_change_run_status_by_itself(
+    playwright_driver: Any, fixture_site: str, tmp_path: Path
+) -> None:
+    recorded = RecordedRun()
+    run = work(
+        {
+            "variables": [],
+            "steps": [
+                step(
+                    "navigate",
+                    "Open late challenge",
+                    {"url": f"{fixture_site}/challenge-late.html"},
+                ),
+                step(
+                    "click",
+                    "Save",
+                    {"target": target(("testid", "save"))},
+                    timeoutMs=2_000,
+                ),
+            ],
+        }
+    )
+
+    execute(run, playwright_driver.chromium, recorded, tmp_path, headless=True)
+
+    click = recorded.results[1]
+    kinds = [event_type for event_type, _ in recorded.events]
+    diagnostic_at = kinds.index("diagnostic")
+    finished_at = next(
+        index
+        for index, (event_type, payload) in enumerate(recorded.events)
+        if event_type == "step.finished" and payload.get("step_id") == click.step_id
+    )
+    status_at = kinds.index("run.status")
+    assert diagnostic_at < finished_at < status_at
+    assert "run.status" not in kinds[:finished_at]
+    assert recorded.events[status_at][1]["status"] == "succeeded"

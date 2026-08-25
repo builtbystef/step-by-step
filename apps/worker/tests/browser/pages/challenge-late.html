@@ -1,0 +1,15 @@
+<!doctype html>
+<html>
+  <body>
+    <p>A challenge page whose target arrives after a stall.</p>
+    <iframe title="recaptcha" src="https://www.recaptcha.net/recaptcha/api2/anchor"></iframe>
+    <script>
+      setTimeout(() => {
+        const button = document.createElement("button");
+        button.dataset.testid = "save";
+        button.textContent = "Save";
+        document.body.append(button);
+      }, 1200);
+    </script>
+  </body>
+</html>

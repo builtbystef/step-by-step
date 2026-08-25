@@ -107,10 +107,13 @@ class PostgresRunStore:
             ) VALUES (
                 :id, :run_id, :step_id, :position, :status, :started_at, :ended_at,
                 :rank, :candidate_count, :completed_by_human,
-                :error_code, :error_message, NULL, :extracted_value
+                :error_code, :error_message, :diagnostics, :extracted_value
             )
             """
-        ).bindparams(bindparam("extracted_value", type_=JSONB))
+        ).bindparams(
+            bindparam("extracted_value", type_=JSONB),
+            bindparam("diagnostics", type_=JSONB),
+        )
         with session_scope() as session:
             session.execute(
                 statement,
@@ -126,6 +129,7 @@ class PostgresRunStore:
                     "candidate_count": result.candidate_count,
                     "error_code": result.error_code,
                     "error_message": result.error_message,
+                    "diagnostics": result.diagnostics,
                     "extracted_value": result.extracted_value,
                     "completed_by_human": result.completed_by_human,
                 },

@@ -37,6 +37,7 @@ from step_by_step_core.document import (
     WorkflowDocument,
 )
 
+from step_by_step_worker.challenge import page_shows_challenge
 from step_by_step_worker.control import ControlFlags, RunCancelled, RunPaused
 from step_by_step_worker.heartbeat import RunTerminal
 from step_by_step_worker.selectors import Deadline, Resolved, SelectorFailure, resolve
@@ -76,6 +77,7 @@ class StepOutcome:
     error_message: str | None = None
     extracted_value: Any | None = None
     completed_by_human: bool = False
+    diagnostics: dict[str, Any] | None = None
 
 
 class ResultStore(Protocol):
@@ -357,6 +359,7 @@ def execute(
                             work.default_step_timeout_ms,
                             work.variables,
                             on_control=check_control,
+                            on_challenge=report_challenge(store, work, step),
                         )
                     except RunPaused:
                         if (
@@ -372,6 +375,7 @@ def execute(
                                 work.default_step_timeout_ms,
                                 work.variables,
                                 on_control=check_control,
+                                on_challenge=report_challenge(store, work, step),
                             )
                         except RunCancelled:
                             terminal_status = "cancelled"
@@ -387,7 +391,7 @@ def execute(
                     announce_finished(store, work, outcome)
                     if outcome.status == "failed":
                         terminal_status = "failed"
-                        failure_reason = "step_failed"
+                        failure_reason = failure_reason_for(outcome)
                         failure_detail = outcome.error_message
                         _skip_remaining(work, store, position + 1)
                         break
@@ -493,6 +497,34 @@ def _skip_remaining(work: RunWork, store: ResultStore, start: int) -> None:
         announce_finished(store, work, outcome)
 
 
+def failure_reason_for(outcome: StepOutcome) -> str:
+    if (
+        outcome.diagnostics is not None
+        and outcome.diagnostics.get("kind") == "suspected_challenge"
+    ):
+        return "auth_challenge"
+    return "step_failed"
+
+
+def report_challenge(
+    store: ResultStore, work: RunWork, step: Step
+) -> Callable[[Mapping[str, Any]], None]:
+    def emit(diagnostic: Mapping[str, Any]) -> None:
+        store.emit(
+            work.run_id,
+            "diagnostic",
+            {
+                "run_id": work.run_id,
+                "step_id": step.id,
+                "kind": diagnostic["kind"],
+                "detail": diagnostic["detail"],
+                "at": now(),
+            },
+        )
+
+    return emit
+
+
 def announce_started(
     store: ResultStore, work: RunWork, step: Step, position: int
 ) -> None:
@@ -541,15 +573,31 @@ def execute_step(
     default_timeout_ms: int,
     variables: Mapping[str, Any],
     on_control: Callable[..., None] | None = None,
+    on_challenge: Callable[[Mapping[str, Any]], None] | None = None,
 ) -> StepOutcome:
     """Execute one Step, returning only after its observable outcome is complete."""
     started_at = now()
     if step.disabled:
         return StepOutcome(step.id, position, "skipped", None, started_at)
 
-    deadline = Deadline.in_ms(step.timeout_ms or default_timeout_ms)
+    timeout_ms = step.timeout_ms or default_timeout_ms
+    deadline = Deadline.in_ms(timeout_ms)
+    flagged: dict[str, Any] | None = None
+
+    def capture(diagnostic: Mapping[str, Any]) -> None:
+        nonlocal flagged
+        flagged = dict(diagnostic)
+        if on_challenge is not None:
+            on_challenge(diagnostic)
+
     try:
-        matched, extracted = perform(page, step, deadline, variables, on_control)
+        matched, extracted = perform(
+            page,
+            step,
+            deadline,
+            variables,
+            watch_challenge(page, timeout_ms, on_control, capture),
+        )
     except StepFailure as failure:
         status = "skipped" if step.optional and failure.target_missing else "failed"
         return StepOutcome(
@@ -561,6 +609,7 @@ def execute_step(
             candidate_count=failure.candidate_count,
             error_code=None if status == "skipped" else failure.code,
             error_message=None if status == "skipped" else failure.message,
+            diagnostics=flagged if status == "failed" else None,
         )
     except PlaywrightError as error:
         return StepOutcome(
@@ -571,6 +620,7 @@ def execute_step(
             ended_at=now(),
             error_code="action_failed",
             error_message=str(error),
+            diagnostics=flagged,
         )
 
     return StepOutcome(
@@ -591,6 +641,39 @@ class StepFailure(Exception):
     message: str
     target_missing: bool = False
     candidate_count: int | None = None
+
+
+def watch_challenge(
+    page: Page,
+    timeout_ms: int,
+    on_control: Callable[..., None] | None,
+    on_challenge: Callable[[Mapping[str, Any]], None] | None,
+) -> Callable[..., None]:
+    started = monotonic()
+    flagged = False
+
+    def on_walk(*args: object) -> None:
+        nonlocal flagged
+        if on_control is not None:
+            on_control(*args)
+        if flagged or on_challenge is None:
+            return
+        if (monotonic() - started) * 1000 < timeout_ms / 2:
+            return
+        if not page_shows_challenge(page):
+            return
+        flagged = True
+        on_challenge(
+            {
+                "kind": "suspected_challenge",
+                "detail": (
+                    "the page shows a known challenge while this Step "
+                    "is still resolving"
+                ),
+            }
+        )
+
+    return on_walk
 
 
 def success_check_met(page: Page, target: Target) -> bool:
