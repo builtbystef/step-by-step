@@ -146,6 +146,12 @@ class LogLine(BaseModel):
     at: datetime
 
 
+class StreamTicket(BaseModel):
+    ticket: str
+    ws_url: str
+    expires_at: datetime
+
+
 class TakeoverTicket(BaseModel):
     ticket: str
     ws_url: str
@@ -521,6 +527,31 @@ def caller_session(request: Request) -> str:
     return token_digest(token)
 
 
+def vnc_url(run_id: UUID, ticket: str) -> str:
+    return f"/api/runs/{run_id}/vnc?ticket={ticket}"
+
+
+@router.post(
+    "/api/runs/{run_id}/stream-ticket",
+    operation_id="mintStreamTicket",
+    responses=errors(400, 401, 403, 404, 409),
+)
+def mint_stream_ticket(
+    run_id: UUID, request: Request, member: ActiveMembership, db: SessionDep
+) -> StreamTicket:
+    """Mint a view-only ticket for any non-terminal Run."""
+    run = owned_run(db, member.org_id, run_id)
+    if run.status.value not in NON_TERMINAL:
+        raise ApiError(409, "run_terminal", "this Run has already ended")
+    ticket, expires_at = mint_ticket(db, run.id, caller_session(request))
+    db.commit()
+    return StreamTicket(
+        ticket=ticket,
+        ws_url=vnc_url(run.id, ticket),
+        expires_at=expires_at,
+    )
+
+
 @router.post(
     "/api/runs/{run_id}/takeover",
     operation_id="takeOverRun",
@@ -542,7 +573,7 @@ def take_over_run(
     db.commit()
     return TakeoverTicket(
         ticket=ticket,
-        ws_url=f"/api/runs/{run.id}/vnc?ticket={ticket}",
+        ws_url=vnc_url(run.id, ticket),
         expires_at=expires_at,
         deadline_at=run.takeover_deadline_at,
     )

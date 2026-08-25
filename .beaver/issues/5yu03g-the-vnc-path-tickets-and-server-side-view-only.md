@@ -1,13 +1,14 @@
 ---
 id: 5yu03g
 title: 'The VNC path: tickets and server-side view-only'
-state: todo
+state: done
+assignee: agent
 priority: medium
 depends_on:
     - qmnvgr
 parent: 9gea5p
 created: 2026-08-14T07:43:37Z
-updated: 2026-08-17T04:03:47Z
+updated: 2026-08-25T19:40:35Z
 ---
 
 ## What to build
@@ -30,3 +31,15 @@ View-only is enforced server-side: the proxy authenticates to the Worker's VNC s
 **claude** — 2026-08-17T04:03:47Z
 
 Re-scope per ADR 0005: 'the Run's ownership' is org Membership via X-Organization — another Organization's Run id → 404; any member of the Run's Organization may mint stream tickets and take over (54i6da: a takeover by a different member does not re-resolve credentials).
+
+**agent** — 2026-08-25T19:19:17Z
+
+Seams from the parent spec: backend HTTP/WebSocket against Postgres (and a local fake RFB server standing in for the Worker). Covers stream-ticket minting, single-use/TTL redeem, org-scoped 404 with no Worker connection, terminal refusal, view-only vs control VNC credentials, takeover-end closing the control socket, and a second session watching while the first holds control. The pane UI is 2aybf8.
+
+**agent** — 2026-08-25T19:40:35Z
+
+Completed the VNC path: stream tickets and server-side view-only.
+
+POST /api/runs/{id}/stream-ticket mints a 60s single-use ticket for any non-terminal Run in the active Organization (409 run_terminal otherwise; another Organization's id is 404 and no row is written). GET /api/runs/{id}/vnc?ticket=… spends the ticket, checks the session is a member of the Run's Organization, and pipes RFB to the Worker endpoint on the row. The proxy authenticates to x11vnc with VNC_VIEW_PASSWORD unless that session currently holds takeover and has not handed back, in which case it uses VNC_CONTROL_PASSWORD. Hand-back, holder release, or a terminal Run closes a control socket; a fresh stream ticket is view-only. Two sessions can share the Worker (x11vnc -shared).
+
+Workers write both passwords into an x11vnc passwdfile at boot. Compose and .env.example carry the shared dev defaults. OpenAPI and the generated client include mintStreamTicket.

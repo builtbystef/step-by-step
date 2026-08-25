@@ -27,6 +27,11 @@ x-stack-environment: &stack-environment
   # fixed compose pool; per-Worker credentials would need a provisioning
   # step the stack does not have. A real deployment overrides the default.
   INTERNAL_TOKEN: ${INTERNAL_TOKEN:-dev-internal-token}
+  # Shared VNC passwords (5yu03g). The backend proxy authenticates to each
+  # Worker's x11vnc with the view-only password unless the connecting session
+  # holds takeover. VNC passwords are 8 characters; longer values truncate.
+  VNC_CONTROL_PASSWORD: ${VNC_CONTROL_PASSWORD:-devctl01}
+  VNC_VIEW_PASSWORD: ${VNC_VIEW_PASSWORD:-devview1}
 
 x-stack-is-up: &stack-is-up
   postgres:

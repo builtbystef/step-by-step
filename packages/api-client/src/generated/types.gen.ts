@@ -1427,6 +1427,24 @@ export type StepResultRecord = {
 export type StepResultStatus = 'passed' | 'failed' | 'skipped';
 
 /**
+ * StreamTicket
+ */
+export type StreamTicket = {
+    /**
+     * Ticket
+     */
+    ticket: string;
+    /**
+     * Ws Url
+     */
+    ws_url: string;
+    /**
+     * Expires At
+     */
+    expires_at: string;
+};
+
+/**
  * TakeoverHold
  */
 export type TakeoverHold = {
@@ -4287,6 +4305,62 @@ export type PauseRunResponses = {
      */
     202: unknown;
 };
+
+export type MintStreamTicketData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Run Id
+         */
+        run_id: string;
+    };
+    query?: never;
+    url: '/api/runs/{run_id}/stream-ticket';
+};
+
+export type MintStreamTicketErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Conflict
+     */
+    409: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type MintStreamTicketError = MintStreamTicketErrors[keyof MintStreamTicketErrors];
+
+export type MintStreamTicketResponses = {
+    /**
+     * Successful Response
+     */
+    200: StreamTicket;
+};
+
+export type MintStreamTicketResponse = MintStreamTicketResponses[keyof MintStreamTicketResponses];
 
 export type TakeOverRunData = {
     body?: never;

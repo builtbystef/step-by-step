@@ -135,7 +135,7 @@ def test_a_ticket_is_refused_the_second_time_it_is_redeemed(
         second = redeem_ticket(db, ticket)
         db.commit()
 
-    assert first == UUID(run_id)
+    assert first is not None and first.run_id == UUID(run_id)
     assert second is None
 
 

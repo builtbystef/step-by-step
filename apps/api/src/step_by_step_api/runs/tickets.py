@@ -1,7 +1,8 @@
-"""Single-use takeover tickets. The VNC path spends them; this slice mints them."""
+"""Single-use tickets. The VNC path spends them; takeover and stream mint them."""
 
 import hashlib
 import secrets
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from uuid import UUID
 
@@ -33,8 +34,14 @@ def mint_ticket(db: DbSession, run_id: UUID, session_id: str) -> tuple[str, date
     return token, expires_at
 
 
-def redeem_ticket(db: DbSession, presented: str) -> UUID | None:
-    """Spend a ticket. Returns its Run id, or None if it is no good.
+@dataclass(frozen=True, slots=True)
+class RedeemedTicket:
+    run_id: UUID
+    session_id: str
+
+
+def redeem_ticket(db: DbSession, presented: str) -> RedeemedTicket | None:
+    """Spend a ticket. Returns its Run and session, or None if it is no good.
 
     Missing, expired, and already-spent are the same answer: a second redeem
     must not confirm that a ticket once existed.
@@ -43,4 +50,4 @@ def redeem_ticket(db: DbSession, presented: str) -> UUID | None:
     if row is None or row.redeemed_at is not None or row.expires_at <= clock.now():
         return None
     row.redeemed_at = clock.now()
-    return row.run_id
+    return RedeemedTicket(run_id=row.run_id, session_id=row.session_id)
