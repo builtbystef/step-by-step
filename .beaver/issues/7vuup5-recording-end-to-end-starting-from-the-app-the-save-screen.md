@@ -13,7 +13,7 @@ depends_on:
     - 0zwbku
 parent: d8ux2s
 created: 2026-08-14T06:03:37Z
-updated: 2026-08-25T12:38:47Z
+updated: 2026-08-25T13:33:00Z
 ---
 
 ## What to build
@@ -56,3 +56,11 @@ Attended Test B found that the popup could not identify an ungranted target tab:
 **agent** — 2026-08-25T12:38:47Z
 
 Fixed the attended Test B failure by adding activeTab to the extension manifest. Invoking the toolbar action now gives the popup enough temporary access to read the current tab URL, after which the existing explicit optional-host permission request still controls whether recording may start. Added a manifest contract test and documented the boundary. All checks and browser tests pass. User must reload the unpacked extension on chrome://extensions and rerun Test B; the remaining attended checks still apply.
+
+**agent** — 2026-08-25T13:29:34Z
+
+Attended Test C found the recorder content script crashed on an insecure HTTP origin because crypto.randomUUID is secure-context-only. Replacing that page-load id source with getRandomValues and adding insecure-origin browser coverage.
+
+**agent** — 2026-08-25T13:33:00Z
+
+Fixed Test C's insecure-origin crash. recorder-content.js now mints its page-load correlation id with crypto.getRandomValues, which remains available on ordinary HTTP pages, instead of secure-context-only crypto.randomUUID. Browser coverage now records a click through an actual http://0.0.0.0 fixture where randomUUID is absent. pnpm check, pnpm test, and pnpm test:browser pass. User must reload the unpacked extension and rerun Test C; remaining attended checks still apply.

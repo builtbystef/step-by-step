@@ -2,7 +2,12 @@
   if (globalThis.stepByStepRecorderInstalled) return;
   globalThis.stepByStepRecorderInstalled = true;
 
-  const pageLoad = crypto.randomUUID();
+  // randomUUID is restricted to secure contexts, while getRandomValues is
+  // available on ordinary HTTP pages too. A page-load id only needs to be
+  // unguessably distinct from the ids used by another navigation.
+  const pageLoad = [...crypto.getRandomValues(new Uint8Array(16))]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
   let sequence = 0;
   let extract = null;
   const normalized = (value) => (value ?? "").replace(/\s+/g, " ").trim();

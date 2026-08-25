@@ -17,9 +17,10 @@ def start_recording(browser: BrowserContext, fixture_site: str, page: Page) -> P
           .then(() => chrome.storage.local.remove('active-recording'))""",
         fixture_site,
     )
-    page.reload()
-    page.wait_for_timeout(100)
-    page.evaluate(
+    app = browser.new_page()
+    app.goto(f"{fixture_site}/bridge.html")
+    app.wait_for_timeout(100)
+    app.evaluate(
         """(origin) => window.postMessage({
           channel: "step-by-step",
           type: "recording-pending",
@@ -33,7 +34,8 @@ def start_recording(browser: BrowserContext, fixture_site: str, page: Page) -> P
         }, origin)""",
         fixture_site,
     )
-    page.wait_for_timeout(100)
+    app.wait_for_timeout(100)
+    app.close()
     surface = browser.new_page()
     surface.goto(f"chrome-extension://{worker.url.split('/')[2]}/popup.html")
     answer = surface.evaluate(
@@ -87,6 +89,25 @@ def test_connected_app_hands_a_pending_recording_to_restartable_storage(
     assert stored["sessionId"] == "pending-session"
     assert stored["workflowName"] == "Invoices"
     assert stored["steps"] == []
+    page.close()
+
+
+def test_insecure_http_page_captures_steps_without_secure_context_apis(
+    connected_browser: BrowserContext,
+    fixture_site: str,
+    insecure_site: str,
+    recording_sink: RecordingSink,
+) -> None:
+    page = connected_browser.new_page()
+    page.goto(f"{insecure_site}/recording.html")
+    assert page.evaluate("() => typeof crypto.randomUUID") == "undefined"
+    surface = start_recording(connected_browser, fixture_site, page)
+
+    page.click('[data-testid="save"]')
+    steps = recording_sink.wait_for_steps(1)
+
+    assert steps[0]["label"] == "Click Save"
+    surface.close()
     page.close()
 
 

@@ -50,6 +50,12 @@ def fixture_site() -> Iterator[str]:
 
 
 @pytest.fixture(scope="session")
+def insecure_site(fixture_site: str) -> str:
+    """The fixture through a host Chrome does not treat as trustworthy."""
+    return fixture_site.replace("127.0.0.1", "0.0.0.0")
+
+
+@pytest.fixture(scope="session")
 def other_site(fixture_site: str) -> str:
     """A second origin on the same server: `localhost` is not `127.0.0.1`."""
     return fixture_site.replace("127.0.0.1", "localhost")
@@ -213,6 +219,7 @@ def connected_browser(
     playwright_driver: Playwright,
     tmp_path_factory: pytest.TempPathFactory,
     fixture_site: str,
+    insecure_site: str,
 ) -> Iterator[BrowserContext]:
     """A browser holding the package with the fixture instance already granted.
 
@@ -230,7 +237,7 @@ def connected_browser(
     granted = tmp_path_factory.mktemp("granted-package")
     shutil.copytree(PACKAGE, granted, dirs_exist_ok=True)
     manifest = json.loads((granted / "manifest.json").read_text())
-    manifest["host_permissions"] = [f"{fixture_site}/*"]
+    manifest["host_permissions"] = [f"{fixture_site}/*", f"{insecure_site}/*"]
     (granted / "manifest.json").write_text(json.dumps(manifest, indent=2))
 
     context = playwright_driver.chromium.launch_persistent_context(
