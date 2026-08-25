@@ -24,6 +24,12 @@ def require_cron(expression: str) -> None:
         raise ApiError(400, "invalid_cron", "that is not a cron expression")
 
 
+def _aware(instant: datetime, zone: ZoneInfo) -> datetime:
+    if instant.tzinfo is None:
+        return instant.replace(tzinfo=zone)
+    return instant.astimezone(zone)
+
+
 def next_occurrence(expression: str, timezone: str, after: datetime) -> datetime:
     """The next instant the expression matches, strictly after `after`, in that zone.
 
@@ -36,6 +42,29 @@ def next_occurrence(expression: str, timezone: str, after: datetime) -> datetime
         nxt = croniter(expression, local).get_next(datetime)
     except (CroniterBadCronError, CroniterBadDateError) as error:
         raise ApiError(400, "invalid_cron", "that is not a cron expression") from error
-    if nxt.tzinfo is None:
-        nxt = nxt.replace(tzinfo=zone)
-    return nxt
+    return _aware(nxt, zone)
+
+
+def occurrences_through(
+    expression: str, timezone: str, start: datetime, until: datetime
+) -> list[datetime]:
+    """Each instant the expression matches, from `start` through `until` inclusive."""
+    require_cron(expression)
+    zone = require_timezone(timezone)
+    start_local = start.astimezone(zone)
+    until_local = until.astimezone(zone)
+    if start_local > until_local:
+        return []
+    found: list[datetime] = []
+    if croniter.match(expression, start_local):
+        found.append(start_local)
+    walker = croniter(expression, start_local)
+    while True:
+        try:
+            nxt = _aware(walker.get_next(datetime), zone)
+        except CroniterBadDateError:
+            break
+        if nxt > until_local:
+            break
+        found.append(nxt)
+    return found

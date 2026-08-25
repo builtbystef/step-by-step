@@ -5980,6 +5980,42 @@
         ],
         "title": "NavigateStep"
       },
+      "OccurrenceRecord": {
+        "properties": {
+          "occurrence_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Occurrence At"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "overlap",
+              "missed",
+              "missing_values"
+            ],
+            "title": "Reason"
+          },
+          "blocking_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocking Run Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "occurrence_at",
+          "reason"
+        ],
+        "title": "OccurrenceRecord"
+      },
       "OfferedMembership": {
         "properties": {
           "id": {
@@ -6699,20 +6735,26 @@
             "title": "Last Fired At"
           },
           "next_due_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Next Due At"
-          },
-          "last_skip_reason": {
             "anyOf": [
               {
-                "type": "string"
+                "type": "string",
+                "format": "date-time"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Last Skip Reason"
+            "title": "Next Due At"
+          },
+          "latest_occurrence": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OccurrenceRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -6727,7 +6769,7 @@
           "missing_variable_names",
           "last_fired_at",
           "next_due_at",
-          "last_skip_reason"
+          "latest_occurrence"
         ],
         "title": "ScheduleRecord"
       },

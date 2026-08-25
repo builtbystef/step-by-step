@@ -1,13 +1,14 @@
 ---
 id: 69nls1
 title: 'Occurrences: the Schedule history that records its holes'
-state: todo
+state: done
+assignee: agent
 priority: high
 depends_on:
     - fpzupm
 parent: nno9gj
 created: 2026-08-14T19:51:44Z
-updated: 2026-08-17T04:03:37Z
+updated: 2026-08-25T17:41:24Z
 ---
 
 ## What to build
@@ -44,3 +45,20 @@ The tick is invoked directly as a function with an injected now; effects are ass
 **claude** — 2026-08-17T04:03:37Z
 
 Re-scope per ADR 0005: the tick enumerates each due, enabled Schedule of the (org-owned) table — the 'of a non-disabled user' condition and the 'disabled user's enabled Schedule' AC are dropped; per-user disable no longer exists. Everything else unchanged.
+
+**agent** — 2026-08-25T17:31:02Z
+
+Seam (from the spec's Testing Decisions): tick() is invoked directly with clock.now() frozen; Runs, next_due_at, last_fired_at, and latest_occurrence are asserted over HTTP. Multi-row Occurrence counts (six missed hours, the 500-row prune, cascade-on-delete) are observed on the table — GET /api/schedules/{id} history is k97lxb. latest_occurrence replaces last_skip_reason on the existing Schedule CRUD so a hole's reason is visible at this slice's HTTP surface. The dropped 'disabled user' AC is not built (ADR 0005 note).
+
+**agent** — 2026-08-25T17:41:24Z
+
+Completed Occurrences: holes are rows, last_skip_reason is gone.
+
+Seam: tick() with clock.now() frozen; Runs, next_due_at, last_fired_at, and latest_occurrence over HTTP. Multi-row counts (six missed hours, the 500 prune, cascade-on-delete) observed on the table — GET /api/schedules/{id} history is k97lxb.
+
+What landed:
+- schedule_occurrences (schedule_id, occurrence_at, reason overlap|missed|missing_values, blocking_run_id, created_at), unique on (schedule_id, occurrence_at), cascade-deleted with the Schedule.
+- Tick walks each due enabled Schedule from next_due_at through now. Missing values write missing_values and advance. Occurrences more than GRACE_WINDOW_SECONDS (120) late are missed. A non-terminal Run writes overlap with blocking_run_id. Only an in-grace Occurrence fires (latest published Version, trigger=schedule, variables copied). At most OCCURRENCE_PRUNE_DEPTH (500) rows per Schedule per tick; the table is then pruned to that Schedule's most recent 500.
+- last_skip_reason dropped from the schema and every response. latest_occurrence replaces it on create/list/patch.
+- Disabling sets next_due_at to null; enabling recomputes from now. Paused Schedules write no holes.
+- The dropped 'disabled user' AC was not built (ADR 0005).

@@ -18,7 +18,7 @@ from step_by_step_api.schedules.cron import (
     require_cron,
     require_timezone,
 )
-from step_by_step_api.schedules.models import Schedule
+from step_by_step_api.schedules.models import Schedule, ScheduleOccurrence
 from step_by_step_api.workflows.models import Workflow, WorkflowVersion
 
 router = APIRouter(tags=["schedules"])
@@ -40,6 +40,12 @@ class ChangeSchedule(BaseModel):
     name: str | None = None
 
 
+class OccurrenceRecord(BaseModel):
+    occurrence_at: datetime
+    reason: Literal["overlap", "missed", "missing_values"]
+    blocking_run_id: UUID | None = None
+
+
 class ScheduleRecord(BaseModel):
     id: UUID
     name: str | None
@@ -50,8 +56,8 @@ class ScheduleRecord(BaseModel):
     state: Literal["active", "paused", "needs_values"]
     missing_variable_names: list[str]
     last_fired_at: datetime | None
-    next_due_at: datetime
-    last_skip_reason: str | None
+    next_due_at: datetime | None
+    latest_occurrence: OccurrenceRecord | None
 
 
 def owned_workflow(db: SessionDep, org_id: UUID, workflow_id: UUID) -> Workflow:
@@ -129,7 +135,23 @@ def derived_state(
     return "active"
 
 
-def as_record(schedule: Schedule, names: set[str]) -> ScheduleRecord:
+def latest_hole(db: Session, schedule_id: UUID) -> OccurrenceRecord | None:
+    found = db.execute(
+        select(ScheduleOccurrence)
+        .where(ScheduleOccurrence.schedule_id == schedule_id)
+        .order_by(ScheduleOccurrence.occurrence_at.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+    if found is None:
+        return None
+    return OccurrenceRecord(
+        occurrence_at=found.occurrence_at,
+        reason=found.reason.value,
+        blocking_run_id=found.blocking_run_id,
+    )
+
+
+def as_record(db: Session, schedule: Schedule, names: set[str]) -> ScheduleRecord:
     missing = missing_from(schedule.variables, names)
     return ScheduleRecord(
         id=schedule.id,
@@ -142,7 +164,7 @@ def as_record(schedule: Schedule, names: set[str]) -> ScheduleRecord:
         missing_variable_names=missing,
         last_fired_at=schedule.last_fired_at,
         next_due_at=schedule.next_due_at,
-        last_skip_reason=schedule.last_skip_reason,
+        latest_occurrence=latest_hole(db, schedule.id),
     )
 
 
@@ -161,7 +183,7 @@ def list_schedules(
         .where(Schedule.workflow_id == workflow_id, Schedule.org_id == member.org_id)
         .order_by(Schedule.created_at, Schedule.id)
     ).scalars()
-    return [as_record(row, names) for row in rows]
+    return [as_record(db, row, names) for row in rows]
 
 
 @router.post(
@@ -195,11 +217,15 @@ def create_schedule(
         timezone=asked.timezone,
         enabled=asked.enabled,
         variables=require_variable_values(asked.variables, names),
-        next_due_at=next_occurrence(asked.cron, asked.timezone, clock.now()),
+        next_due_at=(
+            next_occurrence(asked.cron, asked.timezone, clock.now())
+            if asked.enabled
+            else None
+        ),
     )
     db.add(schedule)
     db.commit()
-    return as_record(schedule, names)
+    return as_record(db, schedule, names)
 
 
 @router.patch(
@@ -222,18 +248,23 @@ def update_schedule(
         require_timezone(asked.timezone)
         schedule.timezone = asked.timezone
     turning_on = asked.enabled is True and not schedule.enabled
+    turning_off = asked.enabled is False and schedule.enabled
     if asked.enabled is not None:
         schedule.enabled = asked.enabled
     if asked.variables is not None:
         schedule.variables = require_variable_values(asked.variables, names)
     if "name" in asked.model_fields_set:
         schedule.name = asked.name
-    if asked.cron is not None or asked.timezone is not None or turning_on:
+    if turning_off:
+        schedule.next_due_at = None
+    elif schedule.enabled and (
+        asked.cron is not None or asked.timezone is not None or turning_on
+    ):
         schedule.next_due_at = next_occurrence(
             schedule.cron, schedule.timezone, clock.now()
         )
     db.commit()
-    return as_record(schedule, names)
+    return as_record(db, schedule, names)
 
 
 @router.delete(

@@ -790,6 +790,24 @@ export type NavigateStep = {
 };
 
 /**
+ * OccurrenceRecord
+ */
+export type OccurrenceRecord = {
+    /**
+     * Occurrence At
+     */
+    occurrence_at: string;
+    /**
+     * Reason
+     */
+    reason: 'overlap' | 'missed' | 'missing_values';
+    /**
+     * Blocking Run Id
+     */
+    blocking_run_id?: string | null;
+};
+
+/**
  * OfferedMembership
  *
  * An Invitation as the person invited sees it: whose team, and as what.
@@ -1194,11 +1212,8 @@ export type ScheduleRecord = {
     /**
      * Next Due At
      */
-    next_due_at: string;
-    /**
-     * Last Skip Reason
-     */
-    last_skip_reason: string | null;
+    next_due_at: string | null;
+    latest_occurrence: OccurrenceRecord | null;
 };
 
 /**

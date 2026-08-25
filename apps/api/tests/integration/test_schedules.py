@@ -6,9 +6,11 @@ from zoneinfo import ZoneInfo
 
 import pytest
 from conftest import Account
+from sqlalchemy import select
 from step_by_step_api import clock
 from step_by_step_api.loop import tick
 from step_by_step_api.runs.models import Run, RunStatus
+from step_by_step_api.schedules.models import ScheduleOccurrence
 from step_by_step_core.bus import get_redis
 from step_by_step_core.db import session_scope
 from test_runs import published_workflow
@@ -66,6 +68,24 @@ def runs_of(account: Account, workflow_id: str) -> list[dict[str, object]]:
     listed = account.client.get("/api/runs", params={"workflow_id": workflow_id})
     assert listed.status_code == 200, listed.text
     return list(listed.json()["items"])
+
+
+def schedule_of(account: Account, workflow_id: str) -> dict[str, object]:
+    listed = list_schedules(account, workflow_id)
+    assert listed.status_code == 200, listed.text
+    rows = listed.json()
+    assert len(rows) == 1
+    return dict(rows[0])
+
+
+def holes_of(schedule_id: str) -> list[ScheduleOccurrence]:
+    with session_scope() as db:
+        rows = db.execute(
+            select(ScheduleOccurrence)
+            .where(ScheduleOccurrence.schedule_id == UUID(schedule_id))
+            .order_by(ScheduleOccurrence.occurrence_at)
+        ).scalars()
+        return list(rows)
 
 
 def test_two_ticks_across_nine_create_one_local_run(
@@ -130,9 +150,15 @@ def test_a_still_running_run_skips_the_next_occurrence(
     tick()
 
     assert len(runs_of(account, workflow_id)) == 1
-    schedule = list_schedules(account, workflow_id).json()[0]
-    assert schedule["last_skip_reason"] == "overlap"
-    due = datetime.fromisoformat(schedule["next_due_at"])
+    schedule = schedule_of(account, workflow_id)
+    hole = schedule["latest_occurrence"]
+    assert isinstance(hole, dict)
+    assert hole["reason"] == "overlap"
+    assert hole["blocking_run_id"] == str(run_id)
+    assert datetime.fromisoformat(str(hole["occurrence_at"])).astimezone(
+        BELGRADE
+    ) == datetime(2026, 8, 26, 9, 0, tzinfo=BELGRADE)
+    due = datetime.fromisoformat(str(schedule["next_due_at"]))
     assert due.astimezone(BELGRADE) == datetime(2026, 8, 27, 9, 0, tzinfo=BELGRADE)
 
 
@@ -177,22 +203,276 @@ def test_a_disabled_schedule_does_not_fire_and_reenable_skips_missed(
         workflow_id,
         cron="0 9 * * *",
         timezone="Europe/Belgrade",
-        enabled=False,
+        enabled=True,
     )
     assert created.status_code == 201, created.text
-    freeze(monkeypatch, datetime(2026, 8, 25, 9, 0, tzinfo=BELGRADE))
-    tick()
-    assert runs_of(account, workflow_id) == []
+    schedule_id = created.json()["id"]
+    paused = account.client.patch(
+        f"/api/schedules/{schedule_id}", json={"enabled": False}
+    )
+    assert paused.status_code == 200, paused.text
+    assert paused.json()["next_due_at"] is None
 
-    freeze(monkeypatch, datetime(2026, 8, 25, 15, 0, tzinfo=BELGRADE))
+    for day in (25, 26, 27):
+        freeze(monkeypatch, datetime(2026, 8, day, 9, 0, 45, tzinfo=BELGRADE))
+        tick()
+    assert runs_of(account, workflow_id) == []
+    assert holes_of(schedule_id) == []
+
+    freeze(monkeypatch, datetime(2026, 8, 27, 15, 0, tzinfo=BELGRADE))
     updated = account.client.patch(
-        f"/api/schedules/{created.json()['id']}", json={"enabled": True}
+        f"/api/schedules/{schedule_id}", json={"enabled": True}
     )
     assert updated.status_code == 200, updated.text
     due = datetime.fromisoformat(updated.json()["next_due_at"])
-    assert due.astimezone(BELGRADE) == datetime(2026, 8, 26, 9, 0, tzinfo=BELGRADE)
+    assert due.astimezone(BELGRADE) == datetime(2026, 8, 28, 9, 0, tzinfo=BELGRADE)
     tick()
     assert runs_of(account, workflow_id) == []
+    assert holes_of(schedule_id) == []
+    assert updated.json()["latest_occurrence"] is None
+
+
+def test_tick_within_grace_creates_a_run_and_no_hole(
+    new_account: NewAccount, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    account = new_account()
+    workflow_id = published_workflow(account, variables=[{"name": "city"}])
+    freeze(monkeypatch, datetime(2026, 8, 25, 8, 59, tzinfo=BELGRADE))
+    created = create_schedule(
+        account,
+        workflow_id,
+        cron="0 9 * * *",
+        timezone="Europe/Belgrade",
+        enabled=True,
+        variables={"city": "Belgrade"},
+    )
+    assert created.status_code == 201, created.text
+    assert "last_skip_reason" not in created.json()
+
+    freeze(monkeypatch, datetime(2026, 8, 25, 9, 0, 45, tzinfo=BELGRADE))
+    tick()
+
+    fired = runs_of(account, workflow_id)
+    assert len(fired) == 1
+    assert fired[0]["trigger"] == "schedule"
+    detail = account.client.get(f"/api/runs/{fired[0]['id']}")
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["run"]["variables"] == {"city": "Belgrade"}
+    schedule = schedule_of(account, workflow_id)
+    assert schedule["latest_occurrence"] is None
+    assert "last_skip_reason" not in schedule
+    assert holes_of(str(created.json()["id"])) == []
+    due = datetime.fromisoformat(str(schedule["next_due_at"]))
+    assert due.astimezone(BELGRADE) == datetime(2026, 8, 26, 9, 0, tzinfo=BELGRADE)
+
+
+def test_tick_past_grace_records_missed_and_creates_no_run(
+    new_account: NewAccount, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    account = new_account()
+    workflow_id = published_workflow(account)
+    freeze(monkeypatch, datetime(2026, 8, 25, 8, 59, tzinfo=BELGRADE))
+    created = create_schedule(
+        account,
+        workflow_id,
+        cron="0 9 * * *",
+        timezone="Europe/Belgrade",
+        enabled=True,
+    )
+    assert created.status_code == 201, created.text
+
+    freeze(monkeypatch, datetime(2026, 8, 25, 9, 4, tzinfo=BELGRADE))
+    tick()
+
+    assert runs_of(account, workflow_id) == []
+    schedule = schedule_of(account, workflow_id)
+    hole = schedule["latest_occurrence"]
+    assert isinstance(hole, dict)
+    assert hole["reason"] == "missed"
+    assert hole["blocking_run_id"] is None
+    assert datetime.fromisoformat(str(hole["occurrence_at"])).astimezone(
+        BELGRADE
+    ) == datetime(2026, 8, 25, 9, 0, tzinfo=BELGRADE)
+    due = datetime.fromisoformat(str(schedule["next_due_at"]))
+    assert due.astimezone(BELGRADE) == datetime(2026, 8, 26, 9, 0, tzinfo=BELGRADE)
+
+
+def test_an_hourly_schedule_records_six_missed_hours(
+    new_account: NewAccount, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    account = new_account()
+    workflow_id = published_workflow(account)
+    freeze(monkeypatch, datetime(2026, 8, 25, 8, 59, tzinfo=BELGRADE))
+    created = create_schedule(
+        account,
+        workflow_id,
+        cron="0 * * * *",
+        timezone="Europe/Belgrade",
+        enabled=True,
+    )
+    assert created.status_code == 201, created.text
+    schedule_id = created.json()["id"]
+    assert datetime.fromisoformat(created.json()["next_due_at"]).astimezone(
+        BELGRADE
+    ) == datetime(2026, 8, 25, 9, 0, tzinfo=BELGRADE)
+
+    freeze(monkeypatch, datetime(2026, 8, 25, 14, 30, tzinfo=BELGRADE))
+    tick()
+
+    assert runs_of(account, workflow_id) == []
+    holes = holes_of(schedule_id)
+    assert len(holes) == 6
+    assert [hole.reason for hole in holes] == ["missed"] * 6
+    assert [hole.occurrence_at.astimezone(BELGRADE) for hole in holes] == [
+        datetime(2026, 8, 25, hour, 0, tzinfo=BELGRADE) for hour in range(9, 15)
+    ]
+    due = datetime.fromisoformat(str(schedule_of(account, workflow_id)["next_due_at"]))
+    assert due.astimezone(BELGRADE) == datetime(2026, 8, 25, 15, 0, tzinfo=BELGRADE)
+
+
+def test_needs_values_records_a_hole_and_fires_after_the_value_is_set(
+    new_account: NewAccount, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    account = new_account()
+    workflow_id = published_workflow(account, variables=[{"name": "city"}])
+    freeze(monkeypatch, datetime(2026, 8, 25, 8, 59, tzinfo=BELGRADE))
+    created = create_schedule(
+        account,
+        workflow_id,
+        cron="0 9 * * *",
+        timezone="Europe/Belgrade",
+        enabled=True,
+        variables={"city": "Belgrade"},
+    )
+    assert created.status_code == 201, created.text
+    schedule_id = created.json()["id"]
+    assert (
+        save_draft(
+            account,
+            workflow_id,
+            steps=[a_navigate_step(str(uuid4()))],
+            variables=[{"name": "city"}, {"name": "region"}],
+        ).status_code
+        == 200
+    )
+    assert publish(account, workflow_id).status_code == 201
+
+    freeze(monkeypatch, datetime(2026, 8, 25, 9, 0, 45, tzinfo=BELGRADE))
+    tick()
+
+    assert runs_of(account, workflow_id) == []
+    hole = schedule_of(account, workflow_id)["latest_occurrence"]
+    assert isinstance(hole, dict)
+    assert hole["reason"] == "missing_values"
+    due = datetime.fromisoformat(str(schedule_of(account, workflow_id)["next_due_at"]))
+    assert due.astimezone(BELGRADE) == datetime(2026, 8, 26, 9, 0, tzinfo=BELGRADE)
+
+    patched = account.client.patch(
+        f"/api/schedules/{schedule_id}",
+        json={"variables": {"city": "Belgrade", "region": "EU"}},
+    )
+    assert patched.status_code == 200, patched.text
+    freeze(monkeypatch, datetime(2026, 8, 26, 9, 0, 45, tzinfo=BELGRADE))
+    tick()
+
+    fired = runs_of(account, workflow_id)
+    assert len(fired) == 1
+    assert fired[0]["trigger"] == "schedule"
+
+
+def test_nine_am_belgrade_fires_at_the_utc_instants_across_october_dst(
+    new_account: NewAccount, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    freeze(monkeypatch, datetime(2026, 10, 24, 8, 59, tzinfo=BELGRADE))
+    account = new_account()
+    workflow_id = published_workflow(account)
+    created = create_schedule(
+        account,
+        workflow_id,
+        cron="0 9 * * *",
+        timezone="Europe/Belgrade",
+        enabled=True,
+    )
+    assert created.status_code == 201, created.text
+
+    freeze(monkeypatch, datetime(2026, 10, 24, 9, 0, tzinfo=BELGRADE))
+    tick()
+    first = schedule_of(account, workflow_id)
+    assert datetime.fromisoformat(str(first["last_fired_at"])) == datetime(
+        2026, 10, 24, 7, 0, tzinfo=ZoneInfo("UTC")
+    )
+    run_id = UUID(str(runs_of(account, workflow_id)[0]["id"]))
+    with session_scope() as db:
+        run = db.get(Run, run_id)
+        assert run is not None
+        run.status = RunStatus.SUCCEEDED
+        db.commit()
+
+    freeze(monkeypatch, datetime(2026, 10, 25, 9, 0, tzinfo=BELGRADE))
+    tick()
+    second = schedule_of(account, workflow_id)
+    assert datetime.fromisoformat(str(second["last_fired_at"])) == datetime(
+        2026, 10, 25, 8, 0, tzinfo=ZoneInfo("UTC")
+    )
+    assert len(runs_of(account, workflow_id)) == 2
+    assert holes_of(str(created.json()["id"])) == []
+
+
+def test_occurrence_rows_are_pruned_to_the_most_recent_500(
+    new_account: NewAccount, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    account = new_account()
+    workflow_id = published_workflow(account)
+    freeze(monkeypatch, datetime(2026, 8, 4, 18, 59, tzinfo=BELGRADE))
+    created = create_schedule(
+        account,
+        workflow_id,
+        cron="0 * * * *",
+        timezone="Europe/Belgrade",
+        enabled=True,
+    )
+    assert created.status_code == 201, created.text
+    schedule_id = created.json()["id"]
+
+    freeze(monkeypatch, datetime(2026, 8, 25, 14, 30, tzinfo=BELGRADE))
+    tick()
+    assert len(holes_of(schedule_id)) == 500
+
+    freeze(monkeypatch, datetime(2026, 8, 25, 20, 30, tzinfo=BELGRADE))
+    tick()
+    holes = holes_of(schedule_id)
+    assert len(holes) == 500
+    assert holes[0].occurrence_at.astimezone(BELGRADE) == datetime(
+        2026, 8, 5, 1, 0, tzinfo=BELGRADE
+    )
+    assert holes[-1].occurrence_at.astimezone(BELGRADE) == datetime(
+        2026, 8, 25, 20, 0, tzinfo=BELGRADE
+    )
+    assert {hole.reason for hole in holes} == {"missed"}
+
+
+def test_deleting_a_schedule_deletes_its_occurrence_rows(
+    new_account: NewAccount, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    account = new_account()
+    workflow_id = published_workflow(account)
+    freeze(monkeypatch, datetime(2026, 8, 25, 8, 59, tzinfo=BELGRADE))
+    created = create_schedule(
+        account,
+        workflow_id,
+        cron="0 9 * * *",
+        timezone="Europe/Belgrade",
+        enabled=True,
+    )
+    assert created.status_code == 201, created.text
+    schedule_id = created.json()["id"]
+    freeze(monkeypatch, datetime(2026, 8, 25, 9, 4, tzinfo=BELGRADE))
+    tick()
+    assert len(holes_of(schedule_id)) == 1
+
+    deleted = account.client.delete(f"/api/schedules/{schedule_id}")
+    assert deleted.status_code == 204
+    assert holes_of(schedule_id) == []
 
 
 def test_a_fired_run_uses_the_latest_published_version(
