@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+  <body>
+    <script>
+      const cookies = document.cookie.split("; ");
+      const hadSessionCookie = cookies.includes("session=seeded");
+      const hadLocal = localStorage.getItem("token") === "local-seed";
+      const hadSession = sessionStorage.getItem("state") === "session-seed";
+      document.body.dataset.signedIn = hadSessionCookie && hadLocal && hadSession ? "yes" : "no";
+      document.body.dataset.sessionVisible = hadSession ? "yes" : "no";
+      document.cookie = "session=refreshed; path=/";
+      localStorage.setItem("token", "local-refreshed");
+      sessionStorage.setItem("state", "session-refreshed");
+    </script>
+    <span data-testid="status"></span>
+    <span data-testid="session"></span>
+    <script>
+      document.querySelector("[data-testid=status]").textContent =
+        document.body.dataset.signedIn === "yes" ? "signed-in" : "signed-out";
+      document.querySelector("[data-testid=session]").textContent =
+        document.body.dataset.sessionVisible === "yes" ? "visible" : "missing";
+    </script>
+    <script>
+      const also = new URLSearchParams(location.search).get("also");
+      if (also) {
+        const link = document.createElement("a");
+        link.dataset.testid = "other";
+        link.href = also;
+        link.textContent = "other site";
+        document.body.appendChild(link);
+      }
+    </script>
+  </body>
+</html>

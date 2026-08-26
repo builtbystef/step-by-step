@@ -24,7 +24,7 @@ ENV UV_COMPILE_BYTECODE=1 \
 # it parks an error dialog on the display — a window that would sit in every
 # VNC frame and every screenshot Artifact for the life of the container.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends xvfb x11vnc openbox x11-utils \
+ && apt-get install -y --no-install-recommends xvfb x11vnc openbox x11-utils libpsl5 \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

@@ -18,20 +18,30 @@ from playwright.sync_api import Browser, Page, Playwright, sync_playwright
 PAGES = Path(__file__).parent / "pages"
 
 
-@pytest.fixture(scope="session")
-def fixture_site() -> Iterator[str]:
-    """The origin the fixture pages are served from."""
+def serve_pages(host: str) -> Iterator[str]:
     handler = partial(QuietHandler, directory=str(PAGES))
-    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    server = ThreadingHTTPServer((host, 0), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    host, port = server.server_address[:2]
+    bound_host, port = server.server_address[:2]
     try:
-        yield f"http://{host}:{port}"
+        yield f"http://{bound_host}:{port}"
     finally:
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
+
+
+@pytest.fixture(scope="session")
+def fixture_site() -> Iterator[str]:
+    """The origin the fixture pages are served from."""
+    yield from serve_pages("127.0.0.1")
+
+
+@pytest.fixture(scope="session")
+def other_site() -> Iterator[str]:
+    """A second loopback origin, so a takeover can sign into a new domain."""
+    yield from serve_pages("127.0.0.2")
 
 
 class QuietHandler(SimpleHTTPRequestHandler):

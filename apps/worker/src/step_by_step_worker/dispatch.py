@@ -10,6 +10,7 @@ from playwright.sync_api import BrowserType
 from step_by_step_core.bus import DISPATCH_LIST
 
 from step_by_step_worker.control import ControlWatch
+from step_by_step_worker.credentials import HttpCredentials
 from step_by_step_worker.executor import ResultStore, RunWork, execute
 from step_by_step_worker.heartbeat import (
     API_URL_VARIABLE,
@@ -66,11 +67,11 @@ def work_once(
         )
         if work is None:
             continue
-        heartbeat = (
-            pulse(work.run_id, worker_id, vnc_endpoint)
-            if environ.get(API_URL_VARIABLE) and environ.get(INTERNAL_TOKEN_VARIABLE)
-            else None
+        configured = environ.get(API_URL_VARIABLE) and environ.get(
+            INTERNAL_TOKEN_VARIABLE
         )
+        heartbeat = pulse(work.run_id, worker_id, vnc_endpoint) if configured else None
+        credentials = HttpCredentials(work.run_id) if configured else None
         watcher = ControlWatch(work.run_id) if follow_control else None
         try:
             execute(
@@ -81,6 +82,7 @@ def work_once(
                 headless=headless,
                 heartbeat=heartbeat,
                 control=watcher.poll if watcher is not None else None,
+                credentials=credentials,
             )
         finally:
             if watcher is not None:

@@ -40,6 +40,14 @@ from step_by_step_core.document import (
 
 from step_by_step_worker.challenge import page_shows_challenge
 from step_by_step_worker.control import ControlFlags, RunCancelled, RunPaused
+from step_by_step_worker.credentials import (
+    Credentials,
+    CredentialSet,
+    MissingSecret,
+    capture,
+    existing_and_consented,
+    inject,
+)
 from step_by_step_worker.heartbeat import RunTerminal
 from step_by_step_worker.selectors import Deadline, Resolved, SelectorFailure, resolve
 
@@ -154,6 +162,7 @@ def execute(
     heartbeat: Callable[[], None] | None = None,
     heartbeat_every: float = HEARTBEAT_INTERVAL_SECONDS,
     control: Callable[[], ControlFlags] | None = None,
+    credentials: Credentials | None = None,
 ) -> None:
     """Drive every Step in one claimed Run and leave no browser profile behind."""
     run_started = now()
@@ -303,6 +312,10 @@ def execute(
                 store.resume(work.run_id, at)
                 enter_automation(at)
                 emit_control("automation", at)
+                if credentials is not None and loaded is not None:
+                    write_auth_states(
+                        credentials, loaded, page.context, include_consented=False
+                    )
                 return "verified" if verdict is True else "handback"
             sleep(PARK_POLL_SECONDS)
         close_open(now())
@@ -317,16 +330,37 @@ def execute(
         if flags.pause_requested:
             raise RunPaused
 
+    loaded: CredentialSet | None = None
+    values: dict[str, Any] = dict(work.variables)
+    try:
+        if credentials is not None:
+            loaded = credentials.fetch()
+            values.update(loaded.secrets)
+    except MissingSecret as error:
+        terminal_status = "failed"
+        failure_reason = "missing_secret"
+        failure_detail = str(error)
+        _skip_remaining(work, store, 0)
+        loaded = None
+
     with TemporaryDirectory(prefix=f"run-{work.run_id}-", dir=profile_root) as profile:
-        try:
-            context = browser_type.launch_persistent_context(profile, headless=headless)
-            context_holder.append(context)
-        except PlaywrightError as error:
-            terminal_status = "failed"
-            failure_reason = "startup_failed"
-            failure_detail = str(error)
-            _skip_remaining(work, store, 0)
+        if failure_reason == "missing_secret":
+            context = None
         else:
+            try:
+                context = browser_type.launch_persistent_context(
+                    profile, headless=headless
+                )
+                context_holder.append(context)
+                if loaded is not None:
+                    inject(context, loaded.auth_states)
+            except PlaywrightError as error:
+                terminal_status = "failed"
+                failure_reason = "startup_failed"
+                failure_detail = str(error)
+                _skip_remaining(work, store, 0)
+                context = None
+        if context is not None:
             tracing = False
             download_index = 0
             try:
@@ -393,7 +427,7 @@ def execute(
                             step,
                             position,
                             work.default_step_timeout_ms,
-                            work.variables,
+                            values,
                             on_control=check_control,
                             on_challenge=report_challenge(store, work, step),
                             downloads=downloads,
@@ -411,7 +445,7 @@ def execute(
                                 step,
                                 position,
                                 work.default_step_timeout_ms,
-                                work.variables,
+                                values,
                                 on_control=check_control,
                                 on_challenge=report_challenge(store, work, step),
                                 downloads=downloads,
@@ -462,6 +496,14 @@ def execute(
                         _skip_remaining(work, store, position + 1)
                         break
             finally:
+                if (
+                    credentials is not None
+                    and loaded is not None
+                    and terminal_status == "succeeded"
+                ):
+                    write_auth_states(
+                        credentials, loaded, context, include_consented=True
+                    )
                 if tracing:
                     save_trace_chunk(context, profile, store, work, 0)
                 close_quietly(context)
@@ -496,6 +538,31 @@ def execute(
     if failure_detail is not None:
         status_payload["failure_detail"] = failure_detail
     store.emit(work.run_id, "run.status", status_payload)
+
+
+def write_auth_states(
+    credentials: Credentials,
+    loaded: CredentialSet,
+    context: Any,
+    *,
+    include_consented: bool,
+) -> None:
+    known = {
+        str(state["domain"])
+        for state in loaded.auth_states
+        if isinstance(state, Mapping)
+    }
+    try:
+        states, new_domains = capture(context, known)
+        if include_consented:
+            consented = credentials.consents()
+            credentials.write_back(existing_and_consented(states, known, consented), [])
+        else:
+            credentials.write_back(
+                existing_and_consented(states, known, []), new_domains
+            )
+    except Exception:
+        log.exception("auth state write-back failed")
 
 
 def start_heartbeat(
