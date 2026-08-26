@@ -3274,7 +3274,7 @@
       },
       "delete": {
         "summary": "Delete Workflow",
-        "description": "Delete a Workflow, and everything that only existed because of it.\n\nIts Draft and its Versions go with it, on the foreign keys that already say\nso \u2014 there is no orphan half of a Workflow, and nothing is left behind to\nbe found by a later query. The Schedules, Batches, and Runs the confirm\ndialog will also name are the follow-up slice's, once those objects exist.",
+        "description": "Delete a Workflow, and everything that only existed because of it.\n\nDrafts, Versions, Schedules, Batches, Runs, Step Results, and Artifact\nrows go with it on the foreign keys that already say so. Garage objects\ndo not: they are purged here, the same way deleting one Run purges them.\nA live Run refuses the delete \u2014 two copies of one Workflow never act at\nonce, and deleting the Workflow under one would be the same as cancelling\nit from the wrong end.",
         "operationId": "deleteWorkflow",
         "parameters": [
           {
@@ -3347,6 +3347,16 @@
               }
             },
             "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "422": {
             "description": "Validation Error",
@@ -8368,6 +8378,38 @@
         "title": "InvitationRequest",
         "description": "An offer to make: the address, and what it may do once it is taken."
       },
+      "LastRun": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "finished_at"
+        ],
+        "title": "LastRun",
+        "description": "The newest Run of a Workflow, as the list row's meta line draws it."
+      },
       "ListExtractPayload": {
         "properties": {
           "target": {
@@ -10603,6 +10645,46 @@
           "default_step_timeout_ms": {
             "type": "integer",
             "title": "Default Step Timeout Ms"
+          },
+          "last_run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LastRun"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "schedule_count": {
+            "type": "integer",
+            "title": "Schedule Count"
+          },
+          "schedule_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schedule Label"
+          },
+          "recent_run_median_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recent Run Median Ms"
+          },
+          "run_count": {
+            "type": "integer",
+            "title": "Run Count"
           }
         },
         "type": "object",
@@ -10612,7 +10694,9 @@
           "created_at",
           "last_activity_at",
           "draft_state",
-          "default_step_timeout_ms"
+          "default_step_timeout_ms",
+          "schedule_count",
+          "run_count"
         ],
         "title": "WorkflowSummary",
         "description": "A Workflow as a list row: everything the row draws, and no document."

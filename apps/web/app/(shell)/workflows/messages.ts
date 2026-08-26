@@ -18,6 +18,8 @@ const REFUSALS: Record<string, string> = {
   no_published_version: COPY.noPublishedVersion,
   bad_cursor: "That page is no longer where it was. Reload the list.",
   not_a_member: "You are no longer a member of that Organization.",
+  run_active:
+    "A Run of this Workflow is still going. Wait for it to finish, or cancel it, then try again.",
 };
 
 const UNKNOWN_REFUSAL = "Something went wrong. Try again in a moment.";
@@ -36,17 +38,52 @@ export function refusalMessage(error: unknown): string {
  * is reserved for ending an account (`ufnuvx`), and spending that ceremony on
  * routine housekeeping would spend it everywhere.
  *
- * The Schedules, Batches, and Runs it will also name arrive with the slice
- * that gives a Workflow any: naming a count of nothing would be noise.
+ * The confirm names the Schedules and Runs that go with the Workflow, so the
+ * blast radius is a fact rather than a guess. Zero of either is omitted: a
+ * count of nothing is noise.
  */
 export function deletionConsequence(workflow: {
   draft_state: DraftState;
   published_version?: number | null;
+  schedule_count?: number;
+  run_count?: number;
 }): string {
   const versions = workflow.published_version ?? 0;
   const alsoVersions =
     versions > 0
       ? ` and its ${String(versions)} published Version${versions === 1 ? "" : "s"}`
       : "";
-  return `Its Draft${alsoVersions} will be deleted. This cannot be undone.`;
+  const cascade = namedCounts([
+    [workflow.schedule_count ?? 0, "Schedule"],
+    [workflow.run_count ?? 0, "Run"],
+  ]);
+  const alsoCascade = cascade === null ? "" : ` ${cascade} will be deleted.`;
+  return `Its Draft${alsoVersions} will be deleted.${alsoCascade} This cannot be undone.`;
+}
+
+function namedCounts(items: [number, string][]): string | null {
+  const named = items
+    .filter(([count]) => count > 0)
+    .map(([count, noun]) => `${String(count)} ${noun}${count === 1 ? "" : "s"}`);
+  if (named.length === 0) {
+    return null;
+  }
+  return named.join(" and ");
+}
+
+/**
+ * What the list row says about Schedules: the one Schedule's label, or a
+ * count, or nothing when the Workflow has none.
+ */
+export function scheduleIndicator(workflow: {
+  schedule_count: number;
+  schedule_label?: string | null;
+}): string | null {
+  if (workflow.schedule_count === 0) {
+    return null;
+  }
+  if (workflow.schedule_count === 1) {
+    return workflow.schedule_label ?? "1 schedule";
+  }
+  return `${String(workflow.schedule_count)} schedules`;
 }

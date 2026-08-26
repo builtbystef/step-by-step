@@ -952,6 +952,23 @@ export type InvitationRequest = {
 };
 
 /**
+ * LastRun
+ *
+ * The newest Run of a Workflow, as the list row's meta line draws it.
+ */
+export type LastRun = {
+    /**
+     * Id
+     */
+    id: string;
+    status: RunStatus;
+    /**
+     * Finished At
+     */
+    finished_at: string | null;
+};
+
+/**
  * ListExtractPayload
  *
  * A flat list of records. There is no nesting, by decision.
@@ -2256,6 +2273,23 @@ export type WorkflowSummary = {
      * Default Step Timeout Ms
      */
     default_step_timeout_ms: number;
+    last_run?: LastRun | null;
+    /**
+     * Schedule Count
+     */
+    schedule_count: number;
+    /**
+     * Schedule Label
+     */
+    schedule_label?: string | null;
+    /**
+     * Recent Run Median Ms
+     */
+    recent_run_median_ms?: number | null;
+    /**
+     * Run Count
+     */
+    run_count: number;
 };
 
 export type GetInstanceData = {
@@ -4053,6 +4087,10 @@ export type DeleteWorkflowErrors = {
      * Not Found
      */
     404: ErrorBody;
+    /**
+     * Conflict
+     */
+    409: ErrorBody;
     /**
      * Validation Error
      */

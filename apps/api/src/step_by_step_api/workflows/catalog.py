@@ -17,11 +17,14 @@ from uuid import UUID
 from fastapi import APIRouter, Query, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import ColumnElement, Select, func, literal, select, true, tuple_
-from sqlalchemy.orm import InstrumentedAttribute
+from sqlalchemy.orm import InstrumentedAttribute, Session
+from step_by_step_core.objects import artifact_bucket, object_store
 
 from step_by_step_api.accounts.orgs import ActiveMembership
 from step_by_step_api.db import SessionDep
 from step_by_step_api.errors import ApiError, errors
+from step_by_step_api.runs.models import NON_TERMINAL, Artifact, Run, RunStatus
+from step_by_step_api.schedules.models import Schedule
 from step_by_step_api.workflows import document
 from step_by_step_api.workflows.document import DraftState
 from step_by_step_api.workflows.models import (
@@ -46,6 +49,14 @@ class WorkflowSort(StrEnum):
     CREATED = "created"
 
 
+class LastRun(BaseModel):
+    """The newest Run of a Workflow, as the list row's meta line draws it."""
+
+    id: UUID
+    status: RunStatus
+    finished_at: datetime | None
+
+
 class WorkflowSummary(BaseModel):
     """A Workflow as a list row: everything the row draws, and no document."""
 
@@ -53,8 +64,9 @@ class WorkflowSummary(BaseModel):
     name: str
     created_at: datetime
     last_activity_at: datetime
-    """The latest thing that happened to this Workflow — for now the later of
-    its own stamp and its Draft's; the latest Run's, once Runs exist."""
+    """The latest thing that happened to this Workflow — the newest Run's
+    creation time, falling back to the later of the Workflow's own stamp and
+    its Draft's."""
     draft_state: DraftState
     published_version: int | None = None
     """The newest Version's number, absent while the Workflow is unpublished."""
@@ -62,6 +74,14 @@ class WorkflowSummary(BaseModel):
     """What a Step with no override of its own waits. The editor draws the
     fallback under every empty timeout field, and a number it knew by heart
     would be a second truth the moment a Workflow carried another one."""
+    last_run: LastRun | None = None
+    schedule_count: int
+    schedule_label: str | None = None
+    """A compact readback of the one Schedule, absent when there is not
+    exactly one."""
+    recent_run_median_ms: int | None = None
+    """Median duration of the last ten succeeded Runs, absent below three."""
+    run_count: int
 
 
 class WorkflowPage(BaseModel):
@@ -109,7 +129,7 @@ def list_workflows(
     page = catalogue(member, q, sort).where(*after(cursor, sort)).limit(limit + 1)
     rows = list(db.execute(page))
     return WorkflowPage(
-        items=[summary(row) for row in rows[:limit]],
+        items=summarise(db, rows[:limit]),
         next_cursor=cut(rows[limit - 1], sort) if len(rows) > limit else None,
     )
 
@@ -177,11 +197,23 @@ def read(cursor: str, sort: WorkflowSort) -> tuple[str | datetime, UUID]:
 def activity() -> ColumnElement[datetime]:
     """When a Workflow was last active, as the database computes it.
 
-    The later of the Workflow's own stamp and its Draft's: renaming touches the
-    one and editing the document touches the other, and both are things that
-    happened to this Workflow.
+    The newest Run's creation time, falling back to the later of the
+    Workflow's own stamp and its Draft's: renaming, editing, and running are
+    all things that happened to this Workflow. Postgres `GREATEST` is null if
+    any argument is, so a never-run Workflow coalesces the missing Run time
+    onto a stamp it already has.
     """
-    return func.greatest(Workflow.updated_at, WorkflowDraft.updated_at)
+    latest_run_at = (
+        select(func.max(Run.queued_at))
+        .where(Run.workflow_id == Workflow.id)
+        .correlate(Workflow)
+        .scalar_subquery()
+    )
+    return func.greatest(
+        Workflow.updated_at,
+        WorkflowDraft.updated_at,
+        func.coalesce(latest_run_at, Workflow.updated_at),
+    )
 
 
 def catalogue(member: ActiveMembership, q: str, sort: WorkflowSort) -> Select[Any]:
@@ -256,7 +288,35 @@ def matching(q: str) -> list[ColumnElement[bool]]:
     return [Workflow.name.ilike(f"%{wanted}%", escape="\\")]
 
 
-def summary(row: Any) -> WorkflowSummary:
+def summarise(db: Session, rows: list[Any]) -> list[WorkflowSummary]:
+    """The page's rows, with the Run and Schedule facts each one draws."""
+    ids = [row.Workflow.id for row in rows]
+    last_runs = last_runs_of(db, ids)
+    schedules = schedules_of(db, ids)
+    run_counts = run_counts_of(db, ids)
+    medians = medians_of(db, ids)
+    return [
+        summary(
+            row,
+            last_run=last_runs.get(row.Workflow.id),
+            schedule_count=schedules.get(row.Workflow.id, (0, None))[0],
+            schedule_cron=schedules.get(row.Workflow.id, (0, None))[1],
+            run_count=run_counts.get(row.Workflow.id, 0),
+            recent_run_median_ms=medians.get(row.Workflow.id),
+        )
+        for row in rows
+    ]
+
+
+def summary(
+    row: Any,
+    *,
+    last_run: LastRun | None,
+    schedule_count: int,
+    schedule_cron: str | None,
+    run_count: int,
+    recent_run_median_ms: int | None,
+) -> WorkflowSummary:
     """One catalogue row as the list answers with it."""
     workflow: Workflow = row.Workflow
     return WorkflowSummary(
@@ -269,6 +329,154 @@ def summary(row: Any) -> WorkflowSummary:
         ),
         published_version=row.published_version,
         default_step_timeout_ms=workflow.default_step_timeout_ms,
+        last_run=last_run,
+        schedule_count=schedule_count,
+        schedule_label=(
+            compact_schedule(schedule_cron)
+            if schedule_count == 1 and schedule_cron is not None
+            else None
+        ),
+        recent_run_median_ms=recent_run_median_ms,
+        run_count=run_count,
+    )
+
+
+def last_runs_of(db: Session, ids: list[UUID]) -> dict[UUID, LastRun]:
+    """The newest Run of each Workflow, by creation time."""
+    if not ids:
+        return {}
+    rows = db.execute(
+        select(Run)
+        .distinct(Run.workflow_id)
+        .where(Run.workflow_id.in_(ids))
+        .order_by(Run.workflow_id, Run.queued_at.desc(), Run.id.desc())
+    ).scalars()
+    return {
+        run.workflow_id: LastRun(id=run.id, status=run.status, finished_at=run.ended_at)
+        for run in rows
+    }
+
+
+def schedules_of(db: Session, ids: list[UUID]) -> dict[UUID, tuple[int, str | None]]:
+    """How many Schedules each Workflow has, and the cron when there is one."""
+    if not ids:
+        return {}
+    rows = db.execute(
+        select(Schedule.workflow_id, func.count(), func.min(Schedule.cron))
+        .where(Schedule.workflow_id.in_(ids))
+        .group_by(Schedule.workflow_id)
+    )
+    return {
+        workflow_id: (count, cron if count == 1 else None)
+        for workflow_id, count, cron in rows
+    }
+
+
+def run_counts_of(db: Session, ids: list[UUID]) -> dict[UUID, int]:
+    """How many Runs each Workflow has, for the delete dialog's blast radius."""
+    if not ids:
+        return {}
+    rows = db.execute(
+        select(Run.workflow_id, func.count())
+        .where(Run.workflow_id.in_(ids))
+        .group_by(Run.workflow_id)
+    )
+    return {workflow_id: count for workflow_id, count in rows}
+
+
+def medians_of(db: Session, ids: list[UUID]) -> dict[UUID, int]:
+    """Median duration of the last ten succeeded Runs, once there are three."""
+    if not ids:
+        return {}
+    rows = db.execute(
+        select(Run.workflow_id, Run.started_at, Run.queued_at, Run.ended_at)
+        .where(
+            Run.workflow_id.in_(ids),
+            Run.status == RunStatus.SUCCEEDED,
+            Run.ended_at.is_not(None),
+        )
+        .order_by(Run.workflow_id, Run.queued_at.desc())
+    )
+    samples: dict[UUID, list[int]] = {}
+    for workflow_id, started, queued, ended in rows:
+        assert ended is not None
+        bucket = samples.setdefault(workflow_id, [])
+        if len(bucket) < 10:
+            start = started or queued
+            bucket.append(int((ended - start).total_seconds() * 1000))
+    return {
+        workflow_id: int(median(durations))
+        for workflow_id, durations in samples.items()
+        if len(durations) >= 3
+    }
+
+
+def median(values: list[int]) -> float:
+    ordered = sorted(values)
+    count = len(ordered)
+    mid = count // 2
+    if count % 2:
+        return ordered[mid]
+    return (ordered[mid - 1] + ordered[mid]) / 2
+
+
+WEEKDAY_NAMES = (
+    "Sundays",
+    "Mondays",
+    "Tuesdays",
+    "Wednesdays",
+    "Thursdays",
+    "Fridays",
+    "Saturdays",
+)
+
+
+def compact_schedule(cron: str) -> str:
+    """A list-row label for one Schedule, or the expression when it is not one."""
+    fields = cron.split()
+    if len(fields) != 5:
+        return cron
+    minute, hour, day, month, weekday = fields
+    if month != "*":
+        return cron
+    if minute.startswith("*/") and hour == day == weekday == "*":
+        step = minute[2:]
+        if step.isdigit() and 1 <= int(step) <= 59:
+            return f"every {int(step)} min"
+        return cron
+    clock = clock_of(hour, minute)
+    if hour == day == weekday == "*" and minute.isdigit() and 0 <= int(minute) <= 59:
+        return "hourly" if int(minute) == 0 else f"hourly :{int(minute):02d}"
+    if clock is None:
+        return cron
+    if day == weekday == "*":
+        return f"daily {clock}"
+    if day == "*" and weekday == "1-5":
+        return f"weekdays {clock}"
+    if day == "*" and _distinct_weekdays(weekday):
+        names = [WEEKDAY_NAMES[int(part)] for part in weekday.split(",")]
+        if len(names) == 1:
+            return f"{names[0]} {clock}"
+        return f"{', '.join(names[:-1])} and {names[-1]} {clock}"
+    if weekday == "*" and day.isdigit() and 1 <= int(day) <= 31:
+        return f"day {int(day)} {clock}"
+    return cron
+
+
+def clock_of(hour: str, minute: str) -> str | None:
+    if hour.isdigit() and minute.isdigit():
+        hours, minutes = int(hour), int(minute)
+        if 0 <= hours <= 23 and 0 <= minutes <= 59:
+            return f"{hours:02d}:{minutes:02d}"
+    return None
+
+
+def _distinct_weekdays(field: str) -> bool:
+    parts = field.split(",")
+    return (
+        bool(parts)
+        and len(parts) == len(set(parts))
+        and all(part.isdigit() and 0 <= int(part) <= 6 for part in parts)
     )
 
 
@@ -293,7 +501,7 @@ def get_workflow(
     ).first()
     if row is None:
         raise ApiError(404, "workflow_not_found", "no such Workflow")
-    return summary(row)
+    return summarise(db, [row])[0]
 
 
 class WorkflowRename(BaseModel):
@@ -401,18 +609,43 @@ def named_as_a_copy(name: str) -> str:
     "/api/workflows/{workflow_id}",
     operation_id="deleteWorkflow",
     status_code=204,
-    responses=errors(400, 401, 403, 404),
+    responses=errors(400, 401, 403, 404, 409),
 )
 def delete_workflow(
     workflow_id: UUID, member: ActiveMembership, db: SessionDep
 ) -> Response:
     """Delete a Workflow, and everything that only existed because of it.
 
-    Its Draft and its Versions go with it, on the foreign keys that already say
-    so — there is no orphan half of a Workflow, and nothing is left behind to
-    be found by a later query. The Schedules, Batches, and Runs the confirm
-    dialog will also name are the follow-up slice's, once those objects exist.
+    Drafts, Versions, Schedules, Batches, Runs, Step Results, and Artifact
+    rows go with it on the foreign keys that already say so. Garage objects
+    do not: they are purged here, the same way deleting one Run purges them.
+    A live Run refuses the delete — two copies of one Workflow never act at
+    once, and deleting the Workflow under one would be the same as cancelling
+    it from the wrong end.
     """
-    db.delete(owned(db, member, workflow_id))
+    workflow = owned(db, member, workflow_id)
+    live = db.scalar(
+        select(func.count())
+        .select_from(Run)
+        .where(Run.workflow_id == workflow.id, Run.status.in_(NON_TERMINAL))
+    )
+    if live:
+        raise ApiError(
+            409, "run_active", "this Workflow has a Run that is still active"
+        )
+    keys = list(
+        db.execute(
+            select(Artifact.object_key)
+            .join(Run, Artifact.run_id == Run.id)
+            .where(Run.workflow_id == workflow.id)
+        )
+        .scalars()
+        .all()
+    )
+    bucket = artifact_bucket()
+    store = object_store()
+    for key in keys:
+        store.delete_object(Bucket=bucket, Key=key)
+    db.delete(workflow)
     db.commit()
     return Response(status_code=204)

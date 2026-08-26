@@ -530,10 +530,12 @@ export const finalizeRecordingSession = <ThrowOnError extends boolean = false>(o
  *
  * Delete a Workflow, and everything that only existed because of it.
  *
- * Its Draft and its Versions go with it, on the foreign keys that already say
- * so — there is no orphan half of a Workflow, and nothing is left behind to
- * be found by a later query. The Schedules, Batches, and Runs the confirm
- * dialog will also name are the follow-up slice's, once those objects exist.
+ * Drafts, Versions, Schedules, Batches, Runs, Step Results, and Artifact
+ * rows go with it on the foreign keys that already say so. Garage objects
+ * do not: they are purged here, the same way deleting one Run purges them.
+ * A live Run refuses the delete — two copies of one Workflow never act at
+ * once, and deleting the Workflow under one would be the same as cancelling
+ * it from the wrong end.
  */
 export const deleteWorkflow = <ThrowOnError extends boolean = false>(options: Options<DeleteWorkflowData, ThrowOnError>): RequestResult<DeleteWorkflowResponses, DeleteWorkflowErrors, ThrowOnError> => (options.client ?? client).delete<DeleteWorkflowResponses, DeleteWorkflowErrors, ThrowOnError>({ url: '/api/workflows/{workflow_id}', ...options });
 

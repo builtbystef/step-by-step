@@ -9,11 +9,28 @@ it is opened, and what listing, renaming, duplicating, and deleting answer.
 import json
 from base64 import urlsafe_b64encode
 from collections.abc import Callable
+from datetime import timedelta
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from conftest import Account
+from sqlalchemy import func, select
+from step_by_step_api.batches.models import Batch
+from step_by_step_api.runs.models import (
+    Artifact,
+    Run,
+    RunStatus,
+    StepResult,
+    StepResultStatus,
+)
+from step_by_step_api.schedules.models import Schedule
+from step_by_step_core.db import session_scope
+from step_by_step_core.objects import artifact_bucket, object_store
+from test_batches import create_batch
+from test_run_artifacts import object_missing, seed_artifact
+from test_runs import published_workflow, start
+from test_schedules import create_schedule
 from test_workflows import (
     a_click_step,
     a_navigate_step,
@@ -429,3 +446,240 @@ def test_a_workflow_says_what_a_step_timeout_falls_back_to(
 
     assert read.status_code == 200, read.text
     assert read.json()["default_step_timeout_ms"] == 30_000
+
+
+def finish(
+    run_id: str, *, status: RunStatus = RunStatus.SUCCEEDED, duration_ms: int = 1_000
+) -> None:
+    """End a Run with a known duration, so median and last-run time are facts."""
+    with session_scope() as db:
+        run = db.get(Run, UUID(run_id))
+        assert run is not None
+        run.status = status
+        run.started_at = run.queued_at
+        run.ended_at = run.queued_at + timedelta(milliseconds=duration_ms)
+        db.commit()
+
+
+def test_a_row_carries_the_last_run(new_account: NewAccount) -> None:
+    account = new_account()
+    workflow_id = published_workflow(account)
+    first = start(account, workflow_id, variables={}).json()["run_id"]
+    finish(first, duration_ms=4_000)
+    second = start(account, workflow_id, variables={}).json()["run_id"]
+
+    row = one_row(account, workflow_id)
+
+    assert row["last_run"]["id"] == second
+    assert row["last_run"]["status"] == "queued"
+    assert "finished_at" not in row["last_run"]
+
+    finish(second, duration_ms=2_000)
+    done = one_row(account, workflow_id)
+    assert done["last_run"]["id"] == second
+    assert done["last_run"]["status"] == "succeeded"
+    assert done["last_run"]["finished_at"] is not None
+
+
+def test_a_never_run_row_omits_last_run(new_account: NewAccount) -> None:
+    account = new_account()
+    workflow_id = a_workflow(account)
+
+    row = one_row(account, workflow_id)
+
+    assert "last_run" not in row
+
+
+def test_a_row_carries_the_schedule_count_and_a_single_schedule_label(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    workflow_id = published_workflow(account)
+
+    empty = one_row(account, workflow_id)
+    assert empty["schedule_count"] == 0
+    assert "schedule_label" not in empty
+
+    created = create_schedule(
+        account,
+        workflow_id,
+        cron="0 9 * * 1-5",
+        timezone="Europe/Belgrade",
+        enabled=True,
+    )
+    assert created.status_code == 201, created.text
+
+    one = one_row(account, workflow_id)
+    assert one["schedule_count"] == 1
+    assert one["schedule_label"] == "weekdays 09:00"
+
+    for hour in ("10", "11"):
+        assert (
+            create_schedule(
+                account,
+                workflow_id,
+                cron=f"0 {hour} * * 1-5",
+                timezone="Europe/Belgrade",
+                enabled=True,
+            ).status_code
+            == 201
+        )
+
+    many = one_row(account, workflow_id)
+    assert many["schedule_count"] == 3
+    assert "schedule_label" not in many
+
+
+def test_a_row_carries_the_recent_run_median_once_three_have_succeeded(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    workflow_id = published_workflow(account)
+    for duration in (1_000, 3_000):
+        finish(
+            start(account, workflow_id, variables={}).json()["run_id"],
+            duration_ms=duration,
+        )
+
+    too_few = one_row(account, workflow_id)
+    assert "recent_run_median_ms" not in too_few
+
+    finish(
+        start(account, workflow_id, variables={}).json()["run_id"],
+        duration_ms=5_000,
+    )
+
+    row = one_row(account, workflow_id)
+    assert row["recent_run_median_ms"] == 3_000
+
+
+def test_activity_sort_follows_the_latest_run_then_falls_back_to_the_workflow(
+    new_account: NewAccount,
+) -> None:
+    """A Run is the newest thing that happened; a never-run Workflow still
+    orders by its own last-touched time."""
+    account = new_account()
+    older = published_workflow(account)
+    newer = published_workflow(account)
+
+    assert listed_rows(account)[0]["id"] == newer
+
+    start(account, older, variables={})
+
+    ordered = listed_rows(account)
+    assert [row["id"] for row in ordered] == [older, newer]
+    assert ordered[0]["last_activity_at"] >= ordered[1]["last_activity_at"]
+
+
+def test_deleting_while_a_run_is_live_is_conflict_then_succeeds_once_it_ends(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    workflow_id = published_workflow(account)
+    run_id = start(account, workflow_id, variables={}).json()["run_id"]
+
+    refused = account.client.delete(f"/api/workflows/{workflow_id}")
+
+    assert refused.status_code == 409, refused.text
+    assert refused.json()["code"] == "run_active"
+    assert one_row(account, workflow_id)["id"] == workflow_id
+
+    finish(run_id)
+    deleted = account.client.delete(f"/api/workflows/{workflow_id}")
+    assert deleted.status_code == 204, deleted.text
+    assert account.client.get(f"/api/workflows/{workflow_id}").status_code == 404
+
+
+def test_deleting_a_workflow_takes_schedules_batches_runs_results_and_artifacts(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    workflow_id = published_workflow(account, variables=[{"name": "city"}])
+    for hour in ("9", "10"):
+        assert (
+            create_schedule(
+                account,
+                workflow_id,
+                cron=f"0 {hour} * * 1-5",
+                timezone="Europe/Belgrade",
+                enabled=True,
+                variables={"city": "Oslo"},
+            ).status_code
+            == 201
+        )
+    batch = create_batch(
+        account,
+        workflow_id,
+        name="Monthly",
+        rows=[{"variables": {}}],
+    )
+    assert batch.status_code == 201, batch.text
+    batch_id = batch.json()["batch_id"]
+    run_ids: list[str] = []
+    for _ in range(42):
+        created = start(account, workflow_id, variables={"city": "Oslo"})
+        assert created.status_code == 201, created.text
+        run_id = created.json()["run_id"]
+        finish(run_id)
+        run_ids.append(run_id)
+    last = UUID(run_ids[-1])
+    with session_scope() as db:
+        db.add(
+            StepResult(
+                run_id=last,
+                step_id=uuid4(),
+                position=0,
+                status=StepResultStatus.PASSED,
+            )
+        )
+        db.commit()
+    keys: list[str] = []
+    object_store.cache_clear()
+    try:
+        artifact = seed_artifact(last, keys)
+        before = one_row(account, workflow_id)
+        assert before["schedule_count"] == 2
+        assert before["run_count"] == 42
+
+        deleted = account.client.delete(f"/api/workflows/{workflow_id}")
+
+        assert deleted.status_code == 204, deleted.text
+        assert account.client.get(f"/api/workflows/{workflow_id}").status_code == 404
+        assert (
+            account.client.get("/api/runs", params={"workflow_id": workflow_id}).json()[
+                "items"
+            ]
+            == []
+        )
+        with session_scope() as db:
+            assert (
+                db.scalar(
+                    select(func.count())
+                    .select_from(Schedule)
+                    .where(Schedule.workflow_id == UUID(workflow_id))
+                )
+                == 0
+            )
+            assert db.get(Batch, UUID(batch_id)) is None
+            assert (
+                db.scalar(
+                    select(func.count())
+                    .select_from(Run)
+                    .where(Run.workflow_id == UUID(workflow_id))
+                )
+                == 0
+            )
+            assert (
+                db.scalar(
+                    select(func.count())
+                    .select_from(StepResult)
+                    .where(StepResult.run_id == last)
+                )
+                == 0
+            )
+            assert db.get(Artifact, artifact.id) is None
+        assert object_missing(artifact.object_key)
+    finally:
+        for key in keys:
+            object_store().delete_object(Bucket=artifact_bucket(), Key=key)
+        object_store.cache_clear()

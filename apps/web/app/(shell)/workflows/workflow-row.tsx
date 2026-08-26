@@ -6,10 +6,12 @@ import Link from "next/link";
 
 import { OVERFLOW_ACTIONS, RUN, disabledReason, type WorkflowAction } from "./actions";
 import { draftStateBadge } from "./draft-state";
+import { scheduleIndicator } from "./messages";
 
 import { EDITOR, tabPath } from "./[id]/tabs";
 
 import { AttributeBadge } from "@/components/primitives/attribute-badge";
+import { StatusChip } from "@/components/primitives/status-chip";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -29,9 +31,9 @@ import { cn } from "@/lib/utils";
  * `AttributeBadge` because a draft state is a property and not a lifecycle
  * state.
  *
- * The last Run and the schedule indicator the meta line will also carry arrive
- * with the slice that gives a Workflow either; until then every Workflow has
- * never run, which is what it says.
+ * The meta line carries the last Run's status chip and its relative time (or
+ * "never run") and the schedule indicator — the one Schedule's label, or a
+ * count of several.
  */
 export function WorkflowRow({
   workflow,
@@ -42,6 +44,8 @@ export function WorkflowRow({
 }) {
   const badge = draftStateBadge(workflow.draft_state, workflow.published_version);
   const runRefusal = disabledReason(RUN, workflow.draft_state);
+  const lastRun = workflow.last_run;
+  const schedule = scheduleIndicator(workflow);
 
   return (
     <li className="group relative flex items-center gap-3 border-b border-line px-3 py-3 last:border-b-0 hover:bg-accent-bg/40">
@@ -52,8 +56,18 @@ export function WorkflowRow({
         >
           {workflow.name}
         </Link>
-        <p className="text-small text-mut">
-          never run · edited {relativeTime(workflow.last_activity_at)}
+        <p className="flex flex-wrap items-center gap-x-1.5 text-small text-mut">
+          {lastRun === undefined || lastRun === null ? (
+            "never run"
+          ) : (
+            <>
+              <StatusChip state={lastRun.status} />
+              {lastRun.finished_at === undefined || lastRun.finished_at === null
+                ? null
+                : relativeTime(lastRun.finished_at)}
+            </>
+          )}
+          {schedule === null ? null : ` · ${schedule}`}
         </p>
       </div>
 
