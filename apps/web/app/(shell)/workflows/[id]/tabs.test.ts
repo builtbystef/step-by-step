@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { EDITOR, WORKFLOW_TABS, tabAt, tabPath } from "./tabs";
+import { EDITOR, WORKFLOW_TABS, newBatchPath, tabAt, tabPath } from "./tabs";
 
 /**
  * The Workflow page's four tabs, read back as the addresses they are: each is
@@ -46,5 +46,10 @@ describe("the Workflow page's tabs", () => {
     expect(tabAt("/workflows")).toBeNull();
     expect(tabAt("/runs")).toBeNull();
     expect(tabAt("/workflows/3f1a/settings")).toBeNull();
+  });
+
+  it("keeps the Batches tab current on the creation page", () => {
+    expect(tabAt("/workflows/3f1a/batches/new")?.label).toBe("Batches");
+    expect(newBatchPath(WORKFLOW)).toBe("/workflows/3f1a/batches/new");
   });
 });

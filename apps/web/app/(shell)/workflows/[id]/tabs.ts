@@ -27,6 +27,11 @@ export function tabPath(workflowId: string, tab: WorkflowTab): string {
   return `/workflows/${workflowId}/${tab.segment}`;
 }
 
+/** Where a new Batch of this Workflow is built. */
+export function newBatchPath(workflowId: string): string {
+  return `/workflows/${workflowId}/batches/new`;
+}
+
 /** Where a Workflow is, before a tab is named. */
 export function workflowPath(workflowId: string): string {
   return `/workflows/${workflowId}`;
@@ -37,11 +42,12 @@ export function workflowPath(workflowId: string): string {
  *
  * A Workflow with no segment answers the Editor rather than nothing: it is the
  * address the redirect resolves, and a header that rendered no tab as current
- * for the instant before that redirect would flicker.
+ * for the instant before that redirect would flicker. A nested page under a
+ * tab — the Batch creation page under Batches — still counts as that tab.
  */
 export function tabAt(pathname: string): WorkflowTab | null {
-  const [, section, id, segment, ...rest] = pathname.split("?")[0]?.split("/") ?? [];
-  if (section !== "workflows" || !id || rest.length > 0) {
+  const [, section, id, segment] = pathname.split("?")[0]?.split("/") ?? [];
+  if (section !== "workflows" || !id) {
     return null;
   }
   if (segment === undefined || segment === "") {

@@ -1,7 +1,8 @@
 ---
 id: bcyznn
 title: 'The Batch creation grid: type, paste, copy, and commit'
-state: todo
+state: done
+assignee: agent
 priority: medium
 depends_on:
     - vguxj7
@@ -9,7 +10,7 @@ depends_on:
     - 0746dg
 parent: nno9gj
 created: 2026-08-14T19:51:44Z
-updated: 2026-08-14T19:51:44Z
+updated: 2026-08-26T19:08:46Z
 ---
 
 ## What to build
@@ -29,3 +30,25 @@ The grid is **one shared component**: the Schedule's one-row value set and the r
 - [ ] With a recent-run median of 90 s and 12 rows, the footer shows an 18-minute ETA; with fewer than 3 succeeded Runs it shows `12 Runs, one at a time` and no time.
 - [ ] Submit → 201 → the app navigates to the Batch's progress view.
 - [ ] No second grid implementation exists: the component is exported for the one-row consumers, and rendering it with one fixed row shows the same locked secret cell.
+
+## Notes
+
+**agent** — 2026-08-26T19:08:39Z
+
+Completed. Seam (AFK): the spec's Testing Decisions name seam 2 for reconcile and recurrence, not this grid. Took the project's established frontend seam — pure functions without a DOM — and recorded it here. grid.ts is columns, the locked cell label, paste, copy-from mapping, and a payload that never carries a secret; creation.ts is the default name, the rerun name, footer counts' submit flag, the sequential ETA, and the progress-view href. The page draws these; it does not re-decide them. The request body is asserted on createBody.
+
+What landed
+- Shared ValueGrid at apps/web/components/value-grid, exported for one-row consumers (fixedRowCount={1}). Secret columns are locked, headed with the Variable's name, and read "from vault" plus the cached Secret name; setCell and the submitted payload omit them.
+- /workflows/{id}/batches/new: type cell by cell, paste a spreadsheet TSV into split rows and cells, copy from a past Batch (listBatches then getBatch for rows), sticky footer with name / counts / "Run them anyway" / ETA, submit createBatch and navigate to /batches/{id}.
+- New batch in the list overflow and the Workflow header overflow goes to that page. The Batches tab stays current on it.
+
+Decisions
+- Default name is `{Workflow} — 26 Aug 2026` from local calendar parts. Copied rows rename to `{Workflow} — rerun of {Batch}`.
+- ETA with a median is `about 18 min` (duration of median × rows). Below 3 succeeded Runs the summary has no median, so the line is `12 Runs, one at a time` with no time.
+- Paste overlays from the focused cell, TSV, locked columns refuse the write but still occupy a column. File import is 560jkk.
+- Copy-from lists via GET /api/batches?workflow_id=; summaries do not carry rows, so picking one GETs the Batch.
+- Run again remains a labeled form, not a second grid. immifu and jilt40 consume ValueGrid.
+
+For a reviewer
+- Payload secret-omission and run_incomplete_rows true/false are asserted on createBody.
+- Footer 5/3/2, 90s×12 → about 18 min, and one-row locked cell are in grid.test.ts / creation.test.ts.

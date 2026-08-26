@@ -21,7 +21,7 @@ import { NameDialog } from "./name-dialog";
 import { rowsOf, workflowsKey, workflowsQuery } from "./queries";
 import { WorkflowRow } from "./workflow-row";
 
-import { EDITOR, tabPath } from "./[id]/tabs";
+import { EDITOR, newBatchPath, tabPath } from "./[id]/tabs";
 
 import { useActiveOrganization } from "../use-active-organization";
 
@@ -122,10 +122,11 @@ function Workflows({ orgId }: { orgId: string }) {
       setDialog({ kind: "delete", workflow });
     } else if (action.key === "duplicate") {
       duplicate.mutate(workflow.id);
+    } else if (action.key === "new-batch") {
+      router.push(newBatchPath(workflow.id));
     } else {
-      // Run, New batch, and New schedule all act on a Version, and all three
-      // live on the Workflow's own page, where the slices that build them put
-      // their forms.
+      // Run and New schedule act on a Version, and live on the Workflow's own
+      // page, where the slices that build them put their forms.
       router.push(tabPath(workflow.id, EDITOR));
     }
   };
