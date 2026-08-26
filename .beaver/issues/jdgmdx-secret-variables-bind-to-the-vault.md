@@ -8,7 +8,7 @@ depends_on:
     - z8p5dp
 parent: 54i6da
 created: 2026-08-14T06:15:21Z
-updated: 2026-08-26T04:18:19Z
+updated: 2026-08-26T05:26:56Z
 ---
 
 ## What to build
@@ -40,3 +40,7 @@ The document store validates the refined shape. The Variables drawer's secret Va
 **agent** — 2026-08-26T04:18:19Z
 
 Loop paused mid-iteration. Partial Variable vault-pointer work was reverted; start fresh.
+
+**agent** — 2026-08-26T05:26:56Z
+
+Loop iteration died on Grok 403 after ~13 min of uncommitted work. Partial vault-pointer/used_by/drawer code was reverted; start fresh.
