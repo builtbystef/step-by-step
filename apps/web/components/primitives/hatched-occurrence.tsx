@@ -1,18 +1,25 @@
 import { cn } from "@/lib/utils";
 
 /**
- * A slot in a Schedule's Occurrence strip where nothing happens. A 45° 3px
- * hatch, in one of two readings:
+ * A slot in a Schedule's Occurrence strip where nothing happens. A 3px hatch,
+ * in one of four readings:
  *
- * - `prevented` — amber: the Occurrence was due and something stopped it
- *   (`overlap`, `missing_values`). Amber, because a human should look.
- * - `never-due` — grey: the Schedule was never due here, so nothing is wrong.
+ * - `prevented` — amber, 45°: overlap. A human should look.
+ * - `missed` — grey, 135°: the instance was not running; never run late.
+ * - `missing-values` — red, 45°: the Workflow now declares a Variable this
+ *   Schedule has no value for.
+ * - `never-due` — grey, 45°: the Schedule was never due here (a paused band),
+ *   so nothing is wrong.
  */
-export type OccurrenceHatch = "prevented" | "never-due";
+export type OccurrenceHatch = "prevented" | "missed" | "missing-values" | "never-due";
 
 const HATCH_CLASSES: Record<OccurrenceHatch, string> = {
   prevented:
     "border-wait/30 bg-[repeating-linear-gradient(45deg,transparent_0_3px,var(--wait)_3px_6px)]",
+  missed:
+    "border-line bg-[repeating-linear-gradient(135deg,transparent_0_3px,var(--line)_3px_6px)]",
+  "missing-values":
+    "border-bad/30 bg-[repeating-linear-gradient(45deg,transparent_0_3px,var(--bad)_3px_6px)]",
   "never-due":
     "border-line bg-[repeating-linear-gradient(45deg,transparent_0_3px,var(--line)_3px_6px)]",
 };

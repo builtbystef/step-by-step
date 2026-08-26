@@ -21,6 +21,7 @@ export function ExpandableRow({
   defaultOpen = false,
   expandLabel = "Expand row",
   className,
+  onOpenChange,
   children,
 }: {
   cells: ReactNode;
@@ -28,6 +29,7 @@ export function ExpandableRow({
   defaultOpen?: boolean;
   expandLabel?: string;
   className?: string;
+  onOpenChange?: (open: boolean) => void;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -37,7 +39,10 @@ export function ExpandableRow({
       render={<tbody />}
       className={cn("border-b", className)}
       open={open}
-      onOpenChange={setOpen}
+      onOpenChange={(next) => {
+        setOpen(next);
+        onOpenChange?.(next);
+      }}
     >
       <tr>
         <td className="w-8 pl-2 align-middle">

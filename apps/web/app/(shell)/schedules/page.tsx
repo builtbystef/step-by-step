@@ -1,19 +1,26 @@
-import { Placeholder } from "../placeholder";
+"use client";
+
+import { SchedulesTable } from "./schedules-table";
+
+import { useActiveOrganization } from "../use-active-organization";
 
 /**
  * `/schedules` — everything that runs on a clock.
  *
- * Like the Runs list, it is one component with the Workflow's own tab, and it
- * arrives with the slice that brings both.
+ * The table content is this slice. The one-component/two-route wiring with
+ * the Workflow's Schedules tab is the shell spec's.
  */
 export default function SchedulesPage() {
+  const { active } = useActiveOrganization();
+
+  if (active === null) {
+    return null;
+  }
+
   return (
     <>
       <h1 className="text-page">Schedules</h1>
-      <Placeholder>
-        The Schedules list arrives with its own slice: the recurrence in words, what is next due,
-        and the Occurrences that did not fire.
-      </Placeholder>
+      <SchedulesTable orgId={active.id} />
     </>
   );
 }
