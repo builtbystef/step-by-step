@@ -8,7 +8,7 @@ depends_on:
     - z8p5dp
 parent: 54i6da
 created: 2026-08-14T06:15:21Z
-updated: 2026-08-14T06:15:21Z
+updated: 2026-08-26T04:18:19Z
 ---
 
 ## What to build
@@ -34,3 +34,9 @@ The document store validates the refined shape. The Variables drawer's secret Va
 - [ ] Two Workflows bound to one Secret → its `used_by` lists both with names; unbinding one → only the other remains.
 - [ ] The delete confirmation lists the referencing Workflow names and deletes anyway on confirm — no blocking delete, no zombie rows.
 - [ ] After the bound Secret is deleted, the Draft's binding still carries the cached name for display; the document is unchanged and still valid.
+
+## Notes
+
+**agent** — 2026-08-26T04:18:19Z
+
+Loop paused mid-iteration. Partial Variable vault-pointer work was reverted; start fresh.
