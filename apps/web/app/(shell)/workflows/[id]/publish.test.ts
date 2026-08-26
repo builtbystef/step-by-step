@@ -18,6 +18,18 @@ function comparison(over: Partial<DraftComparison> = {}): DraftComparison {
     removed: [],
     state: "unpublished-changes",
     latest_version: 1,
+    stranded_schedules: [],
+    ...over,
+  };
+}
+
+function stranded(
+  over: Partial<DraftComparison["stranded_schedules"][number]> = {},
+): DraftComparison["stranded_schedules"][number] {
+  return {
+    id: "11111111-1111-1111-1111-111111111111",
+    name: "Morning invoices",
+    cron: "0 9 * * *",
     ...over,
   };
 }
@@ -103,5 +115,41 @@ describe("what the modal says when no section says it", () => {
 
     expect(plan.worthPublishing).toBe(true);
     expect(plan.note).toContain("no Steps");
+  });
+});
+
+describe("the warning for Schedules publishing would strand", () => {
+  it("names both Schedules and states they will stop firing until their values are set", () => {
+    const plan = publishPlan(
+      comparison({
+        stranded_schedules: [
+          stranded({ name: "Morning invoices" }),
+          stranded({
+            id: "22222222-2222-2222-2222-222222222222",
+            name: "Evening invoices",
+            cron: "0 18 * * *",
+          }),
+        ],
+      }),
+    );
+
+    expect(plan.warning).toContain("Morning invoices");
+    expect(plan.warning).toContain("Evening invoices");
+    expect(plan.warning).toContain("will stop firing until their values are set");
+  });
+
+  it("is absent when no Schedule would be stranded", () => {
+    expect(publishPlan(comparison()).warning).toBeNull();
+  });
+
+  it("uses the recurrence sentence when a Schedule has no name", () => {
+    const plan = publishPlan(
+      comparison({
+        stranded_schedules: [stranded({ name: null, cron: "0 9 * * 1-5" })],
+      }),
+    );
+
+    expect(plan.warning).toContain("every weekday at 09:00");
+    expect(plan.warning).toContain("will stop firing until its values are set");
   });
 });

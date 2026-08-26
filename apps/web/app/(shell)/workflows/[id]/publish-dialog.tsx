@@ -24,7 +24,8 @@ import {
  * A Version is what Schedules and Batches execute, so minting one is the one
  * moment the editor stops being private. The modal is therefore a reading of
  * the diff rather than a confirmation of an intention: the Steps by name, in
- * three lists, and the number about to appear on them.
+ * three lists, the number about to appear on them, and the Schedules that would
+ * stop firing until their values are set.
  *
  * Nothing is minted by opening it. The comparison is a read, and the only
  * thing that publishes is the button that says so — which is what makes
@@ -70,6 +71,7 @@ export function PublishDialog({
             {plan.note === null ? null : (
               <Callout tone={plan.worthPublishing ? "info" : "warn"}>{plan.note}</Callout>
             )}
+            {plan.warning === null ? null : <Callout tone="warn">{plan.warning}</Callout>}
           </div>
         )}
 

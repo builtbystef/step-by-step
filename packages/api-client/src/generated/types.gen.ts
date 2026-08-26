@@ -680,7 +680,8 @@ export type DownloadStep = {
  * One answer for two readers: the publish modal renders the three lists, and
  * the Draft chip in the editor header — and the same chip in the Workflows
  * list — renders the state. They are one derivation because they are one
- * question, and two answers could disagree.
+ * question, and two answers could disagree. The stranded list is what the
+ * same modal names when publishing would stop Schedules firing.
  */
 export type DraftComparison = {
     /**
@@ -700,6 +701,10 @@ export type DraftComparison = {
      * Latest Version
      */
     latest_version: number | null;
+    /**
+     * Stranded Schedules
+     */
+    stranded_schedules: Array<StrandedScheduleRef>;
 };
 
 /**
@@ -1929,6 +1934,26 @@ export type StepResultRecord = {
  * StepResultStatus
  */
 export type StepResultStatus = 'passed' | 'failed' | 'skipped';
+
+/**
+ * StrandedScheduleRef
+ *
+ * A Schedule the candidate Version would leave unable to fire.
+ */
+export type StrandedScheduleRef = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string | null;
+    /**
+     * Cron
+     */
+    cron: string;
+};
 
 /**
  * StreamTicket

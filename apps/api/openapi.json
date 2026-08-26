@@ -8,7 +8,7 @@
     "/api/instance": {
       "get": {
         "summary": "Get Instance",
-        "description": "Signup mode for the sign-in screen, and the default timezone a new Schedule uses.",
+        "description": "Signup mode for the sign-in screen, and a new Schedule's default timezone.",
         "operationId": "getInstance",
         "responses": {
           "200": {
@@ -8513,6 +8513,13 @@
               }
             ],
             "title": "Latest Version"
+          },
+          "stranded_schedules": {
+            "items": {
+              "$ref": "#/components/schemas/StrandedScheduleRef"
+            },
+            "type": "array",
+            "title": "Stranded Schedules"
           }
         },
         "type": "object",
@@ -8521,10 +8528,11 @@
           "changed",
           "removed",
           "state",
-          "latest_version"
+          "latest_version",
+          "stranded_schedules"
         ],
         "title": "DraftComparison",
-        "description": "The Draft measured against the latest Version.\n\nOne answer for two readers: the publish modal renders the three lists, and\nthe Draft chip in the editor header \u2014 and the same chip in the Workflows\nlist \u2014 renders the state. They are one derivation because they are one\nquestion, and two answers could disagree."
+        "description": "The Draft measured against the latest Version.\n\nOne answer for two readers: the publish modal renders the three lists, and\nthe Draft chip in the editor header \u2014 and the same chip in the Workflows\nlist \u2014 renders the state. They are one derivation because they are one\nquestion, and two answers could disagree. The stranded list is what the\nsame modal names when publishing would stop Schedules firing."
       },
       "DraftState": {
         "type": "string",
@@ -10699,6 +10707,38 @@
           "skipped"
         ],
         "title": "StepResultStatus"
+      },
+      "StrandedScheduleRef": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "cron": {
+            "type": "string",
+            "title": "Cron"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "cron"
+        ],
+        "title": "StrandedScheduleRef",
+        "description": "A Schedule the candidate Version would leave unable to fire."
       },
       "StreamTicket": {
         "properties": {

@@ -22,6 +22,8 @@ from sqlalchemy import func, select
 from step_by_step_api.accounts.orgs import ActiveMembership
 from step_by_step_api.db import SessionDep
 from step_by_step_api.errors import ApiError, errors
+from step_by_step_api.schedules.models import Schedule
+from step_by_step_api.schedules.routes import missing_from, public_variable_names
 from step_by_step_api.workflows import document
 from step_by_step_api.workflows.document import (
     DocumentDiff,
@@ -306,18 +308,28 @@ def restore_workflow_version(
     return WorkflowDocument.model_validate(published.document)
 
 
+class StrandedScheduleRef(BaseModel):
+    """A Schedule the candidate Version would leave unable to fire."""
+
+    id: UUID
+    name: str | None
+    cron: str
+
+
 class DraftComparison(DocumentDiff):
     """The Draft measured against the latest Version.
 
     One answer for two readers: the publish modal renders the three lists, and
     the Draft chip in the editor header — and the same chip in the Workflows
     list — renders the state. They are one derivation because they are one
-    question, and two answers could disagree.
+    question, and two answers could disagree. The stranded list is what the
+    same modal names when publishing would stop Schedules firing.
     """
 
     state: DraftState
     latest_version: int | None
     """The number the Draft is compared against, absent until a first publish."""
+    stranded_schedules: list[StrandedScheduleRef]
 
 
 @router.get(
@@ -348,7 +360,26 @@ def get_workflow_draft_diff(
             draft.document, latest.document if latest is not None else None
         ),
         latest_version=latest.number if latest is not None else None,
+        stranded_schedules=stranded_by(db, workflow_id, draft.document),
     )
+
+
+def stranded_by(
+    db: SessionDep, workflow_id: UUID, candidate: dict[str, Any]
+) -> list[StrandedScheduleRef]:
+    """Enabled Schedules whose value set misses a non-secret Variable the
+    candidate Version declares — the ones publishing would stop firing."""
+    names = public_variable_names(candidate)
+    rows = db.execute(
+        select(Schedule)
+        .where(Schedule.workflow_id == workflow_id, Schedule.enabled.is_(True))
+        .order_by(Schedule.created_at, Schedule.id)
+    ).scalars()
+    return [
+        StrandedScheduleRef(id=row.id, name=row.name, cron=row.cron)
+        for row in rows
+        if missing_from(row.variables, names)
+    ]
 
 
 def latest_version(db: SessionDep, workflow_id: UUID) -> WorkflowVersion | None:

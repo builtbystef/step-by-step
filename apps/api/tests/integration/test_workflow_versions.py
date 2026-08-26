@@ -382,3 +382,153 @@ def test_another_organizations_versions_do_not_exist(new_account: NewAccount) ->
     assert [refused.status_code for refused in refusals] == [404] * 5
     assert {refused.json()["code"] for refused in refusals} == {"workflow_not_found"}
     assert [entry["number"] for entry in versions(owner, workflow_id).json()] == [1]
+
+
+def a_schedule(account: Account, workflow_id: str, **body: object) -> Response:
+    """Create a Schedule of this Workflow, the way the form's save does."""
+    return account.client.post(f"/api/workflows/{workflow_id}/schedules", json=body)
+
+
+def test_the_diff_names_schedules_a_new_variable_would_strand(
+    new_account: NewAccount,
+) -> None:
+    """The publish confirmation's read: the candidate Version's declared
+    Variables checked against each Schedule's value set, before anything is
+    minted. Confirming then leaves both Schedules reading needs_values."""
+    account = new_account()
+    workflow_id = a_workflow(account)
+    save_draft(
+        account,
+        workflow_id,
+        steps=[a_navigate_step(str(uuid4()))],
+        variables=[{"name": "city"}],
+    )
+    assert publish(account, workflow_id).status_code == 201
+
+    morning = a_schedule(
+        account,
+        workflow_id,
+        cron="0 9 * * *",
+        timezone="Europe/Belgrade",
+        enabled=True,
+        variables={"city": "Belgrade"},
+        name="Morning invoices",
+    )
+    evening = a_schedule(
+        account,
+        workflow_id,
+        cron="0 18 * * *",
+        timezone="Europe/Belgrade",
+        enabled=True,
+        variables={"city": "Belgrade"},
+        name="Evening invoices",
+    )
+    assert morning.status_code == 201, morning.text
+    assert evening.status_code == 201, evening.text
+
+    save_draft(
+        account,
+        workflow_id,
+        steps=[a_navigate_step(str(uuid4()))],
+        variables=[{"name": "city"}, {"name": "region"}],
+    )
+
+    changes = diff(account, workflow_id)
+    assert changes.status_code == 200, changes.text
+    assert [row["name"] for row in changes.json()["stranded_schedules"]] == [
+        "Morning invoices",
+        "Evening invoices",
+    ]
+    assert [
+        row["state"]
+        for row in account.client.get(f"/api/workflows/{workflow_id}/schedules").json()
+    ] == ["active", "active"]
+
+    assert publish(account, workflow_id).status_code == 201
+    listed = account.client.get(f"/api/workflows/{workflow_id}/schedules")
+    assert listed.status_code == 200, listed.text
+    assert {row["name"]: row["state"] for row in listed.json()} == {
+        "Morning invoices": "needs_values",
+        "Evening invoices": "needs_values",
+    }
+
+
+def test_the_diff_names_no_schedule_when_none_would_be_stranded(
+    new_account: NewAccount,
+) -> None:
+    """A publish that does not leave any Schedule missing a value is the
+    ordinary confirmation: the read still answers, with an empty list."""
+    account = new_account()
+    workflow_id = a_workflow(account)
+    save_draft(
+        account,
+        workflow_id,
+        steps=[a_navigate_step(str(uuid4()))],
+        variables=[{"name": "city"}],
+    )
+    assert publish(account, workflow_id).status_code == 201
+    created = a_schedule(
+        account,
+        workflow_id,
+        cron="0 9 * * *",
+        timezone="Europe/Belgrade",
+        enabled=True,
+        variables={"city": "Belgrade"},
+        name="Morning invoices",
+    )
+    assert created.status_code == 201, created.text
+
+    save_draft(
+        account,
+        workflow_id,
+        steps=[a_click_step(str(uuid4()))],
+        variables=[{"name": "city"}],
+    )
+
+    changes = diff(account, workflow_id)
+    assert changes.status_code == 200, changes.text
+    assert changes.json()["stranded_schedules"] == []
+
+
+def test_reading_which_schedules_would_be_stranded_mints_nothing(
+    new_account: NewAccount,
+) -> None:
+    """Cancelling at the warning is free because the confirmation is a read:
+    the Draft stays unpublished and every Schedule stays as it was."""
+    account = new_account()
+    workflow_id = a_workflow(account)
+    save_draft(
+        account,
+        workflow_id,
+        steps=[a_navigate_step(str(uuid4()))],
+        variables=[{"name": "city"}],
+    )
+    assert publish(account, workflow_id).status_code == 201
+    created = a_schedule(
+        account,
+        workflow_id,
+        cron="0 9 * * *",
+        timezone="Europe/Belgrade",
+        enabled=True,
+        variables={"city": "Belgrade"},
+        name="Morning invoices",
+    )
+    assert created.status_code == 201, created.text
+    save_draft(
+        account,
+        workflow_id,
+        steps=[a_navigate_step(str(uuid4()))],
+        variables=[{"name": "city"}, {"name": "region"}],
+    )
+    draft = read_draft(account, workflow_id).json()
+    schedule = created.json()
+
+    warned = diff(account, workflow_id)
+    assert warned.status_code == 200, warned.text
+    assert warned.json()["stranded_schedules"]
+
+    assert [entry["number"] for entry in versions(account, workflow_id).json()] == [1]
+    assert read_draft(account, workflow_id).json() == draft
+    listed = account.client.get(f"/api/workflows/{workflow_id}/schedules")
+    assert listed.status_code == 200, listed.text
+    assert listed.json() == [schedule]
