@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AbandonTakeoverData, AbandonTakeoverErrors, AbandonTakeoverResponses, AcceptInvitationData, AcceptInvitationErrors, AcceptInvitationResponses, CancelRunData, CancelRunErrors, CancelRunResponses, ChangeMemberRoleData, ChangeMemberRoleErrors, ChangeMemberRoleResponses, CheckpointRecordingSessionData, CheckpointRecordingSessionErrors, CheckpointRecordingSessionResponses, ConnectExtensionData, ConnectExtensionErrors, ConnectExtensionResponses, ConsentRunAuthStateData, ConsentRunAuthStateErrors, ConsentRunAuthStateResponses, CreateExtensionConnectCodeData, CreateExtensionConnectCodeErrors, CreateExtensionConnectCodeResponses, CreateInvitationData, CreateInvitationErrors, CreateInvitationResponses, CreateOrganizationData, CreateOrganizationErrors, CreateOrganizationResponses, CreateRecordingSessionData, CreateRecordingSessionErrors, CreateRecordingSessionResponses, CreateScheduleData, CreateScheduleErrors, CreateScheduleResponses, CreateSecretData, CreateSecretErrors, CreateSecretResponses, CreateWorkflowData, CreateWorkflowErrors, CreateWorkflowResponses, DeleteAccountData, DeleteAccountErrors, DeleteAccountResponses, DeleteAuthStateData, DeleteAuthStateErrors, DeleteAuthStateResponses, DeleteOrganizationData, DeleteOrganizationErrors, DeleteOrganizationResponses, DeleteRunData, DeleteRunErrors, DeleteRunResponses, DeleteScheduleData, DeleteScheduleErrors, DeleteScheduleResponses, DeleteSecretData, DeleteSecretErrors, DeleteSecretOverrideData, DeleteSecretOverrideErrors, DeleteSecretOverrideResponses, DeleteSecretResponses, DeleteWorkflowData, DeleteWorkflowErrors, DeleteWorkflowResponses, DownloadRunArtifactData, DownloadRunArtifactErrors, DuplicateWorkflowData, DuplicateWorkflowErrors, DuplicateWorkflowResponses, FinalizeRecordingSessionData, FinalizeRecordingSessionErrors, FinalizeRecordingSessionResponses, GetAttentionData, GetAttentionErrors, GetAttentionResponses, GetCurrentAccountData, GetCurrentAccountErrors, GetCurrentAccountResponses, GetExtensionVersionData, GetExtensionVersionErrors, GetExtensionVersionResponses, GetGreetingData, GetGreetingErrors, GetGreetingResponses, GetHealthData, GetHealthResponses, GetInstanceData, GetInstanceResponses, GetRunData, GetRunErrors, GetRunResponses, GetWorkflowData, GetWorkflowDraftData, GetWorkflowDraftDiffData, GetWorkflowDraftDiffErrors, GetWorkflowDraftDiffResponses, GetWorkflowDraftErrors, GetWorkflowDraftResponses, GetWorkflowErrors, GetWorkflowResponses, GetWorkflowVersionData, GetWorkflowVersionErrors, GetWorkflowVersionResponses, HandBackRunData, HandBackRunErrors, HandBackRunResponses, HoldTakeoverData, HoldTakeoverErrors, HoldTakeoverResponses, ListAuthStatesData, ListAuthStatesErrors, ListAuthStatesResponses, ListInvitationsData, ListInvitationsErrors, ListInvitationsResponses, ListMembersData, ListMembersErrors, ListMembersResponses, ListRunLogsData, ListRunLogsErrors, ListRunLogsResponses, ListRunsData, ListRunsErrors, ListRunsResponses, ListSchedulesData, ListSchedulesErrors, ListSchedulesResponses, ListSecretsData, ListSecretsErrors, ListSecretsResponses, ListWorkflowsData, ListWorkflowsErrors, ListWorkflowsResponses, ListWorkflowVersionsData, ListWorkflowVersionsErrors, ListWorkflowVersionsResponses, MintStreamTicketData, MintStreamTicketErrors, MintStreamTicketResponses, PauseRunData, PauseRunErrors, PauseRunResponses, PublishWorkflowVersionData, PublishWorkflowVersionErrors, PublishWorkflowVersionResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, RenameOrganizationData, RenameOrganizationErrors, RenameOrganizationResponses, RenameWorkflowData, RenameWorkflowErrors, RenameWorkflowResponses, RequestSigninCodeData, RequestSigninCodeErrors, RequestSigninCodeResponses, RestoreWorkflowVersionData, RestoreWorkflowVersionErrors, RestoreWorkflowVersionResponses, RevealSecretData, RevealSecretErrors, RevealSecretOverrideData, RevealSecretOverrideErrors, RevealSecretOverrideResponses, RevealSecretResponses, RevokeInvitationData, RevokeInvitationErrors, RevokeInvitationResponses, SaveWorkflowDraftData, SaveWorkflowDraftErrors, SaveWorkflowDraftResponses, SetSecretOverrideData, SetSecretOverrideErrors, SetSecretOverrideResponses, SignOutData, SignOutErrors, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, StartRunData, StartRunErrors, StartRunResponses, StreamRunEventsData, StreamRunEventsErrors, StreamRunEventsResponse, StreamRunEventsResponses, TakeOverRunData, TakeOverRunErrors, TakeOverRunResponses, TransferOwnershipData, TransferOwnershipErrors, TransferOwnershipResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, UpdateScheduleData, UpdateScheduleErrors, UpdateScheduleResponses, UpdateSecretData, UpdateSecretErrors, UpdateSecretResponses, VerifySigninCodeData, VerifySigninCodeErrors, VerifySigninCodeResponses } from './types.gen';
+import type { AbandonTakeoverData, AbandonTakeoverErrors, AbandonTakeoverResponses, AcceptInvitationData, AcceptInvitationErrors, AcceptInvitationResponses, CancelBatchData, CancelBatchErrors, CancelBatchResponses, CancelRunData, CancelRunErrors, CancelRunResponses, ChangeMemberRoleData, ChangeMemberRoleErrors, ChangeMemberRoleResponses, CheckpointRecordingSessionData, CheckpointRecordingSessionErrors, CheckpointRecordingSessionResponses, ConnectExtensionData, ConnectExtensionErrors, ConnectExtensionResponses, ConsentRunAuthStateData, ConsentRunAuthStateErrors, ConsentRunAuthStateResponses, CreateBatchData, CreateBatchErrors, CreateBatchResponses, CreateExtensionConnectCodeData, CreateExtensionConnectCodeErrors, CreateExtensionConnectCodeResponses, CreateInvitationData, CreateInvitationErrors, CreateInvitationResponses, CreateOrganizationData, CreateOrganizationErrors, CreateOrganizationResponses, CreateRecordingSessionData, CreateRecordingSessionErrors, CreateRecordingSessionResponses, CreateScheduleData, CreateScheduleErrors, CreateScheduleResponses, CreateSecretData, CreateSecretErrors, CreateSecretResponses, CreateWorkflowData, CreateWorkflowErrors, CreateWorkflowResponses, DeleteAccountData, DeleteAccountErrors, DeleteAccountResponses, DeleteAuthStateData, DeleteAuthStateErrors, DeleteAuthStateResponses, DeleteOrganizationData, DeleteOrganizationErrors, DeleteOrganizationResponses, DeleteRunData, DeleteRunErrors, DeleteRunResponses, DeleteScheduleData, DeleteScheduleErrors, DeleteScheduleResponses, DeleteSecretData, DeleteSecretErrors, DeleteSecretOverrideData, DeleteSecretOverrideErrors, DeleteSecretOverrideResponses, DeleteSecretResponses, DeleteWorkflowData, DeleteWorkflowErrors, DeleteWorkflowResponses, DownloadRunArtifactData, DownloadRunArtifactErrors, DuplicateWorkflowData, DuplicateWorkflowErrors, DuplicateWorkflowResponses, FinalizeRecordingSessionData, FinalizeRecordingSessionErrors, FinalizeRecordingSessionResponses, GetAttentionData, GetAttentionErrors, GetAttentionResponses, GetBatchData, GetBatchErrors, GetBatchOutputData, GetBatchOutputErrors, GetBatchOutputResponses, GetBatchResponses, GetCurrentAccountData, GetCurrentAccountErrors, GetCurrentAccountResponses, GetExtensionVersionData, GetExtensionVersionErrors, GetExtensionVersionResponses, GetGreetingData, GetGreetingErrors, GetGreetingResponses, GetHealthData, GetHealthResponses, GetInstanceData, GetInstanceResponses, GetRunData, GetRunErrors, GetRunResponses, GetWorkflowData, GetWorkflowDraftData, GetWorkflowDraftDiffData, GetWorkflowDraftDiffErrors, GetWorkflowDraftDiffResponses, GetWorkflowDraftErrors, GetWorkflowDraftResponses, GetWorkflowErrors, GetWorkflowResponses, GetWorkflowVersionData, GetWorkflowVersionErrors, GetWorkflowVersionResponses, HandBackRunData, HandBackRunErrors, HandBackRunResponses, HoldTakeoverData, HoldTakeoverErrors, HoldTakeoverResponses, ListAuthStatesData, ListAuthStatesErrors, ListAuthStatesResponses, ListInvitationsData, ListInvitationsErrors, ListInvitationsResponses, ListMembersData, ListMembersErrors, ListMembersResponses, ListRunLogsData, ListRunLogsErrors, ListRunLogsResponses, ListRunsData, ListRunsErrors, ListRunsResponses, ListSchedulesData, ListSchedulesErrors, ListSchedulesResponses, ListSecretsData, ListSecretsErrors, ListSecretsResponses, ListWorkflowsData, ListWorkflowsErrors, ListWorkflowsResponses, ListWorkflowVersionsData, ListWorkflowVersionsErrors, ListWorkflowVersionsResponses, MintStreamTicketData, MintStreamTicketErrors, MintStreamTicketResponses, PauseRunData, PauseRunErrors, PauseRunResponses, PublishWorkflowVersionData, PublishWorkflowVersionErrors, PublishWorkflowVersionResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, RenameOrganizationData, RenameOrganizationErrors, RenameOrganizationResponses, RenameWorkflowData, RenameWorkflowErrors, RenameWorkflowResponses, RequestSigninCodeData, RequestSigninCodeErrors, RequestSigninCodeResponses, RerunBatchRowData, RerunBatchRowErrors, RerunBatchRowResponses, RestoreWorkflowVersionData, RestoreWorkflowVersionErrors, RestoreWorkflowVersionResponses, RevealSecretData, RevealSecretErrors, RevealSecretOverrideData, RevealSecretOverrideErrors, RevealSecretOverrideResponses, RevealSecretResponses, RevokeInvitationData, RevokeInvitationErrors, RevokeInvitationResponses, SaveWorkflowDraftData, SaveWorkflowDraftErrors, SaveWorkflowDraftResponses, SetSecretOverrideData, SetSecretOverrideErrors, SetSecretOverrideResponses, SignOutData, SignOutErrors, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, SkipBatchRowData, SkipBatchRowErrors, SkipBatchRowResponses, StartRunData, StartRunErrors, StartRunResponses, StreamBatchEventsData, StreamBatchEventsErrors, StreamBatchEventsResponse, StreamBatchEventsResponses, StreamRunEventsData, StreamRunEventsErrors, StreamRunEventsResponse, StreamRunEventsResponses, TakeOverRunData, TakeOverRunErrors, TakeOverRunResponses, TransferOwnershipData, TransferOwnershipErrors, TransferOwnershipResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, UpdateScheduleData, UpdateScheduleErrors, UpdateScheduleResponses, UpdateSecretData, UpdateSecretErrors, UpdateSecretResponses, VerifySigninCodeData, VerifySigninCodeErrors, VerifySigninCodeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -744,6 +744,62 @@ export const updateSchedule = <ThrowOnError extends boolean = false>(options: Op
         ...options.headers
     }
 });
+
+/**
+ * Create Batch
+ *
+ * Persist the rows and start the first one. Secrets never enter a row.
+ */
+export const createBatch = <ThrowOnError extends boolean = false>(options: Options<CreateBatchData, ThrowOnError>): RequestResult<CreateBatchResponses, CreateBatchErrors, ThrowOnError> => (options.client ?? client).post<CreateBatchResponses, CreateBatchErrors, ThrowOnError>({
+    url: '/api/workflows/{workflow_id}/batches',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get Batch
+ *
+ * The Batch, its rows, derived counts, and an ETA once three rows finished.
+ */
+export const getBatch = <ThrowOnError extends boolean = false>(options: Options<GetBatchData, ThrowOnError>): RequestResult<GetBatchResponses, GetBatchErrors, ThrowOnError> => (options.client ?? client).get<GetBatchResponses, GetBatchErrors, ThrowOnError>({ url: '/api/batches/{batch_id}', ...options });
+
+/**
+ * Get Batch Output
+ *
+ * One table: the union of the rows' Variables and extract output names.
+ */
+export const getBatchOutput = <ThrowOnError extends boolean = false>(options: Options<GetBatchOutputData, ThrowOnError>): RequestResult<GetBatchOutputResponses, GetBatchOutputErrors, ThrowOnError> => (options.client ?? client).get<GetBatchOutputResponses, GetBatchOutputErrors, ThrowOnError>({ url: '/api/batches/{batch_id}/output', ...options });
+
+/**
+ * Stream Batch Events
+ *
+ * Fan out `batch:{id}:events` after the Organization gate; never replay.
+ */
+export const streamBatchEvents = <ThrowOnError extends boolean = false>(options: Options<StreamBatchEventsData, ThrowOnError, StreamBatchEventsResponse>): Promise<ServerSentEventsResult<StreamBatchEventsResponses>> => (options.client ?? client).sse.get<StreamBatchEventsResponses, StreamBatchEventsErrors, ThrowOnError>({ url: '/api/batches/{batch_id}/events', ...options });
+
+/**
+ * Cancel Batch
+ *
+ * Cancel the current Run and mark every remaining row cancelled.
+ */
+export const cancelBatch = <ThrowOnError extends boolean = false>(options: Options<CancelBatchData, ThrowOnError>): RequestResult<CancelBatchResponses, CancelBatchErrors, ThrowOnError> => (options.client ?? client).post<CancelBatchResponses, CancelBatchErrors, ThrowOnError>({ url: '/api/batches/{batch_id}/cancel', ...options });
+
+/**
+ * Skip Batch Row
+ *
+ * Cancel a waiting row's Run, mark it skipped, and advance at once.
+ */
+export const skipBatchRow = <ThrowOnError extends boolean = false>(options: Options<SkipBatchRowData, ThrowOnError>): RequestResult<SkipBatchRowResponses, SkipBatchRowErrors, ThrowOnError> => (options.client ?? client).post<SkipBatchRowResponses, SkipBatchRowErrors, ThrowOnError>({ url: '/api/batches/{batch_id}/rows/{index}/skip', ...options });
+
+/**
+ * Rerun Batch Row
+ *
+ * Attach a new attempt to one finished row. Other rows stay as they are.
+ */
+export const rerunBatchRow = <ThrowOnError extends boolean = false>(options: Options<RerunBatchRowData, ThrowOnError>): RequestResult<RerunBatchRowResponses, RerunBatchRowErrors, ThrowOnError> => (options.client ?? client).post<RerunBatchRowResponses, RerunBatchRowErrors, ThrowOnError>({ url: '/api/batches/{batch_id}/rows/{index}/rerun', ...options });
 
 /**
  * Get Health

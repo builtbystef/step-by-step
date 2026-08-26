@@ -1,8 +1,9 @@
-"""The Run event vocabulary: Redis pub/sub plus the dual-write log helper.
+"""The Run and Batch event vocabulary: Redis pub/sub plus the log helper.
 
-Workers publish here directly. The backend only fans the same messages out
-over SSE. Postgres remains the record of what happened; Redis carries the
-live wire and nothing else.
+Workers publish Run events here directly. The backend fans them out over SSE
+and also consumes a copy of each terminal `run.status` on `runs:terminal` so
+a Batch can advance without waiting for the minute loop. Postgres remains the
+record of what happened; Redis carries the live wire and nothing else.
 """
 
 import json
@@ -18,11 +19,19 @@ from step_by_step_core.db import session_scope
 LOG_LINE_CAP = 10_000
 TRUNCATION_TEXT = "log truncated"
 ARTIFACT_FIELDS = frozenset({"run_id", "step_id", "artifact_id", "kind", "at"})
+TERMINAL_STATUSES = frozenset({"succeeded", "failed", "cancelled"})
+TERMINAL_CHANNEL = "runs:terminal"
+"""A copy of each terminal run.status, so the backend can advance a Batch."""
 
 
 def events_channel(run_id: UUID) -> str:
     """The pub/sub channel one Run's live events travel on."""
     return f"run:{run_id}:events"
+
+
+def batch_events_channel(batch_id: UUID) -> str:
+    """The pub/sub channel one Batch's live row events travel on."""
+    return f"batch:{batch_id}:events"
 
 
 def publish(run_id: UUID, event_type: str, payload: dict[str, Any]) -> None:
@@ -35,6 +44,14 @@ def publish(run_id: UUID, event_type: str, payload: dict[str, Any]) -> None:
             if key in {"type", *ARTIFACT_FIELDS}
         }
     get_redis().publish(events_channel(run_id), json.dumps(body))
+    if event_type == "run.status" and body.get("status") in TERMINAL_STATUSES:
+        get_redis().publish(TERMINAL_CHANNEL, json.dumps(body))
+
+
+def publish_batch(batch_id: UUID, event_type: str, payload: dict[str, Any]) -> None:
+    """Publish one event on the Batch's channel."""
+    body = {"type": event_type, **jsonable(payload)}
+    get_redis().publish(batch_events_channel(batch_id), json.dumps(body))
 
 
 def publish_log(

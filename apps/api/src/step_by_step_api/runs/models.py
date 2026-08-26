@@ -127,7 +127,9 @@ class Run(Base):
     schedule_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("schedules.id", ondelete="SET NULL"), index=True, default=None
     )
-    batch_row_id: Mapped[UUID | None] = mapped_column(default=None)
+    batch_row_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("batch_rows.id", ondelete="SET NULL"), index=True, default=None
+    )
     status: Mapped[RunStatus] = mapped_column(
         enum_column(RunStatus, "run_status", 32), default=RunStatus.QUEUED
     )

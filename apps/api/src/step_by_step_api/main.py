@@ -7,6 +7,8 @@ from pydantic import BaseModel
 from step_by_step_api.accounts.routes import router as accounts_router
 from step_by_step_api.accounts.service import signup_mode
 from step_by_step_api.auth_states.routes import router as auth_states_router
+from step_by_step_api.batches.listen import start_in_lifespan as start_batch_listener
+from step_by_step_api.batches.routes import router as batches_router
 from step_by_step_api.envelope import master_key
 from step_by_step_api.errors import install_error_handler
 from step_by_step_api.extension.routes import router as extension_router
@@ -42,9 +44,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     mailer()
     signup_mode()
     loop = start_in_lifespan()
+    batches = start_batch_listener()
     yield
     if loop is not None:
         loop.cancel()
+    if batches is not None:
+        batches.cancel()
 
 
 app = FastAPI(title="step-by-step-api", lifespan=lifespan)
@@ -60,6 +65,7 @@ app.include_router(runs_router)
 app.include_router(vnc_router)
 app.include_router(internal_runs_router)
 app.include_router(schedules_router)
+app.include_router(batches_router)
 
 
 class Health(BaseModel):

@@ -436,7 +436,7 @@ def get_run(run_id: UUID, member: ActiveMembership, db: SessionDep) -> RunDetail
         step_results=[step_result_record(result) for result in results],
         control_intervals=[interval_record(interval) for interval in intervals],
         artifacts=[artifact_record(row) for row in stored],
-        batch_row=None,
+        batch_row=attached_batch_row(db, run),
         auth_state_candidates=[candidate_record(row) for row in candidates],
     )
 
@@ -645,10 +645,12 @@ def cancel_run(run_id: UUID, member: ActiveMembership, db: SessionDep) -> Respon
         run.status = RunStatus.CANCELLED
         run.ended_at = clock.now()
         db.commit()
+        advance_batch_after(run)
         return Response(status_code=202)
     if run.status is RunStatus.WAITING_FOR_HUMAN:
         close_waiting_run(db, run, clock.now(), status=RunStatus.CANCELLED)
         db.commit()
+        advance_batch_after(run)
         return Response(status_code=202)
     if run.cancel_requested_at is None:
         run.cancel_requested_at = clock.now()
@@ -805,7 +807,24 @@ def abandon_takeover(
         fail_paused=True,
     )
     db.commit()
+    advance_batch_after(run)
     return Response(status_code=202)
+
+
+def advance_batch_after(run: Run) -> None:
+    """A terminal Batch Run must not wait for the minute loop to free the next row."""
+    if run.batch_row_id is None or run.status.value in NON_TERMINAL:
+        return
+    from step_by_step_api.batches.advance import on_terminal_run
+
+    on_terminal_run(run.id)
+
+
+def attached_batch_row(db: SessionDep, run: Run) -> dict[str, Any] | None:
+    from step_by_step_api.batches.routes import batch_row_ref
+
+    ref = batch_row_ref(db, run)
+    return None if ref is None else ref.model_dump(mode="json")
 
 
 def run_summary(run: Run) -> RunSummary:

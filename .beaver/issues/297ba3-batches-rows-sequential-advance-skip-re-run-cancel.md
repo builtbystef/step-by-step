@@ -1,7 +1,8 @@
 ---
 id: 297ba3
 title: 'Batches: rows, sequential advance, skip, re-run, cancel'
-state: todo
+state: done
+assignee: agent
 priority: medium
 depends_on:
     - 423dg6
@@ -10,7 +11,7 @@ depends_on:
     - it3m03
 parent: 9gea5p
 created: 2026-08-14T07:45:08Z
-updated: 2026-08-14T07:45:08Z
+updated: 2026-08-26T12:12:33Z
 ---
 
 ## What to build
@@ -42,3 +43,19 @@ The Batch creation UI (upload, column mapping) is out of scope; this endpoint is
 - [ ] ETA is absent until three rows have finished, then equals median completed-row duration × rows remaining.
 - [ ] The Batch output over five rows → one table whose columns are the union of the rows' Variables and output names, in both formats.
 - [ ] `batch.row` events stream on the Batch channel as rows change status.
+
+## Notes
+
+**agent** — 2026-08-26T11:01:49Z
+
+Seams from the parent spec: (1) backend HTTP against Postgres and Redis for create/get/output/skip/rerun/cancel, org Membership → 404, sequential one-non-terminal-run, ETA, and the uniform output table; (2) the batch-advance step invoked directly as a function for the terminal-event path, and tick() as the silenced-event backstop; (3) live uvicorn for GET /api/batches/{id}/events, same reason TestClient buffers SSE.
+
+**agent** — 2026-08-26T12:12:33Z
+
+Completed from the timed-out loop iteration's leftover. All nine acceptance criteria have integration tests at the seams recorded earlier (HTTP against Postgres/Redis; on_terminal_run vs tick() for advance; live uvicorn for SSE).
+
+What landed: batches/batch_rows tables and migration; POST create (published Version required, secrets stripped from rows); GET detail with derived stats and eta_seconds (blank until three succeeded/failed rows, then median duration × remaining); JSON/CSV output; skip of a waiting row; rerun of a failed/skipped row while the Batch is idle; cancel of remaining queued rows plus the current Run; sequential one-non-terminal-Run invariant; batch.row SSE; org Membership → 404.
+
+Advance: on_terminal_run from the runs:terminal copy (and from cancel/skip/abandon on a Batch Run); tick() calls advance_stalled_batches as the missed-event backstop. Batch Runs have trigger=batch and no starter.
+
+No new decisions. Reviewer: the Batch creation UI is still out of scope (nno9gj).

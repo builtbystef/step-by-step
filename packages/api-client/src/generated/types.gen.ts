@@ -108,6 +108,33 @@ export type ArtifactRecord = {
 export type AssignableRole = 'admin' | 'member';
 
 /**
+ * AttemptRecord
+ */
+export type AttemptRecord = {
+    /**
+     * Id
+     */
+    id: string;
+    status: RunStatus;
+    /**
+     * Failure Reason
+     */
+    failure_reason: string | null;
+    /**
+     * Queued At
+     */
+    queued_at: string;
+    /**
+     * Started At
+     */
+    started_at: string | null;
+    /**
+     * Ended At
+     */
+    ended_at: string | null;
+};
+
+/**
  * Attention
  */
 export type Attention = {
@@ -189,6 +216,130 @@ export type AuthStateSummary = {
      * Updated At
      */
     updated_at: string;
+};
+
+/**
+ * BatchCreated
+ */
+export type BatchCreated = {
+    /**
+     * Batch Id
+     */
+    batch_id: string;
+};
+
+/**
+ * BatchDetail
+ */
+export type BatchDetail = {
+    batch: BatchRecord;
+    /**
+     * Rows
+     */
+    rows: Array<BatchRowRecord>;
+    stats: BatchStats;
+    /**
+     * Eta Seconds
+     */
+    eta_seconds?: number | null;
+};
+
+/**
+ * BatchRecord
+ */
+export type BatchRecord = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Workflow Id
+     */
+    workflow_id: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Cancelled At
+     */
+    cancelled_at: string | null;
+};
+
+/**
+ * BatchRowInput
+ */
+export type BatchRowInput = {
+    /**
+     * Variables
+     */
+    variables?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * BatchRowRecord
+ */
+export type BatchRowRecord = {
+    /**
+     * Index
+     */
+    index: number;
+    /**
+     * Variables
+     */
+    variables: {
+        [key: string]: unknown;
+    };
+    status: BatchRowStatus;
+    /**
+     * Latest Run Id
+     */
+    latest_run_id: string | null;
+    /**
+     * Runs
+     */
+    runs: Array<AttemptRecord>;
+};
+
+/**
+ * BatchRowStatus
+ */
+export type BatchRowStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'skipped' | 'cancelled';
+
+/**
+ * BatchStats
+ */
+export type BatchStats = {
+    /**
+     * Queued
+     */
+    queued: number;
+    /**
+     * Running
+     */
+    running: number;
+    /**
+     * Succeeded
+     */
+    succeeded: number;
+    /**
+     * Failed
+     */
+    failed: number;
+    /**
+     * Skipped
+     */
+    skipped: number;
+    /**
+     * Cancelled
+     */
+    cancelled: number;
 };
 
 /**
@@ -372,6 +523,20 @@ export type ControlIntervalRecord = {
      * Ended At
      */
     ended_at: string | null;
+};
+
+/**
+ * CreateBatch
+ */
+export type CreateBatch = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Rows
+     */
+    rows?: Array<BatchRowInput>;
 };
 
 /**
@@ -1002,6 +1167,16 @@ export type PendingInvitation = {
  * Whether a recording session replaces the Draft or repairs one Step.
  */
 export type RecordingMode = 'record' | 'repick';
+
+/**
+ * RerunCreated
+ */
+export type RerunCreated = {
+    /**
+     * Run Id
+     */
+    run_id: string;
+};
 
 /**
  * RevealedValue
@@ -5056,6 +5231,389 @@ export type UpdateScheduleResponses = {
 };
 
 export type UpdateScheduleResponse = UpdateScheduleResponses[keyof UpdateScheduleResponses];
+
+export type CreateBatchData = {
+    body: CreateBatch;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+    };
+    query?: never;
+    url: '/api/workflows/{workflow_id}/batches';
+};
+
+export type CreateBatchErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Conflict
+     */
+    409: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateBatchError = CreateBatchErrors[keyof CreateBatchErrors];
+
+export type CreateBatchResponses = {
+    /**
+     * Successful Response
+     */
+    201: BatchCreated;
+};
+
+export type CreateBatchResponse = CreateBatchResponses[keyof CreateBatchResponses];
+
+export type GetBatchData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Batch Id
+         */
+        batch_id: string;
+    };
+    query?: never;
+    url: '/api/batches/{batch_id}';
+};
+
+export type GetBatchErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetBatchError = GetBatchErrors[keyof GetBatchErrors];
+
+export type GetBatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: BatchDetail;
+};
+
+export type GetBatchResponse = GetBatchResponses[keyof GetBatchResponses];
+
+export type GetBatchOutputData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Batch Id
+         */
+        batch_id: string;
+    };
+    query?: {
+        /**
+         * Format
+         */
+        format?: 'json' | 'csv';
+    };
+    url: '/api/batches/{batch_id}/output';
+};
+
+export type GetBatchOutputErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetBatchOutputError = GetBatchOutputErrors[keyof GetBatchOutputErrors];
+
+export type GetBatchOutputResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type StreamBatchEventsData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Batch Id
+         */
+        batch_id: string;
+    };
+    query?: never;
+    url: '/api/batches/{batch_id}/events';
+};
+
+export type StreamBatchEventsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type StreamBatchEventsError = StreamBatchEventsErrors[keyof StreamBatchEventsErrors];
+
+export type StreamBatchEventsResponses = {
+    /**
+     * Live Batch events. Reconnection replays nothing.
+     */
+    200: string;
+};
+
+export type StreamBatchEventsResponse = StreamBatchEventsResponses[keyof StreamBatchEventsResponses];
+
+export type CancelBatchData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Batch Id
+         */
+        batch_id: string;
+    };
+    query?: never;
+    url: '/api/batches/{batch_id}/cancel';
+};
+
+export type CancelBatchErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CancelBatchError = CancelBatchErrors[keyof CancelBatchErrors];
+
+export type CancelBatchResponses = {
+    /**
+     * Successful Response
+     */
+    202: unknown;
+};
+
+export type SkipBatchRowData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Batch Id
+         */
+        batch_id: string;
+        /**
+         * Index
+         */
+        index: number;
+    };
+    query?: never;
+    url: '/api/batches/{batch_id}/rows/{index}/skip';
+};
+
+export type SkipBatchRowErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Conflict
+     */
+    409: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SkipBatchRowError = SkipBatchRowErrors[keyof SkipBatchRowErrors];
+
+export type SkipBatchRowResponses = {
+    /**
+     * Successful Response
+     */
+    202: unknown;
+};
+
+export type RerunBatchRowData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Batch Id
+         */
+        batch_id: string;
+        /**
+         * Index
+         */
+        index: number;
+    };
+    query?: never;
+    url: '/api/batches/{batch_id}/rows/{index}/rerun';
+};
+
+export type RerunBatchRowErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Conflict
+     */
+    409: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RerunBatchRowError = RerunBatchRowErrors[keyof RerunBatchRowErrors];
+
+export type RerunBatchRowResponses = {
+    /**
+     * Successful Response
+     */
+    201: RerunCreated;
+};
+
+export type RerunBatchRowResponse = RerunBatchRowResponses[keyof RerunBatchRowResponses];
 
 export type GetHealthData = {
     body?: never;
