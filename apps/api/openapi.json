@@ -4000,6 +4000,109 @@
         }
       }
     },
+    "/api/runs/{run_id}/auth-state-consents": {
+      "post": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Consent Run Auth State",
+        "description": "Record where a new takeover domain should land on the next write-back.",
+        "operationId": "consentRunAuthState",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "X-Organization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthStateConsentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
+      }
+    },
     "/api/runs/{run_id}/events": {
       "get": {
         "tags": [
@@ -5772,6 +5875,67 @@
         ],
         "title": "Attention"
       },
+      "AuthStateCandidateConsent": {
+        "properties": {
+          "scope": {
+            "$ref": "#/components/schemas/AuthStateConsentScope"
+          }
+        },
+        "type": "object",
+        "required": [
+          "scope"
+        ],
+        "title": "AuthStateCandidateConsent"
+      },
+      "AuthStateCandidateRecord": {
+        "properties": {
+          "domain": {
+            "type": "string",
+            "title": "Domain"
+          },
+          "consent": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AuthStateCandidateConsent"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "domain",
+          "consent"
+        ],
+        "title": "AuthStateCandidateRecord"
+      },
+      "AuthStateConsentRequest": {
+        "properties": {
+          "domain": {
+            "type": "string",
+            "title": "Domain"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/AuthStateConsentScope"
+          }
+        },
+        "type": "object",
+        "required": [
+          "domain",
+          "scope"
+        ],
+        "title": "AuthStateConsentRequest"
+      },
+      "AuthStateConsentScope": {
+        "type": "string",
+        "enum": [
+          "organization",
+          "personal"
+        ],
+        "title": "AuthStateConsentScope"
+      },
       "AuthStateScope": {
         "type": "string",
         "enum": [
@@ -7217,6 +7381,13 @@
               }
             ],
             "title": "Batch Row"
+          },
+          "auth_state_candidates": {
+            "items": {
+              "$ref": "#/components/schemas/AuthStateCandidateRecord"
+            },
+            "type": "array",
+            "title": "Auth State Candidates"
           }
         },
         "type": "object",
@@ -7225,7 +7396,8 @@
           "step_results",
           "control_intervals",
           "artifacts",
-          "batch_row"
+          "batch_row",
+          "auth_state_candidates"
         ],
         "title": "RunDetail"
       },

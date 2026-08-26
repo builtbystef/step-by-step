@@ -19,16 +19,25 @@ from step_by_step_core.objects import artifact_bucket, object_store, signing_sto
 from step_by_step_api import clock
 from step_by_step_api.accounts.orgs import ActiveMembership
 from step_by_step_api.accounts.sessions import SESSION_COOKIE, token_digest
+from step_by_step_api.auth_states.domains import registrable_domain
 from step_by_step_api.db import SessionDep
 from step_by_step_api.errors import ApiError, errors
+from step_by_step_api.runs.credentials import (
+    candidate_for,
+    document_for,
+    missing_secret_names,
+    refuse_missing,
+)
 from step_by_step_api.runs.models import (
     DEFAULT_RUN_TIMEOUT_MS,
     NON_TERMINAL,
     Artifact,
     ArtifactKind,
+    AuthStateConsentScope,
     FailureReason,
     LogLevel,
     Run,
+    RunAuthStateCandidate,
     RunControlInterval,
     RunControlKind,
     RunLogLine,
@@ -146,12 +155,27 @@ class ArtifactRecord(BaseModel):
     filename: str
 
 
+class AuthStateCandidateConsent(BaseModel):
+    scope: AuthStateConsentScope
+
+
+class AuthStateCandidateRecord(BaseModel):
+    domain: str
+    consent: AuthStateCandidateConsent | None
+
+
 class RunDetail(BaseModel):
     run: RunRecord
     step_results: list[StepResultRecord]
     control_intervals: list[ControlIntervalRecord]
     artifacts: list[ArtifactRecord]
     batch_row: dict[str, Any] | None
+    auth_state_candidates: list[AuthStateCandidateRecord]
+
+
+class AuthStateConsentRequest(BaseModel):
+    domain: str
+    scope: AuthStateConsentScope
 
 
 class LogLine(BaseModel):
@@ -249,6 +273,7 @@ def start_run(
 ) -> RunCreated:
     """Persist one queued Run, then place its id on the dumb dispatch pipe."""
     run = workflow_to_run(db, member, workflow_id, asked)
+    refuse_missing(missing_secret_names(db, run.org_id, document_for(db, run)))
     db.add(run)
     db.commit()
     get_redis().lpush(DISPATCH_LIST, str(run.id))
@@ -401,13 +426,54 @@ def get_run(run_id: UUID, member: ActiveMembership, db: SessionDep) -> RunDetail
         .where(Artifact.run_id == run_id)
         .order_by(Artifact.created_at, Artifact.id)
     ).scalars()
+    candidates = db.execute(
+        select(RunAuthStateCandidate)
+        .where(RunAuthStateCandidate.run_id == run_id)
+        .order_by(RunAuthStateCandidate.domain, RunAuthStateCandidate.id)
+    ).scalars()
     return RunDetail(
         run=run_record(run),
         step_results=[step_result_record(result) for result in results],
         control_intervals=[interval_record(interval) for interval in intervals],
         artifacts=[artifact_record(row) for row in stored],
         batch_row=None,
+        auth_state_candidates=[candidate_record(row) for row in candidates],
     )
+
+
+@router.post(
+    "/api/runs/{run_id}/auth-state-consents",
+    operation_id="consentRunAuthState",
+    status_code=204,
+    responses=errors(400, 401, 403, 404, 422),
+)
+def consent_run_auth_state(
+    run_id: UUID,
+    asked: AuthStateConsentRequest,
+    member: ActiveMembership,
+    db: SessionDep,
+) -> Response:
+    """Record where a new takeover domain should land on the next write-back."""
+    run = owned_run(db, member.org_id, run_id)
+    try:
+        domain = registrable_domain(asked.domain)
+    except ValueError as refused:
+        raise ApiError(400, "invalid_domain", str(refused)) from refused
+    candidate = candidate_for(db, run.id, domain)
+    if candidate is None:
+        raise ApiError(
+            404, "not_a_candidate", "that domain was not reported as a candidate"
+        )
+    if asked.scope is AuthStateConsentScope.PERSONAL and run.starter_user_id is None:
+        raise ApiError(
+            422,
+            "no_starter",
+            "a Scheduled or Batch Run has no member to attach a personal login to",
+        )
+    candidate.consent_scope = asked.scope
+    candidate.consenting_user_id = member.user_id
+    db.commit()
+    return Response(status_code=204)
 
 
 @router.get(
@@ -821,3 +887,12 @@ def artifact_record(row: Artifact) -> ArtifactRecord:
         created_at=row.created_at,
         filename=Path(row.object_key).name,
     )
+
+
+def candidate_record(row: RunAuthStateCandidate) -> AuthStateCandidateRecord:
+    consent = (
+        AuthStateCandidateConsent(scope=row.consent_scope)
+        if row.consent_scope is not None
+        else None
+    )
+    return AuthStateCandidateRecord(domain=row.domain, consent=consent)

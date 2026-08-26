@@ -77,6 +77,11 @@ class ArtifactKind(StrEnum):
     DOWNLOAD = "download"
 
 
+class AuthStateConsentScope(StrEnum):
+    ORGANIZATION = "organization"
+    PERSONAL = "personal"
+
+
 def enum_column(kind: type[StrEnum], name: str, length: int) -> Enum:
     """A closed set stored as readable words with a named check constraint."""
     return Enum(
@@ -271,4 +276,29 @@ class Artifact(Base):
     index: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=text("now()")
+    )
+
+
+class RunAuthStateCandidate(Base):
+    """A takeover domain that may become a saved login if the user consents."""
+
+    __tablename__ = "run_auth_state_candidates"
+    __table_args__ = (
+        UniqueConstraint(
+            "run_id", "domain", name="run_auth_state_candidates_run_domain_key"
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    run_id: Mapped[UUID] = mapped_column(
+        ForeignKey("runs.id", ondelete="CASCADE"), index=True
+    )
+    domain: Mapped[str] = mapped_column(String(253))
+    consent_scope: Mapped[AuthStateConsentScope | None] = mapped_column(
+        enum_column(AuthStateConsentScope, "auth_state_consent_scope", 16),
+        default=None,
+        nullable=True,
+    )
+    consenting_user_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), default=None
     )

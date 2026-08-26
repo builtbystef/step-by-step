@@ -17,6 +17,7 @@ from step_by_step_api.runs.models import (
 from step_by_step_core.bus import get_redis
 from step_by_step_core.db import session_scope
 from step_by_step_worker.store import PostgresRunStore
+from test_secrets import create
 from test_workflow_versions import publish
 from test_workflows import NewAccount, a_navigate_step, a_workflow, save_draft
 
@@ -128,10 +129,24 @@ def test_worker_claim_is_conditional_and_selects_the_test_run_snapshot(
 
 def test_secret_variable_values_never_enter_a_run(new_account: NewAccount) -> None:
     account = new_account()
-    workflow_id = published_workflow(
+    secret = create(account).json()
+    workflow_id = a_workflow(account)
+    saved = save_draft(
         account,
-        variables=[{"name": "customer"}, {"name": "password", "secret": True}],
+        workflow_id,
+        steps=[a_navigate_step(str(uuid4()))],
+        variables=[
+            {"name": "customer"},
+            {
+                "name": "password",
+                "secret": True,
+                "secretId": secret["id"],
+                "secretName": secret["name"],
+            },
+        ],
     )
+    assert saved.status_code == 200, saved.text
+    assert publish(account, workflow_id).status_code == 201
 
     created = start(
         account,
@@ -139,6 +154,7 @@ def test_secret_variable_values_never_enter_a_run(new_account: NewAccount) -> No
         variables={"customer": "Ada", "password": "do-not-store"},
     )
 
+    assert created.status_code == 201, created.text
     stored = detail(account, created.json()["run_id"]).json()["run"]["variables"]
     assert stored == {"customer": "Ada"}
 

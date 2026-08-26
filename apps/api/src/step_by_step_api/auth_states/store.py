@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from step_by_step_api import clock
 from step_by_step_api.auth_states.blob import AuthStateBlob
 from step_by_step_api.auth_states.models import AuthState
-from step_by_step_api.envelope import master_key, seal
+from step_by_step_api.envelope import Sealed, master_key, open_sealed, seal
 
 
 def store(
@@ -42,3 +42,11 @@ def store(
         )
     stored_id = db.execute(statement.returning(AuthState.id)).scalar_one()
     return db.get_one(AuthState, stored_id)
+
+
+def open_blob(row: AuthState) -> AuthStateBlob:
+    """The plaintext blob a Worker injects, opened under the master key."""
+    plaintext = open_sealed(
+        Sealed(value=row.sealed_blob, data_key=row.sealed_data_key), master_key()
+    )
+    return AuthStateBlob.model_validate_json(plaintext)

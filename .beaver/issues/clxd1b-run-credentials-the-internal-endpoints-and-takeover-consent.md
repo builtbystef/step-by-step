@@ -1,7 +1,8 @@
 ---
 id: clxd1b
 title: 'Run credentials: the internal endpoints and takeover consent'
-state: todo
+state: done
+assignee: agent
 priority: medium
 depends_on:
     - jdgmdx
@@ -9,7 +10,7 @@ depends_on:
     - 423dg6
 parent: 54i6da
 created: 2026-08-14T06:16:00Z
-updated: 2026-08-17T04:04:08Z
+updated: 2026-08-26T06:13:46Z
 ---
 
 ## What to build
@@ -64,3 +65,19 @@ This slice's edge on the execution spec is an umbrella; tighten it to the specif
 **claude** — 2026-08-17T04:04:08Z
 
 Two pins. (1) The run detail (GET /api/runs/{id}) gains auth_state_candidates: [{domain, consent: {scope} | null}] — populated from this slice's candidate/consent state, empty when the Run has none; 2aybf8's keep-this-login prompt renders it. (2) missing_secret precedence (mirrored on 423dg6): the request-time 409 on POST .../runs is a best-effort pre-check; this slice's 409 at the credentials fetch is authoritative for every trigger — a Run whose Secret disappears between start and claim ends failed/missing_secret.
+
+**agent** — 2026-08-26T06:03:00Z
+
+Seams (AFK): Backend HTTP against the FastAPI app with real Postgres, as 54i6da named. Internal Worker routes (token + live assigned Run), public consent and start-time missing_secret, and GET /api/runs/{id} auth_state_candidates. Credentials logging is asserted at the same HTTP call by capturing process logs.
+
+**agent** — 2026-08-26T06:13:46Z
+
+Completed the Worker credential path and takeover consent.
+
+Internal GET /internal/runs/{id}/credentials, GET .../auth-state-consents, and POST .../auth-states authenticate with INTERNAL_TOKEN and require a currently assigned non-terminal Run (else 409 run_terminal, same as heartbeat). Resolution is override-blind: a member-started Run opens the starter's Personal Override then the org Secret, and injects the per-domain Auth State union (personal wins, personal-only domains included). Scheduled and Batch Runs open org values only. A missing or unbound Secret is 409 missing_secret with variable_names. POST /api/workflows/{id}/runs does the same check as a best-effort pre-check and creates no row.
+
+Write-back re-applies that rule per domain; a domain with neither a record at the resolved destination nor consent is 400 unconsented_domain. new_candidates live on run_auth_state_candidates (cascade with the Run). POST /api/runs/{id}/auth-state-consents records scope and the consenting member (404 not_a_candidate, 422 no_starter for personal on a Scheduled/Batch Run). GET /api/runs/{id} carries auth_state_candidates: [{domain, consent: {scope} | null}].
+
+The credentials handler logs the Run id and never the body; the HTTP-seam test asserts unique plaintext is absent from captured logs.
+
+Seams as noted: HTTP against FastAPI + real Postgres.

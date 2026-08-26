@@ -130,6 +130,40 @@ export type Attention = {
 };
 
 /**
+ * AuthStateCandidateConsent
+ */
+export type AuthStateCandidateConsent = {
+    scope: AuthStateConsentScope;
+};
+
+/**
+ * AuthStateCandidateRecord
+ */
+export type AuthStateCandidateRecord = {
+    /**
+     * Domain
+     */
+    domain: string;
+    consent: AuthStateCandidateConsent | null;
+};
+
+/**
+ * AuthStateConsentRequest
+ */
+export type AuthStateConsentRequest = {
+    /**
+     * Domain
+     */
+    domain: string;
+    scope: AuthStateConsentScope;
+};
+
+/**
+ * AuthStateConsentScope
+ */
+export type AuthStateConsentScope = 'organization' | 'personal';
+
+/**
  * AuthStateScope
  */
 export type AuthStateScope = 'organization' | 'personal';
@@ -1036,6 +1070,10 @@ export type RunDetail = {
     batch_row: {
         [key: string]: unknown;
     } | null;
+    /**
+     * Auth State Candidates
+     */
+    auth_state_candidates: Array<AuthStateCandidateRecord>;
 };
 
 /**
@@ -4206,6 +4244,58 @@ export type GetRunResponses = {
 };
 
 export type GetRunResponse = GetRunResponses[keyof GetRunResponses];
+
+export type ConsentRunAuthStateData = {
+    body: AuthStateConsentRequest;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Run Id
+         */
+        run_id: string;
+    };
+    query?: never;
+    url: '/api/runs/{run_id}/auth-state-consents';
+};
+
+export type ConsentRunAuthStateErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Unprocessable Content
+     */
+    422: ErrorBody;
+};
+
+export type ConsentRunAuthStateError = ConsentRunAuthStateErrors[keyof ConsentRunAuthStateErrors];
+
+export type ConsentRunAuthStateResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type ConsentRunAuthStateResponse = ConsentRunAuthStateResponses[keyof ConsentRunAuthStateResponses];
 
 export type StreamRunEventsData = {
     body?: never;
