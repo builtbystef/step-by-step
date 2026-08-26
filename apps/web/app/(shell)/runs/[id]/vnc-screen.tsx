@@ -37,7 +37,7 @@ export function VncScreen({
       if (cancelled || minted.error || minted.data === undefined) {
         return;
       }
-      const { default: RFB } = await import("@novnc/novnc/lib/rfb");
+      const { default: RFB } = await import("@novnc/novnc");
       if (cancelled) {
         return;
       }

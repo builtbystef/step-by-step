@@ -1,4 +1,4 @@
-declare module "@novnc/novnc/lib/rfb" {
+declare module "@novnc/novnc" {
   export default class RFB {
     constructor(
       target: HTMLElement,
