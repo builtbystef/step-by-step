@@ -1,20 +1,25 @@
 import type { Variable } from "@step-by-step/api-client";
 import { describe, expect, it } from "vitest";
 
-import { columnsOf, rowCounts } from "../../../../../../components/value-grid/grid";
+import { columnsOf, fillEveryRow, rowCounts } from "../../../../../../components/value-grid/grid";
 
 import {
+  addedVariables,
   createBody,
+  creationDriftBanner,
   defaultBatchName,
+  mergeVariables,
   progressHref,
   rerunBatchName,
   sequentialEta,
+  submitBlockedByDrift,
 } from "./creation";
 
 /**
  * The Batch creation page's decisions, read back without a DOM: the default
  * name, the copy-from-a-past-Batch name, the incomplete-row flag on the
- * payload, the sequential ETA, and where submit navigates.
+ * payload, the sequential ETA, the new-Variable banner, and where submit
+ * navigates.
  */
 
 const CITY: Variable = { name: "city" };
@@ -88,5 +93,40 @@ describe("footer counts on the creation body", () => {
       { city: "", region: "EU" },
     ];
     expect(rowCounts(rows, columns)).toEqual({ total: 5, complete: 3, missing: 2 });
+  });
+});
+
+describe("a Version that gained a Variable while the page is open", () => {
+  it("names region on the banner and offers give every row the same value", () => {
+    const added = addedVariables(["city"], [CITY, REGION, PASSWORD]);
+    expect(added.map((variable) => variable.name)).toEqual(["region"]);
+    const banner = creationDriftBanner(added);
+    expect(banner?.name).toBe("region");
+    expect(banner?.title).toMatch(/region/);
+    expect(banner?.offer.toLowerCase()).toBe("give every row the same value");
+  });
+
+  it("does not treat a secret Variable or an already-loaded one as new", () => {
+    expect(addedVariables(["city"], [CITY, PASSWORD])).toEqual([]);
+    expect(creationDriftBanner([])).toBeNull();
+  });
+
+  it("fills the new column on every row with the one entered value", () => {
+    const declared = mergeVariables([CITY], [REGION]);
+    const columns = columnsOf(declared);
+    const filled = fillEveryRow([{ city: "A" }, { city: "B" }], columns, "region", "EU");
+    expect(filled).toEqual([
+      { city: "A", region: "EU" },
+      { city: "B", region: "EU" },
+    ]);
+    expect(createBody("Batch", filled, columns, false).rows).toEqual([
+      { variables: { city: "A", region: "EU" } },
+      { variables: { city: "B", region: "EU" } },
+    ]);
+  });
+
+  it("blocks submit until the drift has been filled, so the POST is not sent", () => {
+    expect(submitBlockedByDrift(addedVariables(["city"], [CITY, REGION]))).toBe(true);
+    expect(submitBlockedByDrift([])).toBe(false);
   });
 });

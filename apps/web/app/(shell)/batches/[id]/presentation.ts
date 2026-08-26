@@ -1,4 +1,10 @@
-import type { BatchRowRecord, BatchStats, RunStatus } from "@step-by-step/api-client";
+import type {
+  BatchRowRecord,
+  BatchStats,
+  FillRows,
+  RunStatus,
+  Variable,
+} from "@step-by-step/api-client";
 
 import { duration } from "../../../../lib/duration";
 import type { LifecycleState } from "@/lib/labels";
@@ -6,8 +12,8 @@ import type { LifecycleState } from "@/lib/labels";
 /**
  * The batch view's decisions, kept out of the JSX so a test can read the
  * acceptance criteria back: the stats header, the segmented bar, the live
- * badge, the ETA, row expansion copy, the stalled callout, and Output-tab
- * download URLs.
+ * badge, the ETA, row expansion copy, the stalled callout, the new-Variable
+ * banner, and Output-tab download URLs.
  *
  * Lifecycle state is named here only as a value handed to `StatusChip`.
  * This module never words a state itself.
@@ -224,4 +230,73 @@ function cellOf(value: unknown): string {
 
 export function variableCell(value: unknown): string {
   return cellOf(value);
+}
+
+export function hasVariableValue(variables: Record<string, unknown>, name: string): boolean {
+  if (!(name in variables)) {
+    return false;
+  }
+  const value = variables[name];
+  return value !== null && value !== undefined && value !== "";
+}
+
+export type RunningDriftBanner = {
+  name: string;
+  queuedCount: number;
+  title: string;
+  fill: string;
+  runAsIs: string;
+  cancelRest: string;
+};
+
+export function runningDriftBanner(
+  rows: readonly BatchRowRecord[],
+  latest: readonly Variable[],
+  dismissed: ReadonlySet<string> = new Set(),
+): RunningDriftBanner | null {
+  for (const variable of latest) {
+    if (variable.secret === true || dismissed.has(variable.name)) {
+      continue;
+    }
+    let queuedCount = 0;
+    for (const row of rows) {
+      if (row.status === "queued" && !hasVariableValue(row.variables, variable.name)) {
+        queuedCount += 1;
+      }
+    }
+    if (queuedCount === 0) {
+      continue;
+    }
+    return {
+      name: variable.name,
+      queuedCount,
+      title: `${String(queuedCount)} queued rows have no value for ${variable.name}`,
+      fill: "Fill the queued rows",
+      runAsIs: "Run them as they are",
+      cancelRest: "Cancel the rest",
+    };
+  }
+  return null;
+}
+
+/** The one write the fill action issues. */
+export function fillRowsBody(name: string, value: string): FillRows {
+  return { name, value };
+}
+
+export function applyQueuedFill(
+  rows: readonly BatchRowRecord[],
+  name: string,
+  value: string,
+): BatchRowRecord[] {
+  return rows.map((row) => {
+    if (row.status !== "queued" || hasVariableValue(row.variables, name)) {
+      return row;
+    }
+    return { ...row, variables: { ...row.variables, [name]: value } };
+  });
+}
+
+export function dismissVariable(dismissed: ReadonlySet<string>, name: string): Set<string> {
+  return new Set([...dismissed, name]);
 }

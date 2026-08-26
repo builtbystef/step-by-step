@@ -1,8 +1,11 @@
 import {
   getBatch,
+  getWorkflow,
+  getWorkflowVersion,
   listBatches,
   type BatchDetail,
   type BatchSummary,
+  type Variable,
 } from "@step-by-step/api-client";
 
 /**
@@ -32,4 +35,19 @@ export async function loadBatch(batchId: string): Promise<BatchDetail> {
   const { data, error } = await getBatch({ path: { batch_id: batchId } });
   if (error) throw error;
   return data;
+}
+
+/** The latest published Version's Variables, fetched now rather than from cache. */
+export async function loadPublishedVariables(workflowId: string): Promise<Variable[]> {
+  const { data, error } = await getWorkflow({ path: { workflow_id: workflowId } });
+  if (error) throw error;
+  const version = data.published_version ?? null;
+  if (version === null) {
+    return [];
+  }
+  const document = await getWorkflowVersion({
+    path: { workflow_id: workflowId, number: version },
+  });
+  if (document.error) throw document.error;
+  return document.data.variables ?? [];
 }

@@ -1,15 +1,19 @@
-import type { AttemptRecord, BatchRowRecord, BatchStats } from "@step-by-step/api-client";
+import type { AttemptRecord, BatchRowRecord, BatchStats, Variable } from "@step-by-step/api-client";
 import { describe, expect, it } from "vitest";
 
 import {
+  applyQueuedFill,
+  dismissVariable,
   etaLabel,
   failureReasonWords,
+  fillRowsBody,
   liveRowIndex,
   outputDownloadHref,
   progressSegments,
   rowChipState,
   rowDurationMs,
   runHref,
+  runningDriftBanner,
   stalledCallout,
   statsView,
   takeOverLabel,
@@ -19,8 +23,9 @@ import {
 
 /**
  * The batch view's decisions, read back without a DOM: the stats header,
- * the segmented bar, the live badge, the ETA, row expansion copy, and the
- * stalled callout. The page draws these; it does not re-decide them.
+ * the segmented bar, the live badge, the ETA, row expansion copy, the
+ * stalled callout, and the new-Variable banner. The page draws these; it
+ * does not re-decide them.
  */
 
 const START = "2026-08-26T12:00:00.000Z";
@@ -248,5 +253,59 @@ describe("the Output tab", () => {
   it("downloads both formats from the endpoint", () => {
     expect(outputDownloadHref("bat-1", "json")).toBe("/api/batches/bat-1/output?format=json");
     expect(outputDownloadHref("bat-1", "csv")).toBe("/api/batches/bat-1/output?format=csv");
+  });
+});
+
+const CITY: Variable = { name: "city" };
+const REGION: Variable = { name: "region" };
+const PASSWORD: Variable = { name: "password", secret: true };
+
+describe("a running Batch whose latest Version gained a Variable", () => {
+  const rows: BatchRowRecord[] = [
+    row({
+      index: 0,
+      status: "succeeded",
+      variables: { city: "A" },
+      latest_run_id: "run-0",
+      runs: [attempt({ id: "run-0" })],
+    }),
+    row({
+      index: 1,
+      status: "running",
+      variables: { city: "B" },
+      latest_run_id: "run-1",
+      runs: [attempt({ id: "run-1", status: "running", ended_at: null })],
+    }),
+    row({ index: 2, status: "queued", variables: { city: "C" } }),
+    row({ index: 3, status: "queued", variables: { city: "D" } }),
+    row({ index: 4, status: "queued", variables: { city: "E" } }),
+  ];
+
+  it("names how many queued rows have no value for region", () => {
+    const banner = runningDriftBanner(rows, [CITY, REGION, PASSWORD]);
+    expect(banner).not.toBeNull();
+    expect(banner?.name).toBe("region");
+    expect(banner?.queuedCount).toBe(3);
+    expect(banner?.title).toBe("3 queued rows have no value for region");
+    expect(banner?.fill).toBe("Fill the queued rows");
+    expect(banner?.runAsIs).toBe("Run them as they are");
+    expect(banner?.cancelRest).toBe("Cancel the rest");
+  });
+
+  it("fills with one rows/fill body and leaves succeeded and running rows untouched", () => {
+    expect(fillRowsBody("region", "EU")).toEqual({ name: "region", value: "EU" });
+    const filled = applyQueuedFill(rows, "region", "EU");
+    expect(filled[0]?.variables).toEqual({ city: "A" });
+    expect(filled[1]?.variables).toEqual({ city: "B" });
+    expect(filled[2]?.variables).toEqual({ city: "C", region: "EU" });
+    expect(filled[3]?.variables).toEqual({ city: "D", region: "EU" });
+    expect(filled[4]?.variables).toEqual({ city: "E", region: "EU" });
+    expect(runningDriftBanner(filled, [CITY, REGION])).toBeNull();
+  });
+
+  it("run-them-as-they-are dismisses the banner with no write", () => {
+    const dismissed = dismissVariable(new Set(), "region");
+    expect(runningDriftBanner(rows, [CITY, REGION], dismissed)).toBeNull();
+    expect(rows[2]?.variables).toEqual({ city: "C" });
   });
 });

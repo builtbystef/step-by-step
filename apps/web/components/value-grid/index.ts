@@ -9,6 +9,7 @@ export {
   blankRows,
   columnsOf,
   emptyRow,
+  fillEveryRow,
   lockedCellLabel,
   parseSpreadsheet,
   rowCounts,

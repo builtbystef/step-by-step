@@ -3,17 +3,21 @@
 import { createBatch, type CreateBatch, type Variable } from "@step-by-step/api-client";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
+  addedVariables,
   createBody,
+  creationDriftBanner,
   defaultBatchName,
+  mergeVariables,
   progressHref,
   rerunBatchName,
   sequentialEta,
+  submitBlockedByDrift,
 } from "./creation";
 import { refusalMessage } from "./messages";
-import { loadBatch, workflowBatchesQuery } from "./queries";
+import { loadBatch, loadPublishedVariables, workflowBatchesQuery } from "./queries";
 
 import { versionDocumentQuery } from "../../editor/queries";
 import { workflowQuery } from "../../queries";
@@ -24,6 +28,7 @@ import {
   ValueGrid,
   applyCopiedBatch,
   columnsOf,
+  fillEveryRow,
   initialRows,
   rowCounts,
   type GridRow,
@@ -43,7 +48,9 @@ import { COPY } from "@/lib/copy";
 /**
  * One page, always a grid. Columns are the Workflow's declared Variables;
  * typing, pasting, and copying a past Batch's rows all land in this table.
- * Submitting creates the Batch and navigates to its progress view.
+ * A Version that gains a Variable while this page is open raises a banner
+ * rather than reaching unattended Runs. Submitting creates the Batch and
+ * navigates to its progress view.
  */
 
 export default function NewBatchPage() {
@@ -64,19 +71,50 @@ function NewBatch({ orgId, workflowId }: { orgId: string; workflowId: string }) 
   const document = useQuery(versionDocumentQuery(orgId, workflowId, published));
   const past = useQuery(workflowBatchesQuery(orgId, workflowId));
 
-  const variables: Variable[] = document.data?.variables ?? [];
-  const columns = columnsOf(variables);
-
+  const [declared, setDeclared] = useState<Variable[] | null>(null);
   const [rows, setRows] = useState<GridRow[] | null>(null);
   const [name, setName] = useState<string | null>(null);
   const [runIncomplete, setRunIncomplete] = useState(false);
+  const [added, setAdded] = useState<Variable[]>([]);
+  const [fillValue, setFillValue] = useState("");
+  const [checkError, setCheckError] = useState<unknown>(null);
+  const baselineNames = useRef<string[]>([]);
+
+  const variables: Variable[] = declared ?? [];
+  const columns = columnsOf(variables);
 
   useEffect(() => {
     if (document.data === undefined || rows !== null) {
       return;
     }
-    setRows(initialRows(document.data.variables ?? [], 1));
+    const loaded = document.data.variables ?? [];
+    setDeclared(loaded);
+    baselineNames.current = loaded
+      .filter((variable) => variable.secret !== true)
+      .map((variable) => variable.name);
+    setRows(initialRows(loaded, 1));
   }, [document.data, rows]);
+
+  useEffect(() => {
+    const onFocus = () => {
+      void loadPublishedVariables(workflowId)
+        .then((latest) => {
+          const next = addedVariables(baselineNames.current, latest);
+          if (next.length > 0) {
+            setAdded(next);
+            setDeclared((current) => mergeVariables(current ?? [], next));
+          }
+        })
+        .catch(() => {
+          // The pre-submit check is the one that must not miss; a failed
+          // refocus leaves the banner for that pass.
+        });
+    };
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [workflowId]);
 
   const copy = useMutation({
     mutationFn: async (batchId: string) => {
@@ -113,14 +151,30 @@ function NewBatch({ orgId, workflowId }: { orgId: string; workflowId: string }) 
   if (published === null && workflow.data !== undefined) {
     return <Callout tone="bad">{COPY.noPublishedVersion}</Callout>;
   }
-  if (workflow.data === undefined || document.data === undefined || rows === null) {
+  if (
+    workflow.data === undefined ||
+    document.data === undefined ||
+    rows === null ||
+    declared === null
+  ) {
     return null;
   }
 
   const shownName = name ?? defaultBatchName(workflow.data.name, new Date());
   const counts = rowCounts(rows, columns);
   const eta = sequentialEta(rows.length, workflow.data.recent_run_median_ms);
-  const refused = copy.error ?? create.error;
+  const refused = copy.error ?? create.error ?? checkError;
+  const banner = creationDriftBanner(added);
+
+  const fillAdded = () => {
+    if (banner === null) {
+      return;
+    }
+    setRows(fillEveryRow(rows, columns, banner.name, fillValue));
+    baselineNames.current = [...baselineNames.current, banner.name];
+    setAdded((current) => current.filter((variable) => variable.name !== banner.name));
+    setFillValue("");
+  };
 
   return (
     <div className="flex flex-col gap-3">
@@ -154,6 +208,28 @@ function NewBatch({ orgId, workflowId }: { orgId: string; workflowId: string }) 
       </div>
 
       {refused ? <Callout tone="bad">{refusalMessage(refused)}</Callout> : null}
+
+      {banner === null ? null : (
+        <Callout
+          tone="warn"
+          size="banner"
+          title={banner.title}
+          actions={
+            <Button size="sm" disabled={fillValue.trim() === ""} onClick={fillAdded}>
+              {banner.offer}
+            </Button>
+          }
+        >
+          <Input
+            aria-label={banner.name}
+            value={fillValue}
+            className="h-7 max-w-xs font-mono text-half"
+            onChange={(typed) => {
+              setFillValue(typed.target.value);
+            }}
+          />
+        </Callout>
+      )}
 
       <ValueGrid variables={variables} rows={rows} onChange={setRows} />
 
@@ -190,7 +266,22 @@ function NewBatch({ orgId, workflowId }: { orgId: string; workflowId: string }) 
         <Button
           disabled={create.isPending || rows.length === 0}
           onClick={() => {
-            create.mutate(createBody(shownName, rows, columns, runIncomplete));
+            void loadPublishedVariables(workflowId)
+              .then((latest) => {
+                const next = addedVariables(baselineNames.current, latest);
+                if (next.length > 0) {
+                  setAdded(next);
+                  setDeclared((current) => mergeVariables(current ?? [], next));
+                }
+                if (submitBlockedByDrift(next)) {
+                  return;
+                }
+                setCheckError(null);
+                create.mutate(createBody(shownName, rows, columns, runIncomplete));
+              })
+              .catch((error: unknown) => {
+                setCheckError(error);
+              });
           }}
         >
           Create batch

@@ -1,4 +1,4 @@
-import type { CreateBatch } from "@step-by-step/api-client";
+import type { CreateBatch, Variable } from "@step-by-step/api-client";
 
 import {
   submittedVariables,
@@ -9,8 +9,8 @@ import { duration } from "../../../../../../lib/duration";
 
 /**
  * The Batch creation page's decisions: the default name, the copy-from name,
- * the incomplete-row flag on the payload, the sequential ETA, and where
- * submit navigates.
+ * the incomplete-row flag on the payload, the sequential ETA, the new-Variable
+ * banner, and where submit navigates.
  */
 
 const MONTHS = [
@@ -62,4 +62,43 @@ export function createBody(
 
 function calendarDate(now: Date): string {
   return `${String(now.getDate())} ${MONTHS[now.getMonth()] ?? ""} ${String(now.getFullYear())}`;
+}
+
+/** Non-secret Variables the latest Version declares that the page did not load. */
+export function addedVariables(
+  baselineNames: readonly string[],
+  latest: readonly Variable[],
+): Variable[] {
+  const known = new Set(baselineNames);
+  return latest.filter((variable) => variable.secret !== true && !known.has(variable.name));
+}
+
+export function mergeVariables(
+  current: readonly Variable[],
+  added: readonly Variable[],
+): Variable[] {
+  const names = new Set(current.map((variable) => variable.name));
+  return [...current, ...added.filter((variable) => !names.has(variable.name))];
+}
+
+export type CreationDriftBanner = {
+  name: string;
+  title: string;
+  offer: string;
+};
+
+export function creationDriftBanner(added: readonly Variable[]): CreationDriftBanner | null {
+  const first = added[0];
+  if (first === undefined) {
+    return null;
+  }
+  return {
+    name: first.name,
+    title: `This Workflow now needs ${first.name}`,
+    offer: "Give every row the same value",
+  };
+}
+
+export function submitBlockedByDrift(added: readonly Variable[]): boolean {
+  return added.length > 0;
 }

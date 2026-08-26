@@ -120,6 +120,16 @@ export function applyCopiedBatch(
   });
 }
 
+/** Set one Variable to the same value on every row. Secret columns refuse the write. */
+export function fillEveryRow(
+  rows: readonly GridRow[],
+  columns: readonly GridColumn[],
+  name: string,
+  value: string,
+): GridRow[] {
+  return rows.map((row) => setCell(row, columns, name, value));
+}
+
 export function submittedVariables(
   row: GridRow,
   columns: readonly GridColumn[],

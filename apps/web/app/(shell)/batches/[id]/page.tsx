@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  cancelBatch,
+  fillBatchRows,
   rerunBatchRow,
   skipBatchRow,
   takeOverRun,
@@ -17,15 +19,19 @@ import { useEffect, useState } from "react";
 import { applyBatchEvent, batchIsLive, snapshotFromDetail, type BatchSnapshot } from "./events";
 import { refusalMessage } from "./messages";
 import {
+  applyQueuedFill,
   batchOutputTable,
+  dismissVariable,
   etaLabel,
   failureReasonWords,
+  fillRowsBody,
   liveRowIndex,
   outputDownloadHref,
   progressSegments,
   rowChipState,
   rowDurationMs,
   runHref,
+  runningDriftBanner,
   stalledCallout,
   statsView,
   variableCell,
@@ -42,7 +48,9 @@ import {
 import { chipState, clock, railItems } from "../../runs/[id]/presentation";
 import { runQuery, runVersionQuery } from "../../runs/[id]/queries";
 import { useRunStream } from "../../runs/[id]/use-run-stream";
+import { versionDocumentQuery } from "../../workflows/[id]/editor/queries";
 import type { Step } from "../../workflows/[id]/editor/steps";
+import { workflowQuery } from "../../workflows/[id]/queries";
 import { useActiveOrganization } from "../../use-active-organization";
 
 import { AttributeBadge } from "@/components/primitives/attribute-badge";
@@ -50,13 +58,14 @@ import { Callout } from "@/components/primitives/callout";
 import { ExpandableRow } from "@/components/primitives/expandable-row";
 import { StatusChip } from "@/components/primitives/status-chip";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { invalidateRunState } from "@/lib/attention";
 import { duration } from "@/lib/duration";
 import { cn } from "@/lib/utils";
 
 /**
  * `/batches/[id]` — the Batch as a screen: the table, the live badge, the
- * stalled callout, and the uniform Output tab.
+ * stalled callout, the new-Variable banner, and the uniform Output tab.
  */
 
 export default function BatchDetailPage() {
@@ -74,13 +83,24 @@ function BatchView({ orgId, batchId }: { orgId: string; batchId: string }) {
   const cache = useQueryClient();
   const router = useRouter();
   const loaded = useQuery(batchQuery(orgId, batchId));
+  const workflowId = loaded.data?.batch.workflow_id ?? "";
+  const workflow = useQuery({
+    ...workflowQuery(orgId, workflowId),
+    enabled: workflowId !== "",
+  });
+  const published = workflow.data?.published_version ?? null;
+  const document = useQuery(versionDocumentQuery(orgId, workflowId, published));
   const [live, setLive] = useState<BatchSnapshot | null>(null);
   const [now, setNow] = useState(() => new Date());
   const [tab, setTab] = useState<"rows" | "output">("rows");
   const [actionError, setActionError] = useState<string | null>(null);
+  const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
+  const [fillValue, setFillValue] = useState("");
 
   useEffect(() => {
     setLive(null);
+    setDismissed(new Set());
+    setFillValue("");
   }, [batchId]);
 
   useEffect(() => {
@@ -184,6 +204,51 @@ function BatchView({ orgId, batchId }: { orgId: string; batchId: string }) {
     },
   });
 
+  const fillQueued = useMutation({
+    mutationFn: async ({ name, value }: { name: string; value: string }) => {
+      const { error } = await fillBatchRows({
+        path: { batch_id: batchId },
+        body: fillRowsBody(name, value),
+      });
+      if (error) throw error;
+      return { name, value };
+    },
+    onSuccess: async ({ name, value }) => {
+      setActionError(null);
+      setFillValue("");
+      setLive((current) =>
+        current === null
+          ? current
+          : { ...current, rows: applyQueuedFill(current.rows, name, value) },
+      );
+      const refreshed = await loaded.refetch();
+      if (refreshed.data !== undefined) {
+        setLive(snapshotFromDetail(refreshed.data));
+      }
+    },
+    onError: (error) => {
+      setActionError(refusalMessage(error));
+    },
+  });
+
+  const cancelRest = useMutation({
+    mutationFn: async () => {
+      const { error } = await cancelBatch({ path: { batch_id: batchId } });
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      setActionError(null);
+      await invalidateRunState(cache);
+      const refreshed = await loaded.refetch();
+      if (refreshed.data !== undefined) {
+        setLive(snapshotFromDetail(refreshed.data));
+      }
+    },
+    onError: (error) => {
+      setActionError(refusalMessage(error));
+    },
+  });
+
   if (loaded.error) {
     return <Callout tone="bad">{refusalMessage(loaded.error)}</Callout>;
   }
@@ -196,6 +261,7 @@ function BatchView({ orgId, batchId }: { orgId: string; batchId: string }) {
   const eta = etaLabel(snapshot.etaSeconds);
   const columns = variableColumns(snapshot.rows);
   const columnCount = 4 + columns.length;
+  const drift = runningDriftBanner(snapshot.rows, document.data?.variables ?? [], dismissed);
   const callout =
     waiting && liveIndex !== null
       ? stalledCallout({
@@ -228,6 +294,55 @@ function BatchView({ orgId, batchId }: { orgId: string; batchId: string }) {
         <OutputTab assembled={output.data} error={output.error} batchId={batchId} />
       ) : (
         <>
+          {drift === null ? null : (
+            <Callout
+              tone="warn"
+              size="banner"
+              title={drift.title}
+              actions={
+                <>
+                  <Button
+                    size="sm"
+                    disabled={fillValue.trim() === "" || fillQueued.isPending}
+                    onClick={() => {
+                      fillQueued.mutate({ name: drift.name, value: fillValue });
+                    }}
+                  >
+                    {drift.fill}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setDismissed((current) => dismissVariable(current, drift.name));
+                    }}
+                  >
+                    {drift.runAsIs}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={cancelRest.isPending}
+                    onClick={() => {
+                      cancelRest.mutate();
+                    }}
+                  >
+                    {drift.cancelRest}
+                  </Button>
+                </>
+              }
+            >
+              <Input
+                aria-label={drift.name}
+                value={fillValue}
+                className="h-7 max-w-xs font-mono text-half"
+                onChange={(typed) => {
+                  setFillValue(typed.target.value);
+                }}
+              />
+            </Callout>
+          )}
+
           {callout === null || liveRunId === undefined ? null : (
             <Callout
               tone="warn"
