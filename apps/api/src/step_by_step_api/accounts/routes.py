@@ -32,7 +32,7 @@ from step_by_step_api.accounts.orgs import (
     OwningMembership,
     PathMembership,
 )
-from step_by_step_api.accounts.service import SignupMode, signup_mode
+from step_by_step_api.accounts.service import SignupMode, default_timezone, signup_mode
 from step_by_step_api.accounts.sessions import CurrentUser
 from step_by_step_api.db import SessionDep
 from step_by_step_api.errors import errors
@@ -54,12 +54,13 @@ class Instance(BaseModel):
     """What an unauthenticated visitor may learn about this instance."""
 
     signup_mode: SignupMode
+    default_timezone: str
 
 
 @router.get("/api/instance", operation_id="getInstance")
 def get_instance() -> Instance:
-    """The one fact the sign-in screen needs before anyone has signed in."""
-    return Instance(signup_mode=signup_mode())
+    """Signup mode for the sign-in screen, and a new Schedule's default timezone."""
+    return Instance(signup_mode=signup_mode(), default_timezone=default_timezone())
 
 
 class CodeRequest(BaseModel):

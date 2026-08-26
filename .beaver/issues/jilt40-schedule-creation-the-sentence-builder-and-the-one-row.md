@@ -1,7 +1,8 @@
 ---
 id: jilt40
 title: 'Schedule creation: the sentence builder and the one-row value set'
-state: todo
+state: done
+assignee: agent
 priority: medium
 depends_on:
     - k97lxb
@@ -9,7 +10,7 @@ depends_on:
     - bcyznn
 parent: nno9gj
 created: 2026-08-14T19:52:25Z
-updated: 2026-08-14T19:52:25Z
+updated: 2026-08-26T19:54:05Z
 ---
 
 ## What to build
@@ -30,3 +31,37 @@ The value set is the shared grid with exactly one row and the same locked secret
 - [ ] `GET /api/runs` items carry `variables` with non-secret values only: a Run of a Workflow with one plain and one secret Variable lists only the plain one (seam-1 test).
 - [ ] Saving with a non-secret Variable empty is refused, naming the Variable; nothing is saved.
 - [ ] Saving sends cron, timezone, enabled, variables, and the optional name to the create or edit endpoint.
+
+## Notes
+
+**agent** — 2026-08-26T19:16:53Z
+
+Seam (AFK): the spec names seam 1 for the RunSummary.variables addition (HTTP against the FastAPI app) and seam 2 only for the already-built recurrence module. The sentence builder, timezone default, fill-from-last-Run, empty-value refusal, preview request, and save payload have no named seam. Took the project's established frontend seam — pure functions without a DOM — same as the Batch creation grid. The page draws those functions; it does not re-decide them. Preview times are asserted on the request body, never computed here.
+
+Timezone: DEFAULT_TIMEZONE (unset = UTC) is exposed as default_timezone on GET /api/instance, which is how the picker applies "browser zone when the instance knows it, else the instance default". The zone list is Intl.supportedValuesOf('timeZone'); the server still refuses an unknown zone on save.
+
+**agent** — 2026-08-26T19:54:05Z
+
+Completed Schedule creation: the sentence builder and the one-row value set.
+
+Seams
+- Seam 1 (named): GET /api/runs items carry variables (non-secret only). HTTP against the FastAPI app.
+- Frontend: pure functions without a DOM (creation.ts), same as the Batch grid. The page draws them.
+
+What landed
+- /workflows/{id}/schedules/new and /workflows/{id}/schedules/{scheduleId}. New schedule in the list overflow and the Workflow header overflow goes there. The Schedules tab stays current.
+- Preset chips (hourly, every 15 min, daily 09:00, weekdays 09:00, Mondays 07:30, 1st of month) above the sentence of dropdowns, generated cron always visible, "write cron instead" swaps in a raw field. Opening a cron the grammar cannot hold lands in raw mode with the expression intact.
+- Readback via humanize (or the raw expression when it declines). Next 5 Occurrences from POST /api/schedules/preview — asserted on the request body, never computed here. Viewer-local time trails in text-mut when it differs from the Schedule's zone.
+- Value set is ValueGrid with fixedRowCount={1}. "Fill from my last Run" copies the newest non-test Run's variables only when clicked. Empty non-secret Variables refuse save, naming them; mutate is not called.
+- Save sends cron, timezone, enabled, variables, and optional name to create or patch.
+- RunSummary.variables on GET /api/runs. DEFAULT_TIMEZONE (unset = UTC) on GET /api/instance as default_timezone, proven at boot.
+
+Decisions
+- 1st of month chip is 00:00 on day 1 (`0 0 1 * *`); the spec named no time.
+- Zone list is Intl.supportedValuesOf('timeZone'); the server still 400s an unknown zone on save.
+- After save, navigate to /workflows/{id}/schedules (the tab; the table is l88wkp).
+- New Schedule defaults to daily 09:00 until a chip or the sentence says otherwise.
+
+For a reviewer
+- Seam-1: test_run_summaries_carry_non_secret_variables.
+- Chip / raw cron / open-existing / timezone default / trailing local / fill-from / empty refusal / save payload: creation.test.ts.

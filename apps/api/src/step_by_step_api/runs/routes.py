@@ -99,6 +99,7 @@ class RunSummary(BaseModel):
     trigger: RunTrigger
     status: RunStatus
     failure_reason: FailureReason | None
+    variables: dict[str, Any]
     queued_at: datetime
     started_at: datetime | None
     ended_at: datetime | None
@@ -861,6 +862,7 @@ def run_summary(run: Run) -> RunSummary:
         trigger=run.trigger,
         status=run.status,
         failure_reason=run.failure_reason,
+        variables=run.variables,
         queued_at=run.queued_at,
         started_at=run.started_at,
         ended_at=run.ended_at,

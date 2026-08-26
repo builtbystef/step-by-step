@@ -1,13 +1,18 @@
 """What an unauthenticated visitor may learn about this instance.
 
-Exactly one fact: whether verifying a Sign-in Code for an unknown address
-creates an account. The sign-in screen shows different copy for the two, and
-it must not hardcode either. Nothing here needs a service.
+Signup mode, so the sign-in screen does not hardcode either copy, and the
+instance default timezone, so a Schedule picker can apply the default rule.
+Nothing here needs a service.
 """
 
 import pytest
 from fastapi.testclient import TestClient
-from step_by_step_api.accounts.service import SIGNUP_MODE_VARIABLE, SignupModeError
+from step_by_step_api.accounts.service import (
+    DEFAULT_TIMEZONE_VARIABLE,
+    SIGNUP_MODE_VARIABLE,
+    DefaultTimezoneError,
+    SignupModeError,
+)
 from step_by_step_api.main import app
 
 client = TestClient(app)
@@ -15,20 +20,25 @@ client = TestClient(app)
 
 def test_signup_mode_defaults_to_open(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv(SIGNUP_MODE_VARIABLE, raising=False)
+    monkeypatch.delenv(DEFAULT_TIMEZONE_VARIABLE, raising=False)
 
     response = client.get("/api/instance")
 
     assert response.status_code == 200
-    assert response.json() == {"signup_mode": "open"}
+    assert response.json() == {"signup_mode": "open", "default_timezone": "UTC"}
 
 
 def test_signup_mode_reflects_the_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv(SIGNUP_MODE_VARIABLE, "invite_only")
+    monkeypatch.delenv(DEFAULT_TIMEZONE_VARIABLE, raising=False)
 
     response = client.get("/api/instance")
 
     assert response.status_code == 200
-    assert response.json() == {"signup_mode": "invite_only"}
+    assert response.json() == {
+        "signup_mode": "invite_only",
+        "default_timezone": "UTC",
+    }
 
 
 def test_the_spec_spelling_with_a_hyphen_is_the_same_mode(
@@ -37,8 +47,12 @@ def test_the_spec_spelling_with_a_hyphen_is_the_same_mode(
     """`invite-only` is how the spec's prose writes it, and a self-hoster
     copying that word must not meet a boot failure."""
     monkeypatch.setenv(SIGNUP_MODE_VARIABLE, "invite-only")
+    monkeypatch.delenv(DEFAULT_TIMEZONE_VARIABLE, raising=False)
 
-    assert client.get("/api/instance").json() == {"signup_mode": "invite_only"}
+    assert client.get("/api/instance").json() == {
+        "signup_mode": "invite_only",
+        "default_timezone": "UTC",
+    }
 
 
 def test_an_unknown_signup_mode_names_the_variable(
@@ -47,4 +61,22 @@ def test_an_unknown_signup_mode_names_the_variable(
     monkeypatch.setenv(SIGNUP_MODE_VARIABLE, "nobody")
 
     with pytest.raises(SignupModeError, match=SIGNUP_MODE_VARIABLE):
+        client.get("/api/instance")
+
+
+def test_default_timezone_comes_from_the_environment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv(SIGNUP_MODE_VARIABLE, raising=False)
+    monkeypatch.setenv(DEFAULT_TIMEZONE_VARIABLE, "Europe/Belgrade")
+
+    assert client.get("/api/instance").json()["default_timezone"] == "Europe/Belgrade"
+
+
+def test_an_unknown_default_timezone_names_the_variable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(DEFAULT_TIMEZONE_VARIABLE, "Mars/Olympus")
+
+    with pytest.raises(DefaultTimezoneError, match=DEFAULT_TIMEZONE_VARIABLE):
         client.get("/api/instance")

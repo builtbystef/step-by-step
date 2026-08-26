@@ -15,7 +15,7 @@ import {
   workflowKey,
   workflowQuery,
 } from "./queries";
-import { EDITOR, WORKFLOW_TABS, newBatchPath, tabAt, tabPath } from "./tabs";
+import { EDITOR, WORKFLOW_TABS, newBatchPath, newSchedulePath, tabAt, tabPath } from "./tabs";
 import { versionChoices, versionPath, viewedVersion } from "./versions";
 
 import { OVERFLOW_ACTIONS, RUN, disabledReason, type WorkflowAction } from "../actions";
@@ -165,9 +165,11 @@ function WorkflowFrame({
       duplicate.mutate();
     } else if (action.key === "new-batch") {
       router.push(newBatchPath(workflowId));
+    } else if (action.key === "new-schedule") {
+      router.push(newSchedulePath(workflowId));
     }
-    // Run and New schedule act on a Version; the slices that build their
-    // forms hang them off this same header.
+    // Run acts on a Version; the slice that builds its form hangs it off
+    // this same header.
   };
 
   const state = workflow.data?.draft_state ?? "never-published";

@@ -21,7 +21,7 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 /**
  * Get Instance
  *
- * The one fact the sign-in screen needs before anyone has signed in.
+ * Signup mode for the sign-in screen, and the default timezone a new Schedule uses.
  */
 export const getInstance = <ThrowOnError extends boolean = false>(options?: Options<GetInstanceData, ThrowOnError>): RequestResult<GetInstanceResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetInstanceResponses, unknown, ThrowOnError>({ url: '/api/instance', ...options });
 

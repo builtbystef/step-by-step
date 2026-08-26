@@ -21,7 +21,7 @@ import { NameDialog } from "./name-dialog";
 import { rowsOf, workflowsKey, workflowsQuery } from "./queries";
 import { WorkflowRow } from "./workflow-row";
 
-import { EDITOR, newBatchPath, tabPath } from "./[id]/tabs";
+import { EDITOR, newBatchPath, newSchedulePath, tabPath } from "./[id]/tabs";
 
 import { useActiveOrganization } from "../use-active-organization";
 
@@ -124,9 +124,11 @@ function Workflows({ orgId }: { orgId: string }) {
       duplicate.mutate(workflow.id);
     } else if (action.key === "new-batch") {
       router.push(newBatchPath(workflow.id));
+    } else if (action.key === "new-schedule") {
+      router.push(newSchedulePath(workflow.id));
     } else {
-      // Run and New schedule act on a Version, and live on the Workflow's own
-      // page, where the slices that build them put their forms.
+      // Run acts on a Version, and lives on the Workflow's own page, where
+      // the slice that builds its form puts it.
       router.push(tabPath(workflow.id, EDITOR));
     }
   };

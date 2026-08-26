@@ -936,6 +936,10 @@ export type Health = {
  */
 export type Instance = {
     signup_mode: SignupMode;
+    /**
+     * Default Timezone
+     */
+    default_timezone: string;
 };
 
 /**
@@ -1564,6 +1568,12 @@ export type RunSummary = {
     trigger: RunTrigger;
     status: RunStatus;
     failure_reason: FailureReason | null;
+    /**
+     * Variables
+     */
+    variables: {
+        [key: string]: unknown;
+    };
     /**
      * Queued At
      */

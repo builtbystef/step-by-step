@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from step_by_step_api.accounts.routes import router as accounts_router
-from step_by_step_api.accounts.service import signup_mode
+from step_by_step_api.accounts.service import default_timezone, signup_mode
 from step_by_step_api.auth_states.routes import router as auth_states_router
 from step_by_step_api.batches.listen import start_in_lifespan as start_batch_listener
 from step_by_step_api.batches.routes import router as batches_router
@@ -43,6 +43,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     master_key()
     mailer()
     signup_mode()
+    default_timezone()
     loop = start_in_lifespan()
     batches = start_batch_listener()
     yield

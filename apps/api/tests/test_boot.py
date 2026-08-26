@@ -14,7 +14,12 @@ from collections.abc import Iterator
 
 import pytest
 from fastapi.testclient import TestClient
-from step_by_step_api.accounts.service import SIGNUP_MODE_VARIABLE, SignupModeError
+from step_by_step_api.accounts.service import (
+    DEFAULT_TIMEZONE_VARIABLE,
+    SIGNUP_MODE_VARIABLE,
+    DefaultTimezoneError,
+    SignupModeError,
+)
 from step_by_step_api.envelope import KEY_BYTES, MasterKeyError, master_key
 from step_by_step_api.mail import MailerConfigurationError, mailer
 from step_by_step_api.main import app
@@ -90,6 +95,19 @@ def test_the_backend_refuses_to_start_on_a_signup_mode_it_cannot_read(
     monkeypatch.setenv(SIGNUP_MODE_VARIABLE, "everyone")
 
     with pytest.raises(SignupModeError, match=SIGNUP_MODE_VARIABLE), TestClient(app):
+        pass
+
+
+def test_the_backend_refuses_to_start_on_a_timezone_it_cannot_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("STEPBYSTEP_MASTER_KEY", VALID)
+    monkeypatch.setenv(DEFAULT_TIMEZONE_VARIABLE, "Mars/Olympus")
+
+    with (
+        pytest.raises(DefaultTimezoneError, match=DEFAULT_TIMEZONE_VARIABLE),
+        TestClient(app),
+    ):
         pass
 
 

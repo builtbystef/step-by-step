@@ -159,6 +159,45 @@ def test_secret_variable_values_never_enter_a_run(new_account: NewAccount) -> No
     assert stored == {"customer": "Ada"}
 
 
+def test_run_summaries_carry_non_secret_variables(
+    new_account: NewAccount,
+) -> None:
+    """GET /api/runs items expose the value set "fill from my last Run" reads."""
+    account = new_account()
+    secret = create(account).json()
+    workflow_id = a_workflow(account)
+    saved = save_draft(
+        account,
+        workflow_id,
+        steps=[a_navigate_step(str(uuid4()))],
+        variables=[
+            {"name": "customer"},
+            {
+                "name": "password",
+                "secret": True,
+                "secretId": secret["id"],
+                "secretName": secret["name"],
+            },
+        ],
+    )
+    assert saved.status_code == 200, saved.text
+    assert publish(account, workflow_id).status_code == 201
+    created = start(
+        account,
+        workflow_id,
+        variables={"customer": "Ada", "password": "do-not-store"},
+    )
+    assert created.status_code == 201, created.text
+
+    listed = account.client.get("/api/runs", params={"workflow_id": workflow_id})
+
+    assert listed.status_code == 200, listed.text
+    item = listed.json()["items"][0]
+    assert item["id"] == created.json()["run_id"]
+    assert item["variables"] == {"customer": "Ada"}
+    assert "password" not in item["variables"]
+
+
 def test_cancelling_a_queued_run_is_immediate(new_account: NewAccount) -> None:
     account = new_account()
     run_id = start(account, published_workflow(account), variables={}).json()["run_id"]

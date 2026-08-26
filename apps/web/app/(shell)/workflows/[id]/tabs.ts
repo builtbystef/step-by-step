@@ -32,6 +32,16 @@ export function newBatchPath(workflowId: string): string {
   return `/workflows/${workflowId}/batches/new`;
 }
 
+/** Where a new Schedule of this Workflow is built. */
+export function newSchedulePath(workflowId: string): string {
+  return `/workflows/${workflowId}/schedules/new`;
+}
+
+/** Where an existing Schedule of this Workflow is edited. */
+export function editSchedulePath(workflowId: string, scheduleId: string): string {
+  return `/workflows/${workflowId}/schedules/${scheduleId}`;
+}
+
 /** Where a Workflow is, before a tab is named. */
 export function workflowPath(workflowId: string): string {
   return `/workflows/${workflowId}`;

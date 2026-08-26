@@ -8,7 +8,7 @@
     "/api/instance": {
       "get": {
         "summary": "Get Instance",
-        "description": "The one fact the sign-in screen needs before anyone has signed in.",
+        "description": "Signup mode for the sign-in screen, and the default timezone a new Schedule uses.",
         "operationId": "getInstance",
         "responses": {
           "200": {
@@ -8892,11 +8892,16 @@
         "properties": {
           "signup_mode": {
             "$ref": "#/components/schemas/SignupMode"
+          },
+          "default_timezone": {
+            "type": "string",
+            "title": "Default Timezone"
           }
         },
         "type": "object",
         "required": [
-          "signup_mode"
+          "signup_mode",
+          "default_timezone"
         ],
         "title": "Instance",
         "description": "What an unauthenticated visitor may learn about this instance."
@@ -10012,6 +10017,11 @@
               }
             ]
           },
+          "variables": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Variables"
+          },
           "queued_at": {
             "type": "string",
             "format": "date-time",
@@ -10050,6 +10060,7 @@
           "trigger",
           "status",
           "failure_reason",
+          "variables",
           "queued_at",
           "started_at",
           "ended_at"

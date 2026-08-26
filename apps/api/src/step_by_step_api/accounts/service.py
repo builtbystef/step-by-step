@@ -13,6 +13,7 @@ and the sign-in screen reads it from `/api/instance` rather than guessing.
 from dataclasses import dataclass
 from enum import StrEnum
 from os import environ
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DbSession
@@ -24,6 +25,9 @@ from step_by_step_api.errors import ApiError
 
 SIGNUP_MODE_VARIABLE = "SIGNUP_MODE"
 """Whether verifying a code for an unknown address creates an account."""
+
+DEFAULT_TIMEZONE_VARIABLE = "DEFAULT_TIMEZONE"
+"""The instance default IANA zone a new Schedule uses when the browser's is unknown."""
 
 
 class SignupMode(StrEnum):
@@ -57,6 +61,29 @@ def signup_mode() -> SignupMode:
             f"{SIGNUP_MODE_VARIABLE}={said!r} is not a signup mode; "
             f"it is one of {SignupMode.OPEN}, {SignupMode.INVITE_ONLY}"
         ) from None
+
+
+class DefaultTimezoneError(RuntimeError):
+    """`DEFAULT_TIMEZONE` is not an IANA timezone."""
+
+
+def default_timezone() -> str:
+    """The instance default timezone, `UTC` unless the environment says otherwise.
+
+    Read per call, like signup mode: one dictionary lookup, and an operator's
+    change should not need a restart. An unknown name is a loud failure so a
+    typo is found on the next request rather than silently falling back.
+    """
+    said = environ.get(DEFAULT_TIMEZONE_VARIABLE, "").strip()
+    if not said:
+        return "UTC"
+    try:
+        ZoneInfo(said)
+    except (ZoneInfoNotFoundError, KeyError) as error:
+        raise DefaultTimezoneError(
+            f"{DEFAULT_TIMEZONE_VARIABLE}={said!r} is not an IANA timezone"
+        ) from error
+    return said
 
 
 RATE_LIMITED = "rate_limited"

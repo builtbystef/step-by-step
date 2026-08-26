@@ -156,6 +156,9 @@ services:
       # hold this (ADR 0005), so an exposed instance is closed here or not at
       # all. The Workers never read it — they serve no one.
       SIGNUP_MODE: ${SIGNUP_MODE:-open}
+      # The instance default IANA timezone for a new Schedule. Unset is UTC.
+      # The Workers never read it.
+      DEFAULT_TIMEZONE: ${DEFAULT_TIMEZONE:-UTC}
     ports:
       # 8001, because `pnpm dev` runs a backend on the host's 8000 and the two
       # are meant to coexist. Override with API_PORT.
