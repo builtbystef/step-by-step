@@ -95,6 +95,7 @@ class RunRecord(BaseModel):
 class RunSummary(BaseModel):
     id: UUID
     workflow_id: UUID
+    workflow_name: str
     version_number: int | None
     trigger: RunTrigger
     status: RunStatus
@@ -294,15 +295,18 @@ def list_runs(
     db: SessionDep,
     workflow_id: UUID | None = None,
     status: RunStatus | None = None,
+    trigger: RunTrigger | None = None,
     limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = PAGE_SIZE,
     cursor: str | None = None,
 ) -> RunPage:
-    """Runs in newest-first order, optionally narrowed by Workflow and status."""
+    """Runs in newest-first order, optionally narrowed by Workflow, status, trigger."""
     conditions = [Run.org_id == member.org_id]
     if workflow_id is not None:
         conditions.append(Run.workflow_id == workflow_id)
     if status is not None:
         conditions.append(Run.status == status)
+    if trigger is not None:
+        conditions.append(Run.trigger == trigger)
     if cursor is not None:
         queued_at, run_id = read_cursor(cursor)
         conditions.append(
@@ -310,15 +314,16 @@ def list_runs(
         )
     rows = list(
         db.execute(
-            select(Run)
+            select(Run, Workflow.name)
+            .join(Workflow, Workflow.id == Run.workflow_id)
             .where(*conditions)
             .order_by(Run.queued_at.desc(), Run.id.desc())
             .limit(limit + 1)
-        ).scalars()
+        ).all()
     )
     return RunPage(
-        items=[run_summary(run) for run in rows[:limit]],
-        next_cursor=cursor_for(rows[limit - 1]) if len(rows) > limit else None,
+        items=[run_summary(run, name) for run, name in rows[:limit]],
+        next_cursor=cursor_for(rows[limit - 1][0]) if len(rows) > limit else None,
     )
 
 
@@ -854,10 +859,11 @@ def attached_batch_row(db: SessionDep, run: Run) -> dict[str, Any] | None:
     return None if ref is None else ref.model_dump(mode="json")
 
 
-def run_summary(run: Run) -> RunSummary:
+def run_summary(run: Run, workflow_name: str) -> RunSummary:
     return RunSummary(
         id=run.id,
         workflow_id=run.workflow_id,
+        workflow_name=workflow_name,
         version_number=run.version_number,
         trigger=run.trigger,
         status=run.status,

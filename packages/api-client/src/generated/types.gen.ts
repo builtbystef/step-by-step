@@ -1567,6 +1567,10 @@ export type RunSummary = {
      */
     workflow_id: string;
     /**
+     * Workflow Name
+     */
+    workflow_name: string;
+    /**
      * Version Number
      */
     version_number: number | null;
@@ -4508,6 +4512,10 @@ export type ListRunsData = {
          * Status
          */
         status?: RunStatus | null;
+        /**
+         * Trigger
+         */
+        trigger?: RunTrigger | null;
         /**
          * Limit
          */

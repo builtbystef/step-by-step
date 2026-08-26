@@ -1,14 +1,15 @@
-import { Placeholder } from "../../../placeholder";
+"use client";
+
+import { useParams } from "next/navigation";
+
+import { RunsList } from "../../../runs/runs-list";
 
 /**
  * Workflow ▸ Runs — the global Runs list filtered to this Workflow, and the
  * same component rendering it (`<RunsList workflowId>`).
  */
 export default function RunsTab() {
-  return (
-    <Placeholder>
-      This Workflow&rsquo;s Runs arrive with the shared Runs list, which is the global list with one
-      prop set.
-    </Placeholder>
-  );
+  const params = useParams<{ id: string }>();
+
+  return <RunsList workflowId={params.id} />;
 }

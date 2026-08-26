@@ -597,7 +597,7 @@ export const startRun = <ThrowOnError extends boolean = false>(options: Options<
 /**
  * List Runs
  *
- * Runs in newest-first order, optionally narrowed by Workflow and status.
+ * Runs in newest-first order, optionally narrowed by Workflow, status, trigger.
  */
 export const listRuns = <ThrowOnError extends boolean = false>(options?: Options<ListRunsData, ThrowOnError>): RequestResult<ListRunsResponses, ListRunsErrors, ThrowOnError> => (options?.client ?? client).get<ListRunsResponses, ListRunsErrors, ThrowOnError>({ url: '/api/runs', ...options });
 

@@ -16,6 +16,7 @@ import { COPY } from "../../../lib/copy";
 const REFUSALS: Record<string, string> = {
   workflow_not_found: "That Workflow is gone — somebody deleted it, or it was never here.",
   no_published_version: COPY.noPublishedVersion,
+  missing_secret: "A Secret this Workflow needs is missing.",
   bad_cursor: "That page is no longer where it was. Reload the list.",
   not_a_member: "You are no longer a member of that Organization.",
   run_active:

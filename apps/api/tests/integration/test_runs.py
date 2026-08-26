@@ -266,6 +266,35 @@ def test_runs_filter_and_page_by_a_stable_keyset(new_account: NewAccount) -> Non
     assert len(found) == len(set(found)) == 25
 
 
+def test_list_carries_the_workflow_name_the_runs_list_renders(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    workflow_id = published_workflow(account)
+    run_id = start(account, workflow_id, variables={}).json()["run_id"]
+
+    listed = account.client.get("/api/runs")
+
+    assert listed.status_code == 200, listed.text
+    item = listed.json()["items"][0]
+    assert item["id"] == run_id
+    assert item["workflow_id"] == workflow_id
+    assert item["workflow_name"] == "Invoices"
+
+
+def test_list_filters_by_trigger(new_account: NewAccount) -> None:
+    account = new_account()
+    workflow_id = published_workflow(account)
+    manual_id = start(account, workflow_id, variables={}).json()["run_id"]
+    test_id = start(account, workflow_id, variables={}, test=True).json()["run_id"]
+
+    manuals = account.client.get("/api/runs", params={"trigger": "manual"})
+    tests = account.client.get("/api/runs", params={"trigger": "test"})
+
+    assert [item["id"] for item in manuals.json()["items"]] == [manual_id]
+    assert [item["id"] for item in tests.json()["items"]] == [test_id]
+
+
 def test_detail_orders_results_and_carries_the_run_timeline_and_artifacts(
     new_account: NewAccount,
 ) -> None:

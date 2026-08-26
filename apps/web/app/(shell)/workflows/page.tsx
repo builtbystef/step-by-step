@@ -19,6 +19,8 @@ import { SORT_OPTIONS, offersSearchAndSort } from "./list";
 import { refusalMessage } from "./messages";
 import { NameDialog } from "./name-dialog";
 import { rowsOf, workflowsKey, workflowsQuery } from "./queries";
+import { StartRunDialog } from "./start-run-dialog";
+import { useStartRun } from "./use-start-run";
 import { WorkflowRow } from "./workflow-row";
 
 import { EDITOR, newBatchPath, newSchedulePath, tabPath } from "./[id]/tabs";
@@ -64,6 +66,7 @@ function Workflows({ orgId }: { orgId: string }) {
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<WorkflowSort>("activity");
   const [dialog, setDialog] = useState<OpenDialog>({ kind: "none" });
+  const startRun = useStartRun();
 
   const list = useInfiniteQuery(workflowsQuery(orgId, { q, sort }));
   const rows = rowsOf(list.data?.pages);
@@ -126,15 +129,13 @@ function Workflows({ orgId }: { orgId: string }) {
       router.push(newBatchPath(workflow.id));
     } else if (action.key === "new-schedule") {
       router.push(newSchedulePath(workflow.id));
-    } else {
-      // Run acts on a Version, and lives on the Workflow's own page, where
-      // the slice that builds its form puts it.
-      router.push(tabPath(workflow.id, EDITOR));
+    } else if (action.key === "run") {
+      startRun.begin(workflow);
     }
   };
 
   const searching = q !== "";
-  const refused = list.error ?? duplicate.error;
+  const refused = list.error ?? duplicate.error ?? startRun.refusal;
 
   return (
     <>
@@ -264,6 +265,23 @@ function Workflows({ orgId }: { orgId: string }) {
         onOpenChange={(open) => {
           if (!open) {
             setDialog({ kind: "none" });
+          }
+        }}
+      />
+
+      <StartRunDialog
+        open={startRun.dialog !== null}
+        variables={startRun.dialog?.variables ?? []}
+        pending={startRun.pending}
+        refusal={startRun.refusal ? refusalMessage(startRun.refusal) : null}
+        onSubmit={(row) => {
+          if (startRun.dialog !== null) {
+            startRun.startFromGrid(startRun.dialog.workflowId, startRun.dialog.variables, row);
+          }
+        }}
+        onOpenChange={(open) => {
+          if (!open) {
+            startRun.close();
           }
         }}
       />

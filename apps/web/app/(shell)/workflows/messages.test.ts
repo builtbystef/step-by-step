@@ -12,6 +12,7 @@ import { COPY } from "../../../lib/copy";
 const REFUSALS = [
   "workflow_not_found",
   "no_published_version",
+  "missing_secret",
   "bad_cursor",
   "not_a_member",
   "run_active",

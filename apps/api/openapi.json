@@ -3594,7 +3594,7 @@
           "runs"
         ],
         "summary": "List Runs",
-        "description": "Runs in newest-first order, optionally narrowed by Workflow and status.",
+        "description": "Runs in newest-first order, optionally narrowed by Workflow, status, trigger.",
         "operationId": "listRuns",
         "parameters": [
           {
@@ -3628,6 +3628,22 @@
                 }
               ],
               "title": "Status"
+            }
+          },
+          {
+            "name": "trigger",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/RunTrigger"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Trigger"
             }
           },
           {
@@ -9998,6 +10014,10 @@
             "format": "uuid",
             "title": "Workflow Id"
           },
+          "workflow_name": {
+            "type": "string",
+            "title": "Workflow Name"
+          },
           "version_number": {
             "anyOf": [
               {
@@ -10064,6 +10084,7 @@
         "required": [
           "id",
           "workflow_id",
+          "workflow_name",
           "version_number",
           "trigger",
           "status",
