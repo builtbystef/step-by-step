@@ -1,11 +1,13 @@
-"""The user-facing Run start, list, detail, events, logs, and cancellation."""
+"""The user-facing Run start, list, detail, events, logs, output, and cancellation."""
 
+import csv
+import io
 import json
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from collections.abc import Iterator
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Query, Request, Response
@@ -562,6 +564,30 @@ def list_run_logs(
     ]
 
 
+@router.get(
+    "/api/runs/{run_id}/output",
+    operation_id="getRunOutput",
+    response_model=None,
+    responses=errors(400, 401, 403, 404),
+)
+def get_run_output(
+    run_id: UUID,
+    member: ActiveMembership,
+    db: SessionDep,
+    format: Literal["json", "csv"] = Query(default="json"),
+) -> Any | Response:
+    """Assembled on read from extract Step Results. Nothing is stored twice."""
+    run = owned_run(db, member.org_id, run_id)
+    assembled, columns = assemble_output(db, run)
+    if format == "csv":
+        return Response(
+            content=as_csv(assembled, columns),
+            media_type="text/csv",
+            headers={"Content-Disposition": 'attachment; filename="run.csv"'},
+        )
+    return assembled
+
+
 def presign_download(object_key: str, filename: str) -> str:
     """A short-lived GET URL the user's browser can follow."""
     safe = filename.replace('"', "")
@@ -915,3 +941,85 @@ def candidate_record(row: RunAuthStateCandidate) -> AuthStateCandidateRecord:
         else None
     )
     return AuthStateCandidateRecord(domain=row.domain, consent=consent)
+
+
+def assemble_output(db: SessionDep, run: Run) -> tuple[Any, list[str]]:
+    """Extracted values keyed by outputName; a lone list of records unwraps."""
+    document = document_for(db, run)
+    results = {
+        str(row.step_id): row.extracted_value
+        for row in db.execute(
+            select(StepResult).where(
+                StepResult.run_id == run.id, StepResult.extracted_value.is_not(None)
+            )
+        ).scalars()
+    }
+    extracts: list[tuple[str, Any, list[str]]] = []
+    for step in document.get("steps", []):
+        if step.get("type") != "extract":
+            continue
+        payload = step.get("payload") or {}
+        name = payload.get("outputName")
+        step_id = step.get("id")
+        if not isinstance(name, str) or not isinstance(step_id, str):
+            continue
+        if step_id not in results:
+            continue
+        extracts.append((name, results[step_id], field_names(payload)))
+    if not extracts:
+        return {}, []
+    if len(extracts) == 1 and is_record_list(extracts[0][1]):
+        return extracts[0][1], extracts[0][2]
+    return dict((name, value) for name, value, _ in extracts), []
+
+
+def field_names(payload: dict[str, Any]) -> list[str]:
+    names: list[str] = []
+    for field in payload.get("fields") or []:
+        if isinstance(field, dict):
+            name = field.get("name")
+            if isinstance(name, str):
+                names.append(name)
+    return names
+
+
+def is_record_list(value: Any) -> bool:
+    return isinstance(value, list) and all(isinstance(row, dict) for row in value)
+
+
+def as_csv(assembled: Any, columns: list[str]) -> str:
+    if is_record_list(assembled):
+        header = columns or csv_columns(assembled)
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow(header)
+        for row in assembled:
+            writer.writerow([csv_cell(row.get(column)) for column in header])
+        return buffer.getvalue()
+    if isinstance(assembled, dict) and assembled:
+        header = list(assembled)
+        buffer = io.StringIO()
+        writer = csv.writer(buffer)
+        writer.writerow(header)
+        writer.writerow([csv_cell(assembled[column]) for column in header])
+        return buffer.getvalue()
+    return ""
+
+
+def csv_columns(records: list[dict[str, Any]]) -> list[str]:
+    columns: list[str] = []
+    seen: set[str] = set()
+    for row in records:
+        for key in row:
+            if key not in seen:
+                columns.append(key)
+                seen.add(key)
+    return columns
+
+
+def csv_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, (dict, list)):
+        return json.dumps(value)
+    return str(value)

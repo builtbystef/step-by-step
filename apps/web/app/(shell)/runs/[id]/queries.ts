@@ -1,5 +1,6 @@
 import {
   getRun,
+  getRunOutput,
   getWorkflow,
   getWorkflowVersion,
   listRunLogs,
@@ -11,8 +12,8 @@ import {
 
 /**
  * The cockpit's server state: the Run detail a reconnect refetches, the log
- * lines beside it, the Workflow's name, and the Version document the rail
- * reads labels and sentences from.
+ * lines beside it, the assembled extract output, the Workflow's name, and the
+ * Version document the rail reads labels and sentences from.
  */
 
 export function runKey(orgId: string, runId: string) {
@@ -35,6 +36,22 @@ export function runQuery(orgId: string, runId: string) {
       const logs = await listRunLogs({ path: { run_id: runId } });
       if (logs.error) throw logs.error;
       return { detail: detail.data, logs: logs.data ?? [] };
+    },
+  };
+}
+
+export function runOutputQuery(orgId: string, runId: string) {
+  return {
+    queryKey: ["run-output", orgId, runId] as const,
+    retry: false,
+    refetchOnWindowFocus: false,
+    queryFn: async (): Promise<unknown> => {
+      const { data, error } = await getRunOutput({
+        path: { run_id: runId },
+        query: { format: "json" },
+      });
+      if (error) throw error;
+      return data;
     },
   };
 }

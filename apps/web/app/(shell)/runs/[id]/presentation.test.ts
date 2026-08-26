@@ -20,6 +20,9 @@ import {
   driftChipLabel,
   driftedCount,
   elapsedMs,
+  EMPTY_OUTPUT,
+  outputDownloadHref,
+  outputTable,
   panePlaceholder,
   recordCount,
   downloadCount,
@@ -36,7 +39,8 @@ import {
 /**
  * The cockpit's decisions, read back without a DOM: the header chip and
  * drift wording, the timeline's proportions, the terminal sentences, cancel,
- * and Run again's prefill. The page draws these; it does not re-decide them.
+ * Run again's prefill, and the Output tab's table vs empty sentence. The page
+ * draws these; it does not re-decide them.
  */
 
 const START = "2026-08-25T12:00:00.000Z";
@@ -434,5 +438,34 @@ describe("meta and pane placeholders", () => {
     );
     expect(panePlaceholder("succeeded", false)).toBe("session ended — the browser closed");
     expect(panePlaceholder("running", true)).toBe("cancelling — waiting for a Step boundary");
+  });
+});
+
+describe("the Output tab", () => {
+  const invoices = [
+    { number: "INV-0000", client: "Client 0", amount: "0.00", status: "open" },
+    { number: "INV-0001", client: "Client 1", amount: "1.00", status: "open" },
+  ];
+
+  it("turns a list of records into a table, and an empty assembly into a sentence", () => {
+    expect(outputTable(invoices)).toEqual({
+      columns: ["number", "client", "amount", "status"],
+      rows: [
+        ["INV-0000", "Client 0", "0.00", "open"],
+        ["INV-0001", "Client 1", "1.00", "open"],
+      ],
+    });
+    expect(outputTable({ invoices, total: "48.00" })).toEqual({
+      columns: ["invoices", "total"],
+      rows: [[JSON.stringify(invoices), "48.00"]],
+    });
+    expect(outputTable({})).toBeNull();
+    expect(outputTable([])).toBeNull();
+    expect(EMPTY_OUTPUT).toBe("This Run extracted no data.");
+  });
+
+  it("points both download buttons at the endpoint's formats", () => {
+    expect(outputDownloadHref("run-1", "json")).toBe("/api/runs/run-1/output?format=json");
+    expect(outputDownloadHref("run-1", "csv")).toBe("/api/runs/run-1/output?format=csv");
   });
 });

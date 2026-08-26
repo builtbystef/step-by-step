@@ -29,8 +29,11 @@ import {
   driftChipLabel,
   driftedCount,
   elapsedMs,
+  EMPTY_OUTPUT,
   isTerminal,
   offersRepick,
+  outputDownloadHref,
+  outputTable,
   railItems,
   stepsDoneLabel,
   stepExpansion,
@@ -40,7 +43,7 @@ import {
   triggerLabel,
   versionLabel,
 } from "./presentation";
-import { runQuery, runVersionQuery, runWorkflowQuery } from "./queries";
+import { runOutputQuery, runQuery, runVersionQuery, runWorkflowQuery } from "./queries";
 import { RunAgainDialog } from "./run-again-dialog";
 import { useRunStream } from "./use-run-stream";
 import { useTakeoverLock } from "./use-takeover-lock";
@@ -82,11 +85,12 @@ export default function RunDetailPage() {
 function Cockpit({ orgId, runId }: { orgId: string; runId: string }) {
   const cache = useQueryClient();
   const loaded = useQuery(runQuery(orgId, runId));
+  const output = useQuery(runOutputQuery(orgId, runId));
   const [live, setLive] = useState<CockpitSnapshot | null>(null);
   const [now, setNow] = useState(() => new Date());
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [runAgain, setRunAgain] = useState(false);
-  const [drawer, setDrawer] = useState<"logs" | "artifacts">("logs");
+  const [drawer, setDrawer] = useState<"logs" | "output" | "artifacts">("logs");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [weHoldControl, setWeHoldControl] = useState(false);
   const [unmetHandback, setUnmetHandback] = useState(false);
@@ -463,6 +467,9 @@ function Cockpit({ orgId, runId }: { orgId: string; runId: string }) {
             <DrawerTab current={drawer} id="logs" onSelect={setDrawer}>
               Logs
             </DrawerTab>
+            <DrawerTab current={drawer} id="output" onSelect={setDrawer}>
+              Output
+            </DrawerTab>
             <DrawerTab current={drawer} id="artifacts" onSelect={setDrawer}>
               Artifacts
             </DrawerTab>
@@ -472,6 +479,8 @@ function Cockpit({ orgId, runId }: { orgId: string; runId: string }) {
               logs={snapshot.logs}
               origin={snapshot.run.started_at ?? snapshot.run.queued_at}
             />
+          ) : drawer === "output" ? (
+            <OutputPanel assembled={output.data} error={output.error} runId={runId} />
           ) : (
             <ArtifactList runId={runId} artifacts={snapshot.artifacts} />
           )}
@@ -716,9 +725,9 @@ function DrawerTab({
   onSelect,
   children,
 }: {
-  current: "logs" | "artifacts";
-  id: "logs" | "artifacts";
-  onSelect: (id: "logs" | "artifacts") => void;
+  current: "logs" | "output" | "artifacts";
+  id: "logs" | "output" | "artifacts";
+  onSelect: (id: "logs" | "output" | "artifacts") => void;
   children: string;
 }) {
   return (
@@ -753,6 +762,74 @@ function LogList({ logs, origin }: { logs: LogLine[]; origin: string }) {
         </li>
       ))}
     </ol>
+  );
+}
+
+function OutputPanel({
+  assembled,
+  error,
+  runId,
+}: {
+  assembled: unknown;
+  error: unknown;
+  runId: string;
+}) {
+  if (error) {
+    return <Callout tone="bad">{refusalMessage(error)}</Callout>;
+  }
+  if (assembled === undefined) {
+    return null;
+  }
+  const table = outputTable(assembled);
+  if (table === null) {
+    return <p className="text-half text-mut">{EMPTY_OUTPUT}</p>;
+  }
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex gap-3">
+        <a
+          className="text-small font-semibold text-accent"
+          href={outputDownloadHref(runId, "json")}
+          download="run.json"
+        >
+          Download JSON
+        </a>
+        <a
+          className="text-small font-semibold text-accent"
+          href={outputDownloadHref(runId, "csv")}
+          download="run.csv"
+        >
+          Download CSV
+        </a>
+      </div>
+      <div className="max-h-64 overflow-auto">
+        <table className="w-full text-left text-half">
+          <thead>
+            <tr>
+              {table.columns.map((column) => (
+                <th key={column} className="border-b border-line px-2 py-1 font-semibold text-mut">
+                  {column}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {table.rows.map((row, index) => (
+              <tr key={row.join("\u0001") + String(index)}>
+                {row.map((cell, cellIndex) => (
+                  <td
+                    key={`${table.columns[cellIndex] ?? String(cellIndex)}-${cell}`}
+                    className="border-b border-line px-2 py-1 font-mono text-micro"
+                  >
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 

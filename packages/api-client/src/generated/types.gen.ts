@@ -4833,6 +4833,61 @@ export type ListRunLogsResponses = {
 
 export type ListRunLogsResponse = ListRunLogsResponses[keyof ListRunLogsResponses];
 
+export type GetRunOutputData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Run Id
+         */
+        run_id: string;
+    };
+    query?: {
+        /**
+         * Format
+         */
+        format?: 'json' | 'csv';
+    };
+    url: '/api/runs/{run_id}/output';
+};
+
+export type GetRunOutputErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetRunOutputError = GetRunOutputErrors[keyof GetRunOutputErrors];
+
+export type GetRunOutputResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
 export type DownloadRunArtifactData = {
     body?: never;
     headers?: {

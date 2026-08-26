@@ -17,7 +17,8 @@ import { targetsOf, type Step } from "../../workflows/[id]/editor/steps";
 /**
  * The cockpit's wording and arithmetic, kept out of the JSX so a test can
  * read the acceptance criteria back: the clock, the drift chip, the timeline
- * proportions, the terminal sentences, cancel, and Run again's prefill.
+ * proportions, the terminal sentences, cancel, Run again's prefill, and the
+ * Output tab's empty-vs-table decision and download URLs.
  *
  * Lifecycle state is named here only as a value handed to `StatusChip`.
  * This module never words a state itself.
@@ -549,4 +550,71 @@ export function currentStepNumber(
     null,
   );
   return (last?.position ?? 0) + 1;
+}
+
+export const EMPTY_OUTPUT = "This Run extracted no data.";
+
+export type OutputTable = {
+  columns: string[];
+  rows: string[][];
+};
+
+export function outputTable(assembled: unknown): OutputTable | null {
+  if (isRecordList(assembled) && assembled.length > 0) {
+    const columns = columnsOf(assembled);
+    return {
+      columns,
+      rows: assembled.map((row) => columns.map((column) => cellOf(row[column]))),
+    };
+  }
+  if (isPlainObject(assembled)) {
+    const columns = Object.keys(assembled);
+    if (columns.length === 0) {
+      return null;
+    }
+    return {
+      columns,
+      rows: [columns.map((column) => cellOf(assembled[column]))],
+    };
+  }
+  return null;
+}
+
+export function outputDownloadHref(runId: string, format: "json" | "csv"): string {
+  return `/api/runs/${runId}/output?format=${format}`;
+}
+
+function isRecordList(value: unknown): value is Record<string, unknown>[] {
+  return Array.isArray(value) && value.every(isPlainObject);
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function columnsOf(records: Record<string, unknown>[]): string[] {
+  const columns: string[] = [];
+  const seen = new Set<string>();
+  for (const row of records) {
+    for (const key of Object.keys(row)) {
+      if (!seen.has(key)) {
+        columns.push(key);
+        seen.add(key);
+      }
+    }
+  }
+  return columns;
+}
+
+function cellOf(value: unknown): string {
+  if (value === null || value === undefined) {
+    return "";
+  }
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return JSON.stringify(value);
 }
