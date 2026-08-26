@@ -1,27 +1,36 @@
 """The user-facing Schedule CRUD. Firing belongs to the minute loop."""
 
+import json
+from base64 import urlsafe_b64decode, urlsafe_b64encode
 from datetime import datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Query, Response
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import literal, select, tuple_
 from sqlalchemy.orm import Session
+from step_by_step_core.bus import DISPATCH_LIST, get_redis
 
 from step_by_step_api import clock
 from step_by_step_api.accounts.orgs import ActiveMembership
 from step_by_step_api.db import SessionDep
 from step_by_step_api.errors import ApiError, errors
+from step_by_step_api.runs.models import FailureReason, Run, RunStatus
 from step_by_step_api.schedules.cron import (
+    PREVIEW_COUNT,
     next_occurrence,
+    next_occurrences,
     require_cron,
     require_timezone,
 )
+from step_by_step_api.schedules.fire import enqueue_latest, open_run_id
 from step_by_step_api.schedules.models import Schedule, ScheduleOccurrence
 from step_by_step_api.workflows.models import Workflow, WorkflowVersion
 
 router = APIRouter(tags=["schedules"])
+PAGE_SIZE = 25
+MAX_PAGE_SIZE = 100
 
 
 class CreateSchedule(BaseModel):
@@ -40,14 +49,33 @@ class ChangeSchedule(BaseModel):
     name: str | None = None
 
 
+class PreviewRequest(BaseModel):
+    cron: str
+    timezone: str
+    from_: datetime | None = Field(default=None, alias="from")
+
+
+class PreviewResult(BaseModel):
+    next_occurrences: list[datetime]
+
+
 class OccurrenceRecord(BaseModel):
     occurrence_at: datetime
     reason: Literal["overlap", "missed", "missing_values"]
     blocking_run_id: UUID | None = None
 
 
-class ScheduleRecord(BaseModel):
+class LastRunRecord(BaseModel):
     id: UUID
+    status: RunStatus
+    failure_reason: FailureReason | None = None
+    ended_at: datetime | None = None
+
+
+class ScheduleSummary(BaseModel):
+    id: UUID
+    workflow_id: UUID
+    workflow_name: str
     name: str | None
     cron: str
     timezone: str
@@ -57,7 +85,39 @@ class ScheduleRecord(BaseModel):
     missing_variable_names: list[str]
     last_fired_at: datetime | None
     next_due_at: datetime | None
+    last_run: LastRunRecord | None
     latest_occurrence: OccurrenceRecord | None
+
+
+class SchedulePage(BaseModel):
+    items: list[ScheduleSummary]
+    next_cursor: str | None = None
+
+
+class RunHistoryEntry(BaseModel):
+    kind: Literal["run"] = "run"
+    at: datetime
+    run_id: UUID
+    status: RunStatus
+    failure_reason: FailureReason | None = None
+
+
+class OccurrenceHistoryEntry(BaseModel):
+    kind: Literal["occurrence"] = "occurrence"
+    at: datetime
+    reason: Literal["overlap", "missed", "missing_values"]
+    blocking_run_id: UUID | None = None
+
+
+class ScheduleDetail(BaseModel):
+    schedule: ScheduleSummary
+    next_occurrences: list[datetime]
+    history: list[RunHistoryEntry | OccurrenceHistoryEntry]
+    last_run: LastRunRecord | None
+
+
+class RunNowResult(BaseModel):
+    run_id: UUID
 
 
 def owned_workflow(db: SessionDep, org_id: UUID, workflow_id: UUID) -> Workflow:
@@ -151,10 +211,32 @@ def latest_hole(db: Session, schedule_id: UUID) -> OccurrenceRecord | None:
     )
 
 
-def as_record(db: Session, schedule: Schedule, names: set[str]) -> ScheduleRecord:
+def last_run_of(db: Session, schedule_id: UUID) -> LastRunRecord | None:
+    found = db.execute(
+        select(Run)
+        .where(Run.schedule_id == schedule_id)
+        .order_by(Run.queued_at.desc(), Run.id.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+    if found is None:
+        return None
+    return LastRunRecord(
+        id=found.id,
+        status=found.status,
+        failure_reason=found.failure_reason,
+        ended_at=found.ended_at,
+    )
+
+
+def as_summary(db: Session, schedule: Schedule, names: set[str]) -> ScheduleSummary:
+    workflow = db.execute(
+        select(Workflow).where(Workflow.id == schedule.workflow_id)
+    ).scalar_one()
     missing = missing_from(schedule.variables, names)
-    return ScheduleRecord(
+    return ScheduleSummary(
         id=schedule.id,
+        workflow_id=schedule.workflow_id,
+        workflow_name=workflow.name,
         name=schedule.name,
         cron=schedule.cron,
         timezone=schedule.timezone,
@@ -164,7 +246,119 @@ def as_record(db: Session, schedule: Schedule, names: set[str]) -> ScheduleRecor
         missing_variable_names=missing,
         last_fired_at=schedule.last_fired_at,
         next_due_at=schedule.next_due_at,
+        last_run=last_run_of(db, schedule.id),
         latest_occurrence=latest_hole(db, schedule.id),
+    )
+
+
+def summaries_of(db: Session, rows: list[Schedule]) -> list[ScheduleSummary]:
+    return [
+        as_summary(db, row, declared_public_names(db, row.workflow_id)) for row in rows
+    ]
+
+
+def cursor_for(schedule: Schedule) -> str:
+    return urlsafe_b64encode(
+        json.dumps(
+            {"at": schedule.created_at.isoformat(), "id": str(schedule.id)}
+        ).encode()
+    ).decode()
+
+
+def read_cursor(cursor: str) -> tuple[datetime, UUID]:
+    try:
+        payload = json.loads(urlsafe_b64decode(cursor.encode()))
+        return datetime.fromisoformat(payload["at"]), UUID(payload["id"])
+    except Exception:
+        raise ApiError(
+            400, "bad_cursor", "that cursor did not come from this list"
+        ) from None
+
+
+def history_of(
+    db: Session, schedule_id: UUID
+) -> list[RunHistoryEntry | OccurrenceHistoryEntry]:
+    """Runs and holes interleaved by time, so a missing Run is never a gap."""
+    runs = db.execute(
+        select(Run)
+        .where(Run.schedule_id == schedule_id)
+        .order_by(Run.queued_at, Run.id)
+    ).scalars()
+    holes = db.execute(
+        select(ScheduleOccurrence)
+        .where(ScheduleOccurrence.schedule_id == schedule_id)
+        .order_by(ScheduleOccurrence.occurrence_at, ScheduleOccurrence.id)
+    ).scalars()
+    entries: list[RunHistoryEntry | OccurrenceHistoryEntry] = [
+        RunHistoryEntry(
+            at=run.queued_at,
+            run_id=run.id,
+            status=run.status,
+            failure_reason=run.failure_reason,
+        )
+        for run in runs
+    ]
+    entries.extend(
+        OccurrenceHistoryEntry(
+            at=hole.occurrence_at,
+            reason=hole.reason.value,
+            blocking_run_id=hole.blocking_run_id,
+        )
+        for hole in holes
+    )
+    entries.sort(key=lambda entry: (entry.at, entry.kind))
+    return entries
+
+
+@router.post(
+    "/api/schedules/preview",
+    operation_id="previewSchedule",
+    responses=errors(400, 401, 403),
+)
+def preview_schedule(asked: PreviewRequest, member: ActiveMembership) -> PreviewResult:
+    """The next five Occurrences of an expression. No Schedule has to exist."""
+    after = asked.from_ if asked.from_ is not None else clock.now()
+    return PreviewResult(
+        next_occurrences=next_occurrences(
+            asked.cron, asked.timezone, after, count=PREVIEW_COUNT
+        )
+    )
+
+
+@router.get(
+    "/api/schedules",
+    operation_id="listAllSchedules",
+    responses=errors(400, 401, 403, 404),
+)
+def list_all_schedules(
+    member: ActiveMembership,
+    db: SessionDep,
+    workflow_id: UUID | None = None,
+    limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = PAGE_SIZE,
+    cursor: str | None = None,
+) -> SchedulePage:
+    """Every Schedule in the active Organization, newest-created last."""
+    conditions = [Schedule.org_id == member.org_id]
+    if workflow_id is not None:
+        owned_workflow(db, member.org_id, workflow_id)
+        conditions.append(Schedule.workflow_id == workflow_id)
+    if cursor is not None:
+        created_at, schedule_id = read_cursor(cursor)
+        conditions.append(
+            tuple_(Schedule.created_at, Schedule.id)
+            > tuple_(literal(created_at), literal(schedule_id))
+        )
+    rows = list(
+        db.execute(
+            select(Schedule)
+            .where(*conditions)
+            .order_by(Schedule.created_at, Schedule.id)
+            .limit(limit + 1)
+        ).scalars()
+    )
+    return SchedulePage(
+        items=summaries_of(db, rows[:limit]),
+        next_cursor=cursor_for(rows[limit - 1]) if len(rows) > limit else None,
     )
 
 
@@ -175,7 +369,7 @@ def as_record(db: Session, schedule: Schedule, names: set[str]) -> ScheduleRecor
 )
 def list_schedules(
     workflow_id: UUID, member: ActiveMembership, db: SessionDep
-) -> list[ScheduleRecord]:
+) -> list[ScheduleSummary]:
     owned_workflow(db, member.org_id, workflow_id)
     names = declared_public_names(db, workflow_id)
     rows = db.execute(
@@ -183,7 +377,7 @@ def list_schedules(
         .where(Schedule.workflow_id == workflow_id, Schedule.org_id == member.org_id)
         .order_by(Schedule.created_at, Schedule.id)
     ).scalars()
-    return [as_record(db, row, names) for row in rows]
+    return [as_summary(db, row, names) for row in rows]
 
 
 @router.post(
@@ -197,7 +391,7 @@ def create_schedule(
     asked: CreateSchedule,
     member: ActiveMembership,
     db: SessionDep,
-) -> ScheduleRecord:
+) -> ScheduleSummary:
     owned_workflow(db, member.org_id, workflow_id)
     require_cron(asked.cron)
     require_timezone(asked.timezone)
@@ -225,7 +419,28 @@ def create_schedule(
     )
     db.add(schedule)
     db.commit()
-    return as_record(db, schedule, names)
+    return as_summary(db, schedule, names)
+
+
+@router.get(
+    "/api/schedules/{schedule_id}",
+    operation_id="getSchedule",
+    responses=errors(400, 401, 403, 404),
+)
+def get_schedule(
+    schedule_id: UUID, member: ActiveMembership, db: SessionDep
+) -> ScheduleDetail:
+    schedule = owned_schedule(db, member.org_id, schedule_id)
+    names = declared_public_names(db, schedule.workflow_id)
+    summary = as_summary(db, schedule, names)
+    return ScheduleDetail(
+        schedule=summary,
+        next_occurrences=next_occurrences(
+            schedule.cron, schedule.timezone, clock.now(), count=PREVIEW_COUNT
+        ),
+        history=history_of(db, schedule.id),
+        last_run=summary.last_run,
+    )
 
 
 @router.patch(
@@ -238,7 +453,7 @@ def update_schedule(
     asked: ChangeSchedule,
     member: ActiveMembership,
     db: SessionDep,
-) -> ScheduleRecord:
+) -> ScheduleSummary:
     schedule = owned_schedule(db, member.org_id, schedule_id)
     names = declared_public_names(db, schedule.workflow_id)
     if asked.cron is not None:
@@ -264,7 +479,48 @@ def update_schedule(
             schedule.cron, schedule.timezone, clock.now()
         )
     db.commit()
-    return as_record(db, schedule, names)
+    return as_summary(db, schedule, names)
+
+
+@router.post(
+    "/api/schedules/{schedule_id}/run-now",
+    operation_id="runScheduleNow",
+    status_code=201,
+    responses=errors(400, 401, 403, 404, 409),
+)
+def run_schedule_now(
+    schedule_id: UUID, member: ActiveMembership, db: SessionDep
+) -> RunNowResult:
+    """Queue a Run of this Schedule now. Two copies never act at once."""
+    schedule = owned_schedule(db, member.org_id, schedule_id)
+    names = declared_public_names(db, schedule.workflow_id)
+    missing = missing_from(schedule.variables, names)
+    if missing:
+        raise ApiError(
+            409,
+            "needs_values",
+            "this Schedule is missing values for declared Variables",
+            variable_names=missing,
+        )
+    blocking = open_run_id(db, schedule.id)
+    if blocking is not None:
+        raise ApiError(
+            409,
+            "schedule_run_active",
+            "a Run of this Schedule is still in progress",
+            blocking_run_id=str(blocking),
+        )
+    published = latest_published(db, schedule.workflow_id)
+    if published is None:
+        raise ApiError(
+            409,
+            "no_published_version",
+            "Publish a Version before this Workflow can run.",
+        )
+    run_id = enqueue_latest(db, schedule, published, clock.now())
+    db.commit()
+    get_redis().lpush(DISPATCH_LIST, str(run_id))
+    return RunNowResult(run_id=run_id)
 
 
 @router.delete(

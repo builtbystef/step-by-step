@@ -5218,6 +5218,231 @@
         }
       }
     },
+    "/api/schedules/preview": {
+      "post": {
+        "tags": [
+          "schedules"
+        ],
+        "summary": "Preview Schedule",
+        "description": "The next five Occurrences of an expression. No Schedule has to exist.",
+        "operationId": "previewSchedule",
+        "parameters": [
+          {
+            "name": "X-Organization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/schedules": {
+      "get": {
+        "tags": [
+          "schedules"
+        ],
+        "summary": "List All Schedules",
+        "description": "Every Schedule in the active Organization, newest-created last.",
+        "operationId": "listAllSchedules",
+        "parameters": [
+          {
+            "name": "workflow_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Workflow Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 25,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "X-Organization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchedulePage"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/workflows/{workflow_id}/schedules": {
       "get": {
         "tags": [
@@ -5261,7 +5486,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/ScheduleRecord"
+                    "$ref": "#/components/schemas/ScheduleSummary"
                   },
                   "title": "Response Listschedules"
                 }
@@ -5370,7 +5595,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleRecord"
+                  "$ref": "#/components/schemas/ScheduleSummary"
                 }
               }
             }
@@ -5439,6 +5664,103 @@
       }
     },
     "/api/schedules/{schedule_id}": {
+      "get": {
+        "tags": [
+          "schedules"
+        ],
+        "summary": "Get Schedule",
+        "operationId": "getSchedule",
+        "parameters": [
+          {
+            "name": "schedule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Schedule Id"
+            }
+          },
+          {
+            "name": "X-Organization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "patch": {
         "tags": [
           "schedules"
@@ -5489,7 +5811,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ScheduleRecord"
+                  "$ref": "#/components/schemas/ScheduleSummary"
                 }
               }
             }
@@ -5623,6 +5945,116 @@
               }
             },
             "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/schedules/{schedule_id}/run-now": {
+      "post": {
+        "tags": [
+          "schedules"
+        ],
+        "summary": "Run Schedule Now",
+        "description": "Queue a Run of this Schedule now. Two copies never act at once.",
+        "operationId": "runScheduleNow",
+        "parameters": [
+          {
+            "name": "schedule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Schedule Id"
+            }
+          },
+          {
+            "name": "X-Organization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunNowResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "422": {
             "description": "Validation Error",
@@ -8410,6 +8842,46 @@
         "title": "LastRun",
         "description": "The newest Run of a Workflow, as the list row's meta line draws it."
       },
+      "LastRunRecord": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "failure_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FailureReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status"
+        ],
+        "title": "LastRunRecord"
+      },
       "ListExtractPayload": {
         "properties": {
           "target": {
@@ -8663,6 +9135,48 @@
         ],
         "title": "NavigateStep"
       },
+      "OccurrenceHistoryEntry": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "occurrence",
+            "title": "Kind",
+            "default": "occurrence"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "overlap",
+              "missed",
+              "missing_values"
+            ],
+            "title": "Reason"
+          },
+          "blocking_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Blocking Run Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "at",
+          "reason"
+        ],
+        "title": "OccurrenceHistoryEntry"
+      },
       "OccurrenceRecord": {
         "properties": {
           "occurrence_at": {
@@ -8857,6 +9371,53 @@
         "title": "PendingInvitation",
         "description": "An offer an Organization has out, as its owner and admins see it."
       },
+      "PreviewRequest": {
+        "properties": {
+          "cron": {
+            "type": "string",
+            "title": "Cron"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          },
+          "from": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cron",
+          "timezone"
+        ],
+        "title": "PreviewRequest"
+      },
+      "PreviewResult": {
+        "properties": {
+          "next_occurrences": {
+            "items": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "type": "array",
+            "title": "Next Occurrences"
+          }
+        },
+        "type": "object",
+        "required": [
+          "next_occurrences"
+        ],
+        "title": "PreviewResult"
+      },
       "RecordingMode": {
         "type": "string",
         "enum": [
@@ -8996,6 +9557,60 @@
           "auth_state_candidates"
         ],
         "title": "RunDetail"
+      },
+      "RunHistoryEntry": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "run",
+            "title": "Kind",
+            "default": "run"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RunStatus"
+          },
+          "failure_reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FailureReason"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "at",
+          "run_id",
+          "status"
+        ],
+        "title": "RunHistoryEntry"
+      },
+      "RunNowResult": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Run Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id"
+        ],
+        "title": "RunNowResult"
       },
       "RunPage": {
         "properties": {
@@ -9375,12 +9990,95 @@
         "title": "ScalarExtractPayload",
         "description": "One named value: an element's text, or one of its attributes."
       },
-      "ScheduleRecord": {
+      "ScheduleDetail": {
+        "properties": {
+          "schedule": {
+            "$ref": "#/components/schemas/ScheduleSummary"
+          },
+          "next_occurrences": {
+            "items": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "type": "array",
+            "title": "Next Occurrences"
+          },
+          "history": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/RunHistoryEntry"
+                },
+                {
+                  "$ref": "#/components/schemas/OccurrenceHistoryEntry"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "History"
+          },
+          "last_run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LastRunRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "schedule",
+          "next_occurrences",
+          "history",
+          "last_run"
+        ],
+        "title": "ScheduleDetail"
+      },
+      "SchedulePage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ScheduleSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "SchedulePage"
+      },
+      "ScheduleSummary": {
         "properties": {
           "id": {
             "type": "string",
             "format": "uuid",
             "title": "Id"
+          },
+          "workflow_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workflow Id"
+          },
+          "workflow_name": {
+            "type": "string",
+            "title": "Workflow Name"
           },
           "name": {
             "anyOf": [
@@ -9450,6 +10148,16 @@
             ],
             "title": "Next Due At"
           },
+          "last_run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LastRunRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "latest_occurrence": {
             "anyOf": [
               {
@@ -9464,6 +10172,8 @@
         "type": "object",
         "required": [
           "id",
+          "workflow_id",
+          "workflow_name",
           "name",
           "cron",
           "timezone",
@@ -9473,9 +10183,10 @@
           "missing_variable_names",
           "last_fired_at",
           "next_due_at",
+          "last_run",
           "latest_occurrence"
         ],
-        "title": "ScheduleRecord"
+        "title": "ScheduleSummary"
       },
       "SecretIdentity": {
         "properties": {

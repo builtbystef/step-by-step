@@ -1,13 +1,14 @@
 ---
 id: k97lxb
 title: 'Reading Schedules: the instance list, the detail, the preview, and run-now'
-state: todo
+state: done
+assignee: agent
 priority: medium
 depends_on:
     - 69nls1
 parent: nno9gj
 created: 2026-08-14T19:51:44Z
-updated: 2026-08-17T04:03:37Z
+updated: 2026-08-26T13:37:45Z
 ---
 
 ## What to build
@@ -58,3 +59,23 @@ The preview is **the only source of Occurrence times in the product** — the se
 **claude** — 2026-08-17T04:03:37Z
 
 Re-scope per ADR 0005: 'every Schedule the user owns' reads 'the active Organization's Schedules'; route scoping is the X-Organization Membership gate, so 'another user's Schedule id → 404' reads another Organization's.
+
+**agent** — 2026-08-26T13:24:16Z
+
+Seam (from the spec's Testing Decisions): HTTP against the FastAPI app with real Postgres and Redis. List, detail, preview, and run-now are asserted over HTTP; run-now's overlap uses a still-non-terminal Run of that Schedule, and history interleaves Runs with Occurrence rows. Another Organization's id is 404 (ADR 0005).
+
+**agent** — 2026-08-26T13:37:41Z
+
+Completed reading Schedules: instance list, detail, preview, and run-now.
+
+Seam: HTTP against the FastAPI app with real Postgres and Redis.
+
+What landed:
+- GET /api/schedules pages every Schedule in the active Organization as ScheduleSummary (derived state, missing_variable_names, variables, last_run, latest_occurrence, workflow_id, workflow_name). workflow_id= scopes it; keyset on (created_at, id) yields distinct ids in order. The page is {items, next_cursor}, matching Runs and Batches.
+- GET /api/workflows/{id}/schedules is the same summary, still an unpaged array.
+- GET /api/schedules/{id} returns {schedule, next_occurrences, history, last_run}. History interleaves Runs (at = queued_at) and Occurrence holes in time order.
+- POST /api/schedules/preview is stateless: five timestamps from croniter, from defaults to now, 400 invalid_cron / invalid_timezone. Membership is the gate; no Schedule is required.
+- POST /api/schedules/{id}/run-now reuses enqueue_latest (trigger = schedule, schedule_id set, dispatched after commit). A non-terminal Run of that Schedule is 409 schedule_run_active with blocking_run_id; missing values are 409 needs_values naming the Variables.
+- Another Organization's Schedule id is 404 on detail, run-now, patch, and delete; the instance list does not include it.
+
+Create and patch now return ScheduleSummary (additive workflow_id, workflow_name, last_run).

@@ -539,6 +539,12 @@ def test_schedule_routes_hide_another_organizations_schedule(
         == 404
     )
     assert stranger.client.delete(f"/api/schedules/{schedule_id}").status_code == 404
+    assert schedule_detail(stranger, schedule_id).status_code == 404
+    assert run_now(stranger, schedule_id).status_code == 404
+    listed = list_all_schedules(stranger)
+    assert listed.status_code == 200, listed.text
+    assert listed.json()["items"] == []
+    assert list_all_schedules(stranger, workflow_id=workflow_id).status_code == 404
     assert list_schedules(owner, workflow_id).status_code == 200
 
 
@@ -772,3 +778,333 @@ def test_a_schedule_name_is_stored_patchable_and_nullable(
     assert cleared.status_code == 200, cleared.text
     assert cleared.json()["name"] is None
     assert list_schedules(account, workflow_id).json()[0]["name"] is None
+
+
+def preview(account: Account, **body: object):
+    return account.client.post("/api/schedules/preview", json=body)
+
+
+def test_preview_returns_five_deterministic_timestamps_without_a_schedule(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    assert list_schedules(account, a_workflow(account)).json() == []
+
+    previewed = preview(
+        account,
+        cron="*/7 3-5 * * *",
+        timezone="UTC",
+        **{"from": "2026-01-15T00:00:00+00:00"},
+    )
+
+    assert previewed.status_code == 200, previewed.text
+    stamps = previewed.json()["next_occurrences"]
+    assert len(stamps) == 5
+    assert [datetime.fromisoformat(stamp) for stamp in stamps] == [
+        datetime(2026, 1, 15, 3, minute, tzinfo=ZoneInfo("UTC"))
+        for minute in (0, 7, 14, 21, 28)
+    ]
+
+
+def test_preview_refuses_a_broken_cron_or_timezone(new_account: NewAccount) -> None:
+    account = new_account()
+
+    bad_cron = preview(account, cron="0 9 * * 8", timezone="UTC")
+    bad_zone = preview(account, cron="0 9 * * *", timezone="Mars/Olympus")
+
+    assert bad_cron.status_code == 400
+    assert bad_cron.json()["code"] == "invalid_cron"
+    assert bad_zone.status_code == 400
+    assert bad_zone.json()["code"] == "invalid_timezone"
+
+
+def list_all_schedules(account: Account, **params: object):
+    return account.client.get("/api/schedules", params=params)
+
+
+def test_the_instance_list_returns_every_schedule_with_derived_fields(
+    new_account: NewAccount, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    account = new_account()
+    invoices = published_workflow(account)
+    payroll = a_workflow(account, name="Payroll")
+    assert (
+        save_draft(account, payroll, steps=[a_navigate_step(str(uuid4()))]).status_code
+        == 200
+    )
+    assert publish(account, payroll).status_code == 201
+    freeze(monkeypatch, datetime(2026, 8, 25, 8, 59, tzinfo=BELGRADE))
+    first = create_schedule(
+        account,
+        invoices,
+        cron="0 9 * * *",
+        timezone="Europe/Belgrade",
+        enabled=True,
+        name="Morning",
+    )
+    second = create_schedule(
+        account,
+        payroll,
+        cron="0 10 * * *",
+        timezone="UTC",
+        enabled=False,
+        name="Paused payroll",
+    )
+    assert first.status_code == 201, first.text
+    assert second.status_code == 201, second.text
+    freeze(monkeypatch, datetime(2026, 8, 25, 9, 4, tzinfo=BELGRADE))
+    tick()
+
+    listed = list_all_schedules(account)
+    assert listed.status_code == 200, listed.text
+    page = listed.json()
+    rows = page["items"]
+    by_id = {row["id"]: row for row in rows}
+    assert set(by_id) == {first.json()["id"], second.json()["id"]}
+
+    morning = by_id[first.json()["id"]]
+    assert morning["workflow_id"] == invoices
+    assert morning["workflow_name"] == "Invoices"
+    assert morning["name"] == "Morning"
+    assert morning["cron"] == "0 9 * * *"
+    assert morning["timezone"] == "Europe/Belgrade"
+    assert morning["enabled"] is True
+    assert morning["state"] == "active"
+    assert morning["missing_variable_names"] == []
+    assert morning["variables"] == {}
+    assert morning["last_run"] is None
+    hole = morning["latest_occurrence"]
+    assert isinstance(hole, dict)
+    assert hole["reason"] == "missed"
+
+    paused = by_id[second.json()["id"]]
+    assert paused["workflow_id"] == payroll
+    assert paused["workflow_name"] == "Payroll"
+    assert paused["state"] == "paused"
+    assert paused["last_run"] is None
+    assert paused["latest_occurrence"] is None
+
+    scoped = list_all_schedules(account, workflow_id=payroll)
+    assert scoped.status_code == 200, scoped.text
+    scoped_ids = [row["id"] for row in scoped.json()["items"]]
+    assert scoped_ids == [second.json()["id"]]
+
+    reshaped = list_schedules(account, invoices).json()[0]
+    assert reshaped["workflow_id"] == invoices
+    assert reshaped["workflow_name"] == "Invoices"
+    assert reshaped["last_run"] is None
+    assert reshaped["latest_occurrence"]["reason"] == "missed"
+
+
+def test_the_instance_list_pages_distinct_ids_in_order(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    workflow_id = published_workflow(account)
+    seeded: list[str] = []
+    for hour in range(5):
+        created = create_schedule(
+            account,
+            workflow_id,
+            cron=f"0 {hour} * * *",
+            timezone="UTC",
+            enabled=False,
+        )
+        assert created.status_code == 201, created.text
+        seeded.append(created.json()["id"])
+
+    found: list[str] = []
+    cursor = None
+    while True:
+        response = list_all_schedules(
+            account,
+            limit=2,
+            **({"cursor": cursor} if cursor else {}),
+        )
+        assert response.status_code == 200, response.text
+        page = response.json()
+        found.extend(item["id"] for item in page["items"])
+        cursor = page.get("next_cursor")
+        if cursor is None:
+            break
+
+    assert found == seeded
+    assert len(found) == len(set(found)) == 5
+
+
+def schedule_detail(account: Account, schedule_id: str):
+    return account.client.get(f"/api/schedules/{schedule_id}")
+
+
+def test_schedule_detail_interleaves_runs_and_holes_in_time_order(
+    new_account: NewAccount, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    account = new_account()
+    workflow_id = published_workflow(account)
+    freeze(monkeypatch, datetime(2026, 8, 25, 8, 59, tzinfo=BELGRADE))
+    created = create_schedule(
+        account,
+        workflow_id,
+        cron="0 9 * * *",
+        timezone="Europe/Belgrade",
+        enabled=True,
+    )
+    assert created.status_code == 201, created.text
+    schedule_id = created.json()["id"]
+
+    freeze(monkeypatch, datetime(2026, 8, 25, 9, 0, tzinfo=BELGRADE))
+    tick()
+    first_id = UUID(str(runs_of(account, workflow_id)[0]["id"]))
+    with session_scope() as db:
+        run = db.get(Run, first_id)
+        assert run is not None
+        run.status = RunStatus.SUCCEEDED
+        run.ended_at = clock.now()
+        db.commit()
+
+    freeze(monkeypatch, datetime(2026, 8, 26, 9, 0, tzinfo=BELGRADE))
+    tick()
+    second_id = UUID(
+        str(
+            next(
+                row["id"]
+                for row in runs_of(account, workflow_id)
+                if row["id"] != str(first_id)
+            )
+        )
+    )
+    with session_scope() as db:
+        run = db.get(Run, second_id)
+        assert run is not None
+        run.status = RunStatus.RUNNING
+        db.commit()
+
+    freeze(monkeypatch, datetime(2026, 8, 27, 9, 0, tzinfo=BELGRADE))
+    tick()
+
+    detail = schedule_detail(account, schedule_id)
+    assert detail.status_code == 200, detail.text
+    body = detail.json()
+    assert body["schedule"]["id"] == schedule_id
+    assert body["schedule"]["workflow_id"] == workflow_id
+    history = body["history"]
+    assert len(history) == 3
+    assert {entry["kind"] for entry in history} == {"run", "occurrence"}
+    ats = [datetime.fromisoformat(entry["at"]) for entry in history]
+    assert ats == sorted(ats)
+    runs = [entry for entry in history if entry["kind"] == "run"]
+    holes = [entry for entry in history if entry["kind"] == "occurrence"]
+    assert {entry["run_id"] for entry in runs} == {str(first_id), str(second_id)}
+    by_run = {entry["run_id"]: entry for entry in runs}
+    assert by_run[str(first_id)]["status"] == "succeeded"
+    assert by_run[str(second_id)]["status"] == "running"
+    assert len(holes) == 1
+    assert holes[0]["reason"] == "overlap"
+    assert holes[0]["blocking_run_id"] == str(second_id)
+    assert datetime.fromisoformat(holes[0]["at"]).astimezone(BELGRADE) == datetime(
+        2026, 8, 27, 9, 0, tzinfo=BELGRADE
+    )
+    last_run = body["last_run"]
+    assert last_run["id"] == str(second_id)
+    assert last_run["status"] == "running"
+    assert last_run["ended_at"] is None
+    assert len(body["next_occurrences"]) == 5
+
+
+def run_now(account: Account, schedule_id: str):
+    return account.client.post(f"/api/schedules/{schedule_id}/run-now")
+
+
+def test_run_now_refuses_an_open_run_then_fires_after_it_ends(
+    new_account: NewAccount, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    account = new_account()
+    workflow_id = published_workflow(account)
+    freeze(monkeypatch, datetime(2026, 8, 25, 8, 59, tzinfo=BELGRADE))
+    created = create_schedule(
+        account,
+        workflow_id,
+        cron="0 9 * * *",
+        timezone="Europe/Belgrade",
+        enabled=True,
+    )
+    assert created.status_code == 201, created.text
+    schedule_id = created.json()["id"]
+    freeze(monkeypatch, datetime(2026, 8, 25, 9, 0, tzinfo=BELGRADE))
+    tick()
+    open_id = UUID(str(runs_of(account, workflow_id)[0]["id"]))
+    with session_scope() as db:
+        run = db.get(Run, open_id)
+        assert run is not None
+        run.status = RunStatus.RUNNING
+        db.commit()
+
+    refused = run_now(account, schedule_id)
+    assert refused.status_code == 409, refused.text
+    assert refused.json()["code"] == "schedule_run_active"
+    assert refused.json()["blocking_run_id"] == str(open_id)
+
+    with session_scope() as db:
+        run = db.get(Run, open_id)
+        assert run is not None
+        run.status = RunStatus.SUCCEEDED
+        run.ended_at = clock.now()
+        db.commit()
+
+    fired = run_now(account, schedule_id)
+    assert fired.status_code == 201, fired.text
+    run_id = fired.json()["run_id"]
+    detail = schedule_detail(account, schedule_id)
+    assert detail.status_code == 200, detail.text
+    history_runs = [
+        entry for entry in detail.json()["history"] if entry["kind"] == "run"
+    ]
+    assert {entry["run_id"] for entry in history_runs} == {
+        str(open_id),
+        run_id,
+    }
+    started = account.client.get(f"/api/runs/{run_id}")
+    assert started.status_code == 200, started.text
+    assert started.json()["run"]["trigger"] == "schedule"
+    listed = list_all_schedules(account, workflow_id=workflow_id).json()["items"][0]
+    assert listed["last_run"]["id"] == run_id
+    assert listed["last_run"]["status"] == "queued"
+    queued = [
+        value.decode() if isinstance(value, bytes) else value
+        for value in get_redis().lrange(DISPATCH_LIST, 0, -1)
+    ]
+    assert run_id in queued
+
+
+def test_run_now_refuses_a_schedule_that_needs_values(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    workflow_id = published_workflow(account, variables=[{"name": "city"}])
+    created = create_schedule(
+        account,
+        workflow_id,
+        cron="0 9 * * *",
+        timezone="Europe/Belgrade",
+        enabled=True,
+        variables={"city": "Belgrade"},
+    )
+    assert created.status_code == 201, created.text
+    schedule_id = created.json()["id"]
+    assert (
+        save_draft(
+            account,
+            workflow_id,
+            steps=[a_navigate_step(str(uuid4()))],
+            variables=[{"name": "city"}, {"name": "region"}],
+        ).status_code
+        == 200
+    )
+    assert publish(account, workflow_id).status_code == 201
+    listed = list_schedules(account, workflow_id).json()[0]
+    assert listed["state"] == "needs_values"
+
+    refused = run_now(account, schedule_id)
+    assert refused.status_code == 409, refused.text
+    assert refused.json()["code"] == "needs_values"
+    assert refused.json()["variable_names"] == ["region"]

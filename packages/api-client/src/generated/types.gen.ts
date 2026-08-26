@@ -969,6 +969,22 @@ export type LastRun = {
 };
 
 /**
+ * LastRunRecord
+ */
+export type LastRunRecord = {
+    /**
+     * Id
+     */
+    id: string;
+    status: RunStatus;
+    failure_reason?: FailureReason | null;
+    /**
+     * Ended At
+     */
+    ended_at?: string | null;
+};
+
+/**
  * ListExtractPayload
  *
  * A flat list of records. There is no nesting, by decision.
@@ -1119,6 +1135,28 @@ export type NavigateStep = {
 };
 
 /**
+ * OccurrenceHistoryEntry
+ */
+export type OccurrenceHistoryEntry = {
+    /**
+     * Kind
+     */
+    kind?: 'occurrence';
+    /**
+     * At
+     */
+    at: string;
+    /**
+     * Reason
+     */
+    reason: 'overlap' | 'missed' | 'missing_values';
+    /**
+     * Blocking Run Id
+     */
+    blocking_run_id?: string | null;
+};
+
+/**
  * OccurrenceRecord
  */
 export type OccurrenceRecord = {
@@ -1252,6 +1290,34 @@ export type PendingInvitation = {
 };
 
 /**
+ * PreviewRequest
+ */
+export type PreviewRequest = {
+    /**
+     * Cron
+     */
+    cron: string;
+    /**
+     * Timezone
+     */
+    timezone: string;
+    /**
+     * From
+     */
+    from?: string | null;
+};
+
+/**
+ * PreviewResult
+ */
+export type PreviewResult = {
+    /**
+     * Next Occurrences
+     */
+    next_occurrences: Array<string>;
+};
+
+/**
  * RecordingMode
  *
  * Whether a recording session replaces the Draft or repairs one Step.
@@ -1339,6 +1405,36 @@ export type RunDetail = {
      * Auth State Candidates
      */
     auth_state_candidates: Array<AuthStateCandidateRecord>;
+};
+
+/**
+ * RunHistoryEntry
+ */
+export type RunHistoryEntry = {
+    /**
+     * Kind
+     */
+    kind?: 'run';
+    /**
+     * At
+     */
+    at: string;
+    /**
+     * Run Id
+     */
+    run_id: string;
+    status: RunStatus;
+    failure_reason?: FailureReason | null;
+};
+
+/**
+ * RunNowResult
+ */
+export type RunNowResult = {
+    /**
+     * Run Id
+     */
+    run_id: string;
 };
 
 /**
@@ -1509,13 +1605,51 @@ export type ScalarExtractPayload = {
 };
 
 /**
- * ScheduleRecord
+ * ScheduleDetail
  */
-export type ScheduleRecord = {
+export type ScheduleDetail = {
+    schedule: ScheduleSummary;
+    /**
+     * Next Occurrences
+     */
+    next_occurrences: Array<string>;
+    /**
+     * History
+     */
+    history: Array<RunHistoryEntry | OccurrenceHistoryEntry>;
+    last_run: LastRunRecord | null;
+};
+
+/**
+ * SchedulePage
+ */
+export type SchedulePage = {
+    /**
+     * Items
+     */
+    items: Array<ScheduleSummary>;
+    /**
+     * Next Cursor
+     */
+    next_cursor?: string | null;
+};
+
+/**
+ * ScheduleSummary
+ */
+export type ScheduleSummary = {
     /**
      * Id
      */
     id: string;
+    /**
+     * Workflow Id
+     */
+    workflow_id: string;
+    /**
+     * Workflow Name
+     */
+    workflow_name: string;
     /**
      * Name
      */
@@ -1554,6 +1688,7 @@ export type ScheduleRecord = {
      * Next Due At
      */
     next_due_at: string | null;
+    last_run: LastRunRecord | null;
     latest_occurrence: OccurrenceRecord | null;
 };
 
@@ -5129,6 +5264,109 @@ export type AbandonTakeoverResponses = {
     202: unknown;
 };
 
+export type PreviewScheduleData = {
+    body: PreviewRequest;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/schedules/preview';
+};
+
+export type PreviewScheduleErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PreviewScheduleError = PreviewScheduleErrors[keyof PreviewScheduleErrors];
+
+export type PreviewScheduleResponses = {
+    /**
+     * Successful Response
+     */
+    200: PreviewResult;
+};
+
+export type PreviewScheduleResponse = PreviewScheduleResponses[keyof PreviewScheduleResponses];
+
+export type ListAllSchedulesData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Workflow Id
+         */
+        workflow_id?: string | null;
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Cursor
+         */
+        cursor?: string | null;
+    };
+    url: '/api/schedules';
+};
+
+export type ListAllSchedulesErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListAllSchedulesError = ListAllSchedulesErrors[keyof ListAllSchedulesErrors];
+
+export type ListAllSchedulesResponses = {
+    /**
+     * Successful Response
+     */
+    200: SchedulePage;
+};
+
+export type ListAllSchedulesResponse = ListAllSchedulesResponses[keyof ListAllSchedulesResponses];
+
 export type ListSchedulesData = {
     body?: never;
     headers?: {
@@ -5178,7 +5416,7 @@ export type ListSchedulesResponses = {
      *
      * Successful Response
      */
-    200: Array<ScheduleRecord>;
+    200: Array<ScheduleSummary>;
 };
 
 export type ListSchedulesResponse = ListSchedulesResponses[keyof ListSchedulesResponses];
@@ -5234,7 +5472,7 @@ export type CreateScheduleResponses = {
     /**
      * Successful Response
      */
-    201: ScheduleRecord;
+    201: ScheduleSummary;
 };
 
 export type CreateScheduleResponse = CreateScheduleResponses[keyof CreateScheduleResponses];
@@ -5291,6 +5529,58 @@ export type DeleteScheduleResponses = {
 
 export type DeleteScheduleResponse = DeleteScheduleResponses[keyof DeleteScheduleResponses];
 
+export type GetScheduleData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Schedule Id
+         */
+        schedule_id: string;
+    };
+    query?: never;
+    url: '/api/schedules/{schedule_id}';
+};
+
+export type GetScheduleErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetScheduleError = GetScheduleErrors[keyof GetScheduleErrors];
+
+export type GetScheduleResponses = {
+    /**
+     * Successful Response
+     */
+    200: ScheduleDetail;
+};
+
+export type GetScheduleResponse = GetScheduleResponses[keyof GetScheduleResponses];
+
 export type UpdateScheduleData = {
     body: ChangeSchedule;
     headers?: {
@@ -5338,10 +5628,66 @@ export type UpdateScheduleResponses = {
     /**
      * Successful Response
      */
-    200: ScheduleRecord;
+    200: ScheduleSummary;
 };
 
 export type UpdateScheduleResponse = UpdateScheduleResponses[keyof UpdateScheduleResponses];
+
+export type RunScheduleNowData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Schedule Id
+         */
+        schedule_id: string;
+    };
+    query?: never;
+    url: '/api/schedules/{schedule_id}/run-now';
+};
+
+export type RunScheduleNowErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Conflict
+     */
+    409: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RunScheduleNowError = RunScheduleNowErrors[keyof RunScheduleNowErrors];
+
+export type RunScheduleNowResponses = {
+    /**
+     * Successful Response
+     */
+    201: RunNowResult;
+};
+
+export type RunScheduleNowResponse = RunScheduleNowResponses[keyof RunScheduleNowResponses];
 
 export type CreateBatchData = {
     body: CreateBatch;

@@ -30,19 +30,35 @@ def _aware(instant: datetime, zone: ZoneInfo) -> datetime:
     return instant.astimezone(zone)
 
 
+PREVIEW_COUNT = 5
+"""How many future Occurrences the preview (and the detail) return."""
+
+
 def next_occurrence(expression: str, timezone: str, after: datetime) -> datetime:
     """The next instant the expression matches, strictly after `after`, in that zone.
 
     `after` may be any aware datetime; the result is timezone-aware in `timezone`.
     """
+    return next_occurrences(expression, timezone, after, count=1)[0]
+
+
+def next_occurrences(
+    expression: str, timezone: str, after: datetime, count: int = PREVIEW_COUNT
+) -> list[datetime]:
+    """The next `count` instants the expression matches, strictly after `after`."""
     require_cron(expression)
     zone = require_timezone(timezone)
-    local = after.astimezone(zone)
-    try:
-        nxt = croniter(expression, local).get_next(datetime)
-    except (CroniterBadCronError, CroniterBadDateError) as error:
-        raise ApiError(400, "invalid_cron", "that is not a cron expression") from error
-    return _aware(nxt, zone)
+    local = after.astimezone(zone) if after.tzinfo else after.replace(tzinfo=zone)
+    walker = croniter(expression, local)
+    found: list[datetime] = []
+    for _ in range(count):
+        try:
+            found.append(_aware(walker.get_next(datetime), zone))
+        except (CroniterBadCronError, CroniterBadDateError) as error:
+            raise ApiError(
+                400, "invalid_cron", "that is not a cron expression"
+            ) from error
+    return found
 
 
 def occurrences_through(
