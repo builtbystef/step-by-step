@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@base-ui/react": "catalog:",
+    "@novnc/novnc": "catalog:",
     "@step-by-step/api-client": "workspace:*",
     "@tanstack/react-query": "catalog:",
     "class-variance-authority": "catalog:",

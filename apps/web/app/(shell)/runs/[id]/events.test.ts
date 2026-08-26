@@ -1,7 +1,7 @@
 import type { RunRecord, StepResultRecord } from "@step-by-step/api-client";
 import { describe, expect, it } from "vitest";
 
-import { applyRunEvent, emptySnapshot, type CockpitSnapshot } from "./events";
+import { applyRunEvent, emptySnapshot, snapshotFromDetail, type CockpitSnapshot } from "./events";
 import { clock, stepRailBadges } from "./presentation";
 
 /**
@@ -140,5 +140,49 @@ describe("a live Run's rail", () => {
       data: { run_id: "run-1", seq: 2, step_id: "s1", level: "info", text: "two", at: T(2) },
     });
     expect(state.logs.map((line) => line.seq)).toEqual([1, 2]);
+  });
+
+  it("flips the success-check line from predicate events, including the grace", () => {
+    let state = snapshot();
+    state = applyRunEvent(state, {
+      type: "predicate",
+      data: { run_id: "run-1", met: false, at: T(10) },
+    });
+    expect(state.predicate).toEqual({ met: false, graceEndsAt: null });
+
+    state = applyRunEvent(state, {
+      type: "predicate",
+      data: { run_id: "run-1", met: true, grace_ends_at: T(16), at: T(10) },
+    });
+    expect(state.predicate).toEqual({ met: true, graceEndsAt: T(16) });
+  });
+
+  it("carries unconsented auth-state candidates from the detail refetch", () => {
+    const state = snapshotFromDetail({
+      run: run(),
+      step_results: [],
+      control_intervals: [],
+      artifacts: [],
+      batch_row: null,
+      auth_state_candidates: [{ domain: "site.com", consent: null }],
+    });
+    expect(state.authStateCandidates).toEqual([{ domain: "site.com", consent: null }]);
+  });
+
+  it("keeps a suspected_challenge diagnostic for the dismissible banner", () => {
+    let state = snapshot();
+    state = applyRunEvent(state, {
+      type: "diagnostic",
+      data: {
+        run_id: "run-1",
+        step_id: "s3",
+        kind: "suspected_challenge",
+        detail: "recaptcha",
+        at: T(12),
+      },
+    });
+    expect(state.diagnostics).toEqual([
+      { stepId: "s3", kind: "suspected_challenge", detail: "recaptcha", at: T(12) },
+    ]);
   });
 });

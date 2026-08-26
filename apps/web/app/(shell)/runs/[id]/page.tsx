@@ -4,6 +4,7 @@ import {
   cancelRun,
   downloadRunArtifact,
   type ArtifactRecord,
+  type AuthStateConsentScope,
   type LogLine,
   type RunControlKind,
   type Variable,
@@ -13,10 +14,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { applyRunEvent, snapshotFromDetail, type CockpitSnapshot } from "./events";
 import { refusalMessage } from "./messages";
+import { currentPhase, waitingStep } from "./pane";
+import { PanePanel } from "./pane-panel";
 import {
   CANCEL_CONFIRM,
   cancellingBand,
@@ -28,7 +31,6 @@ import {
   elapsedMs,
   isTerminal,
   offersRepick,
-  panePlaceholder,
   railItems,
   stepsDoneLabel,
   stepExpansion,
@@ -41,6 +43,7 @@ import {
 import { runQuery, runVersionQuery, runWorkflowQuery } from "./queries";
 import { RunAgainDialog } from "./run-again-dialog";
 import { useRunStream } from "./use-run-stream";
+import { useTakeoverLock } from "./use-takeover-lock";
 
 import { Sentence } from "../../workflows/[id]/editor/sentence";
 import type { Step } from "../../workflows/[id]/editor/steps";
@@ -61,9 +64,8 @@ import { cn } from "@/lib/utils";
 /**
  * `/runs/[id]` — the cockpit where a Run is understood.
  *
- * The pane's live browser arrives with its own slice; until then the area
- * holds each state's placeholder. The rail, the timeline, the banner, and
- * cancel are this screen's.
+ * The pane is the Worker's browser: view-only while automation runs,
+ * amber and waiting when parked, interactive during takeover.
  */
 
 export default function RunDetailPage() {
@@ -86,6 +88,11 @@ function Cockpit({ orgId, runId }: { orgId: string; runId: string }) {
   const [runAgain, setRunAgain] = useState(false);
   const [drawer, setDrawer] = useState<"logs" | "artifacts">("logs");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [weHoldControl, setWeHoldControl] = useState(false);
+  const [unmetHandback, setUnmetHandback] = useState(false);
+  const [alreadyHeld, setAlreadyHeld] = useState(false);
+  const pendingHandback = useRef(false);
+  const lock = useTakeoverLock(runId);
 
   useEffect(() => {
     setLive(null);
@@ -117,10 +124,32 @@ function Cockpit({ orgId, runId }: { orgId: string; runId: string }) {
     };
   }, [status]);
 
+  const pullCandidates = async () => {
+    const refreshed = await loaded.refetch();
+    const candidates = refreshed.data?.detail.auth_state_candidates;
+    if (candidates === undefined) {
+      return;
+    }
+    setLive((current) =>
+      current === null ? current : { ...current, authStateCandidates: candidates },
+    );
+  };
+
   useRunStream(
     runId,
     status,
     (event) => {
+      if (event.type === "control" && pendingHandback.current) {
+        if (event.data.phase === "waiting") {
+          setUnmetHandback(true);
+          pendingHandback.current = false;
+          void pullCandidates();
+        }
+        if (event.data.phase === "automation") {
+          pendingHandback.current = false;
+          void pullCandidates();
+        }
+      }
       setLive((current) => (current === null ? current : applyRunEvent(current, event)));
     },
     async () => {
@@ -130,6 +159,23 @@ function Cockpit({ orgId, runId }: { orgId: string; runId: string }) {
       }
     },
   );
+
+  useEffect(() => {
+    if (status !== "waiting_for_human") {
+      setWeHoldControl(false);
+      setUnmetHandback(false);
+      setAlreadyHeld(false);
+    }
+  }, [status]);
+
+  const releaseHold = lock.release;
+  const releaseHoldRef = useRef(releaseHold);
+  releaseHoldRef.current = releaseHold;
+  useEffect(() => {
+    return () => {
+      releaseHoldRef.current();
+    };
+  }, [runId]);
 
   const workflowId = snapshot?.run.workflow_id ?? "";
   const workflow = useQuery(runWorkflowQuery(orgId, workflowId, workflowId !== ""));
@@ -328,9 +374,85 @@ function Cockpit({ orgId, runId }: { orgId: string; runId: string }) {
                 {banner}
               </Callout>
             )}
-            <div className="flex min-h-48 items-center justify-center rounded-md border border-dashed border-line bg-muted text-half text-mut">
-              {panePlaceholder(snapshot.run.status, cancelling)}
-            </div>
+            <PanePanel
+              runId={runId}
+              status={snapshot.run.status}
+              cancelling={cancelling}
+              phase={currentPhase(snapshot.intervals)}
+              workerId={snapshot.run.worker_id}
+              trigger={snapshot.run.trigger}
+              deadlineAt={snapshot.run.takeover_deadline_at}
+              pauseRequested={snapshot.run.pause_requested_at !== null}
+              autoHandbackDisabled={snapshot.run.auto_handback_disabled}
+              pause={waitingStep(steps, snapshot.stepResults, snapshot.inFlight)}
+              predicate={snapshot.predicate}
+              diagnostics={snapshot.diagnostics}
+              candidates={snapshot.authStateCandidates}
+              weHoldControl={weHoldControl}
+              heldElsewhere={lock.heldElsewhere || alreadyHeld}
+              unmetHandback={unmetHandback}
+              now={now}
+              onTookOver={() => {
+                setAlreadyHeld(false);
+                setUnmetHandback(false);
+                setWeHoldControl(true);
+                lock.claim();
+              }}
+              onReleased={() => {
+                pendingHandback.current = weHoldControl;
+                setWeHoldControl(false);
+                lock.release();
+              }}
+              onUnmet={() => {
+                setUnmetHandback(false);
+              }}
+              onStay={() => {
+                setLive((current) =>
+                  current === null
+                    ? current
+                    : {
+                        ...current,
+                        run: { ...current.run, auto_handback_disabled: true },
+                      },
+                );
+              }}
+              onPause={() => {
+                setLive((current) =>
+                  current === null
+                    ? current
+                    : {
+                        ...current,
+                        run: {
+                          ...current.run,
+                          pause_requested_at:
+                            current.run.pause_requested_at ?? new Date().toISOString(),
+                        },
+                      },
+                );
+              }}
+              onConsented={(domain: string, scope: AuthStateConsentScope) => {
+                setLive((current) =>
+                  current === null
+                    ? current
+                    : {
+                        ...current,
+                        authStateCandidates: current.authStateCandidates.map((candidate) =>
+                          candidate.domain === domain
+                            ? { ...candidate, consent: { scope } }
+                            : candidate,
+                        ),
+                      },
+                );
+              }}
+              onCancel={() => {
+                setConfirmingCancel(true);
+              }}
+              onError={(error) => {
+                if (errorCode(error) === "already_held") {
+                  setAlreadyHeld(true);
+                }
+              }}
+            />
           </CardContent>
         </Card>
       </div>
@@ -378,6 +500,13 @@ function documentOf(
 }
 
 type RunRecordDraft = WorkflowDocument | { [key: string]: unknown } | null;
+
+function errorCode(error: unknown): string | undefined {
+  if (typeof error === "object" && error !== null && "code" in error) {
+    return typeof error.code === "string" ? error.code : undefined;
+  }
+  return undefined;
+}
 
 function Meta({ label, value }: { label: string; value: string }) {
   return (

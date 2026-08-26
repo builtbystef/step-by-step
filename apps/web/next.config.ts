@@ -3,7 +3,7 @@ import type { NextConfig } from "next";
 const API_URL = process.env.API_URL ?? "http://localhost:8000";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@step-by-step/api-client"],
+  transpilePackages: ["@step-by-step/api-client", "@novnc/novnc"],
   experimental: {
     // TypeScript 7 (tsgo) has no in-process compiler API; use its CLI.
     useTypeScriptCli: true,

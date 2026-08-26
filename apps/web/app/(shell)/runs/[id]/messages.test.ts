@@ -14,4 +14,8 @@ describe("cockpit refusals", () => {
   it("reuses the shared unpublished-Version sentence", () => {
     expect(refusalMessage({ code: "no_published_version" })).toBe(COPY.noPublishedVersion);
   });
+
+  it("names a takeover that another session already holds", () => {
+    expect(refusalMessage({ code: "already_held" })).toBe("Control is held in another tab.");
+  });
 });

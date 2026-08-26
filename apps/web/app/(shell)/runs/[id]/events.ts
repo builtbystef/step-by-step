@@ -1,4 +1,5 @@
 import type {
+  AuthStateCandidateRecord,
   ControlIntervalRecord,
   LogLine,
   RunControlKind,
@@ -16,6 +17,18 @@ import type {
  * long. Commands never travel on this path.
  */
 
+export type PredicateState = {
+  met: boolean;
+  graceEndsAt: string | null;
+};
+
+export type DiagnosticEvent = {
+  stepId: string;
+  kind: string;
+  detail: string;
+  at: string;
+};
+
 export type CockpitSnapshot = {
   run: RunRecord;
   stepResults: StepResultRecord[];
@@ -23,6 +36,9 @@ export type CockpitSnapshot = {
   artifacts: RunDetail["artifacts"];
   logs: LogLine[];
   inFlight: { stepId: string; position: number; startedAt: string } | null;
+  authStateCandidates: AuthStateCandidateRecord[];
+  predicate: PredicateState | null;
+  diagnostics: DiagnosticEvent[];
 };
 
 export type RunEvent = {
@@ -38,6 +54,9 @@ export function emptySnapshot(run: RunRecord): CockpitSnapshot {
     artifacts: [],
     logs: [],
     inFlight: null,
+    authStateCandidates: [],
+    predicate: null,
+    diagnostics: [],
   };
 }
 
@@ -49,6 +68,9 @@ export function snapshotFromDetail(detail: RunDetail, logs: LogLine[] = []): Coc
     artifacts: detail.artifacts,
     logs,
     inFlight: null,
+    authStateCandidates: detail.auth_state_candidates,
+    predicate: null,
+    diagnostics: [],
   };
 }
 
@@ -91,7 +113,36 @@ export function applyRunEvent(state: CockpitSnapshot, event: RunEvent): CockpitS
   if (event.type === "log") {
     return appendLog(state, event.data);
   }
+  if (event.type === "predicate") {
+    return {
+      ...state,
+      predicate: {
+        met: event.data.met === true,
+        graceEndsAt: typeof event.data.grace_ends_at === "string" ? event.data.grace_ends_at : null,
+      },
+    };
+  }
+  if (event.type === "diagnostic") {
+    return appendDiagnostic(state, event.data);
+  }
   return state;
+}
+
+function appendDiagnostic(state: CockpitSnapshot, data: Record<string, unknown>): CockpitSnapshot {
+  const next: DiagnosticEvent = {
+    stepId: stringOf(data.step_id),
+    kind: stringOf(data.kind),
+    detail: stringOf(data.detail),
+    at: stringOf(data.at),
+  };
+  if (
+    state.diagnostics.some(
+      (item) => item.stepId === next.stepId && item.kind === next.kind && item.at === next.at,
+    )
+  ) {
+    return state;
+  }
+  return { ...state, diagnostics: [...state.diagnostics, next] };
 }
 
 function finishStep(state: CockpitSnapshot, data: Record<string, unknown>): CockpitSnapshot {
@@ -135,6 +186,7 @@ function shiftControl(state: CockpitSnapshot, data: Record<string, unknown>): Co
   );
   return {
     ...state,
+    predicate: phase === "automation" ? null : state.predicate,
     intervals: [
       ...closed,
       {
