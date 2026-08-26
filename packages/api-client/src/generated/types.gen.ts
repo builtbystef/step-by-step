@@ -1284,7 +1284,25 @@ export type SecretSummary = {
      * Updated At
      */
     updated_at: string;
+    /**
+     * Used By
+     */
+    used_by: Array<SecretUsage>;
     my_override: OverrideSummary | null;
+};
+
+/**
+ * SecretUsage
+ */
+export type SecretUsage = {
+    /**
+     * Workflow Id
+     */
+    workflow_id: string;
+    /**
+     * Workflow Name
+     */
+    workflow_name: string;
 };
 
 /**
@@ -1684,6 +1702,10 @@ export type ValidationError = {
  * Variable
  *
  * A named input a Workflow declares. Step values reference it by name.
+ *
+ * A secret Variable may point at a vault Secret by id. The name beside the
+ * id is a cache for display: renaming the Secret never rewrites a Version,
+ * and a deleted Secret still has a name to show.
  */
 export type Variable = {
     /**
@@ -1694,6 +1716,14 @@ export type Variable = {
      * Secret
      */
     secret?: boolean;
+    /**
+     * Secretid
+     */
+    secretId?: string | null;
+    /**
+     * Secretname
+     */
+    secretName?: string | null;
 };
 
 /**

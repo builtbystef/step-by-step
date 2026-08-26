@@ -2,7 +2,9 @@
 
 from uuid import uuid4
 
-from step_by_step_core.document import CandidateKind, Target, WorkflowDocument
+import pytest
+from pydantic import ValidationError
+from step_by_step_core.document import CandidateKind, Target, Variable, WorkflowDocument
 
 
 def test_sparse_steps_observe_execution_defaults() -> None:
@@ -46,3 +48,42 @@ def test_target_reads_the_stored_document_shape() -> None:
     assert target.candidates[0].shadow_path == ["account-card"]
     assert target.frame is not None
     assert target.frame[0].index == 1
+
+
+def test_a_secret_variable_may_carry_a_vault_pointer() -> None:
+    """The id is the binding; the name is a cache for display."""
+    secret_id = uuid4()
+    variable = Variable.model_validate(
+        {
+            "name": "password",
+            "secret": True,
+            "secretId": str(secret_id),
+            "secretName": "acme-portal-password",
+        }
+    )
+
+    assert variable.secret is True
+    assert variable.secret_id == secret_id
+    assert variable.secret_name == "acme-portal-password"
+
+
+def test_a_secret_variable_without_a_vault_pointer_is_still_a_variable() -> None:
+    """Binding is a later pick, not a condition of being secret."""
+    variable = Variable.model_validate({"name": "password", "secret": True})
+
+    assert variable.secret_id is None
+    assert variable.secret_name is None
+
+
+def test_a_non_secret_variable_may_not_carry_a_vault_pointer() -> None:
+    with pytest.raises(ValidationError, match="secretId") as refused:
+        Variable.model_validate(
+            {
+                "name": "tenant",
+                "secret": False,
+                "secretId": str(uuid4()),
+                "secretName": "acme-portal-password",
+            }
+        )
+
+    assert "secretId" in str(refused.value)

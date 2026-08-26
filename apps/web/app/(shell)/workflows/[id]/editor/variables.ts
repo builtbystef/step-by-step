@@ -22,7 +22,14 @@ export type VariableRow = {
   secret: boolean;
   /** The ids of the Steps whose value names it, in the order the list runs. */
   usedBy: string[];
+  /** The vault entry this secret Variable points at, when it points at one. */
+  secretId?: string;
+  /** Cached vault name for display; never authoritative. */
+  secretName?: string;
 };
+
+/** A Secret as the vault picker lists it: id to bind, name to show. */
+export type VaultSecret = { id: string; name: string };
 
 /** The names this Step's value interpolates, each one once. */
 export function referencesOf(step: Step): string[] {
@@ -43,6 +50,7 @@ export function variableRows(document: WorkflowDocument): VariableRow[] {
     usedBy: steps
       .filter((step) => referencesOf(step).includes(variable.name))
       .map((step) => step.id),
+    ...pointerOf(variable),
   }));
 }
 
@@ -144,8 +152,61 @@ export function withVariableSecret(
 ): WorkflowDocument {
   return {
     ...document,
+    variables: (document.variables ?? []).map((variable) => {
+      if (variable.name !== name) {
+        return variable;
+      }
+      if (secret) {
+        return { ...variable, secret: true };
+      }
+      return { name: variable.name, secret: false };
+    }),
+  };
+}
+
+/** The vault pointer fields, present only when the document set them. */
+function pointerOf(variable: Variable): Pick<VariableRow, "secretId" | "secretName"> {
+  return {
+    ...(typeof variable.secretId === "string" ? { secretId: variable.secretId } : {}),
+    ...(typeof variable.secretName === "string" ? { secretName: variable.secretName } : {}),
+  };
+}
+
+/**
+ * The name to show for a binding: the live vault name when the Secret still
+ * exists, otherwise the cached name the document kept.
+ */
+export function boundSecretName(
+  variable: Pick<Variable, "secretId" | "secretName">,
+  vault: readonly VaultSecret[],
+): string | null {
+  const id = variable.secretId;
+  if (typeof id === "string") {
+    const live = vault.find((entry) => entry.id === id);
+    if (live !== undefined) {
+      return live.name;
+    }
+  }
+  return typeof variable.secretName === "string" ? variable.secretName : null;
+}
+
+/**
+ * The document with that Variable pointing at this vault Secret.
+ *
+ * The id is the pointer; the name is cached beside it so a later delete still
+ * has something to show. Picking a different Secret rewrites both.
+ */
+export function withSecretBound(
+  document: WorkflowDocument,
+  name: string,
+  secret: VaultSecret,
+): WorkflowDocument {
+  return {
+    ...document,
     variables: (document.variables ?? []).map((variable) =>
-      variable.name === name ? { ...variable, secret } : variable,
+      variable.name === name
+        ? { ...variable, secret: true, secretId: secret.id, secretName: secret.name }
+        : variable,
     ),
   };
 }

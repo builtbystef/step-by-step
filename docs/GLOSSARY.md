@@ -57,7 +57,7 @@ A file that a Run produces: a screenshot, a download, or a trace.
 _Avoid_: attachment, output file
 
 **Secret**:
-A named, encrypted value in an Organization's vault, on which a member may keep a Personal Override. A Workflow's secret Variable binds to a Secret by name, and the value itself never appears in step payloads, logs, or Artifacts.
+A named, encrypted value in an Organization's vault, on which a member may keep a Personal Override. A Workflow's secret Variable binds to a Secret, and the value itself never appears in step payloads, logs, or Artifacts.
 _Avoid_: credential, vault entry
 
 **Auth State**:

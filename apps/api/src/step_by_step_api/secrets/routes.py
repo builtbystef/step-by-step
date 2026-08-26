@@ -1,7 +1,8 @@
 """The signed-in HTTP surface for the Organization's Secret vault."""
 
+from collections.abc import Iterable
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Response
@@ -17,6 +18,7 @@ from step_by_step_api.db import SessionDep
 from step_by_step_api.envelope import Sealed, master_key, open_sealed, seal
 from step_by_step_api.errors import ApiError, errors
 from step_by_step_api.secrets.models import Secret, SecretOverride
+from step_by_step_api.workflows.models import Workflow, WorkflowDraft, WorkflowVersion
 
 router = APIRouter(prefix="/api/secrets", tags=["secrets"])
 SecretValue = Annotated[str, Field(min_length=1)]
@@ -52,8 +54,14 @@ class OverrideSummary(BaseModel):
     updated_at: datetime
 
 
+class SecretUsage(BaseModel):
+    workflow_id: UUID
+    workflow_name: str
+
+
 class SecretSummary(SecretIdentity):
     updated_at: datetime
+    used_by: list[SecretUsage]
     my_override: OverrideSummary | None
 
 
@@ -97,6 +105,57 @@ def commit_unique(db: SessionDep) -> None:
         raise ApiError(409, "name_taken", "that Secret name is already used") from None
 
 
+def bound_secret_id(variable: object) -> UUID | None:
+    """The vault pointer a Variable carries, if it is a well-formed id."""
+    if not isinstance(variable, dict):
+        return None
+    raw = variable.get("secretId")
+    if not isinstance(raw, str):
+        return None
+    try:
+        return UUID(raw)
+    except ValueError:
+        return None
+
+
+def usages_in(
+    documents: Iterable[tuple[UUID, str, dict[str, Any]]],
+) -> dict[UUID, list[SecretUsage]]:
+    """Which Workflows bind to which Secret, each Workflow once."""
+    found: dict[UUID, dict[UUID, str]] = {}
+    for workflow_id, workflow_name, document in documents:
+        for variable in document.get("variables") or []:
+            secret_id = bound_secret_id(variable)
+            if secret_id is None:
+                continue
+            found.setdefault(secret_id, {})[workflow_id] = workflow_name
+    return {
+        secret_id: [
+            SecretUsage(workflow_id=wid, workflow_name=name)
+            for wid, name in sorted(bound.items(), key=lambda item: (item[1], item[0]))
+        ]
+        for secret_id, bound in found.items()
+    }
+
+
+def usages_for(db: SessionDep, org_id: UUID) -> dict[UUID, list[SecretUsage]]:
+    """Draft and Version bindings in this Organization, keyed by Secret id."""
+    drafts = db.execute(
+        select(Workflow.id, Workflow.name, WorkflowDraft.document)
+        .join(WorkflowDraft, WorkflowDraft.workflow_id == Workflow.id)
+        .where(Workflow.org_id == org_id)
+    ).all()
+    versions = db.execute(
+        select(Workflow.id, Workflow.name, WorkflowVersion.document)
+        .join(WorkflowVersion, WorkflowVersion.workflow_id == Workflow.id)
+        .where(Workflow.org_id == org_id)
+    ).all()
+    return usages_in(
+        (workflow_id, name, document)
+        for workflow_id, name, document in (*drafts, *versions)
+    )
+
+
 @router.get("", operation_id="listSecrets", response_model=list[SecretSummary])
 def list_secrets(
     db: SessionDep, membership: ActiveMembership, user: CurrentUser
@@ -111,11 +170,13 @@ def list_secrets(
         .where(Secret.org_id == membership.org_id)
         .order_by(Secret.name, Secret.id)
     ).all()
+    usages = usages_for(db, membership.org_id)
     return [
         SecretSummary(
             id=secret.id,
             name=secret.name,
             updated_at=secret.updated_at,
+            used_by=usages.get(secret.id, []),
             my_override=(
                 OverrideSummary(updated_at=override.updated_at)
                 if override is not None

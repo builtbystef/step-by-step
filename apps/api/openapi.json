@@ -7744,6 +7744,13 @@
             "format": "date-time",
             "title": "Updated At"
           },
+          "used_by": {
+            "items": {
+              "$ref": "#/components/schemas/SecretUsage"
+            },
+            "type": "array",
+            "title": "Used By"
+          },
           "my_override": {
             "anyOf": [
               {
@@ -7760,9 +7767,29 @@
           "id",
           "name",
           "updated_at",
+          "used_by",
           "my_override"
         ],
         "title": "SecretSummary"
+      },
+      "SecretUsage": {
+        "properties": {
+          "workflow_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workflow Id"
+          },
+          "workflow_name": {
+            "type": "string",
+            "title": "Workflow Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workflow_id",
+          "workflow_name"
+        ],
+        "title": "SecretUsage"
       },
       "SelectPayload": {
         "properties": {
@@ -8442,6 +8469,30 @@
             "type": "boolean",
             "title": "Secret",
             "default": false
+          },
+          "secretId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secretid"
+          },
+          "secretName": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secretname"
           }
         },
         "additionalProperties": false,
@@ -8450,7 +8501,7 @@
           "name"
         ],
         "title": "Variable",
-        "description": "A named input a Workflow declares. Step values reference it by name."
+        "description": "A named input a Workflow declares. Step values reference it by name.\n\nA secret Variable may point at a vault Secret by id. The name beside the\nid is a cache for display: renaming the Secret never rewrites a Version,\nand a deleted Secret still has a name to show."
       },
       "VerificationRequest": {
         "properties": {

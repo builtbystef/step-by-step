@@ -6,7 +6,7 @@ from enum import StrEnum
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
 
 VARIABLE_NAME_PATTERN = r"[A-Za-z_][A-Za-z0-9_-]*"
@@ -30,10 +30,27 @@ class DocumentModel(BaseModel):
 
 
 class Variable(DocumentModel):
-    """A named input a Workflow declares. Step values reference it by name."""
+    """A named input a Workflow declares. Step values reference it by name.
+
+    A secret Variable may point at a vault Secret by id. The name beside the
+    id is a cache for display: renaming the Secret never rewrites a Version,
+    and a deleted Secret still has a name to show.
+    """
 
     name: str = Field(pattern=f"^{VARIABLE_NAME_PATTERN}$", max_length=100)
     secret: bool = False
+    secret_id: UUID | None = None
+    secret_name: str | None = Field(default=None, max_length=200)
+
+    @model_validator(mode="after")
+    def vault_pointer_only_when_secret(self) -> Variable:
+        if self.secret:
+            return self
+        if self.secret_id is not None:
+            raise ValueError("secretId is only set on a secret Variable")
+        if self.secret_name is not None:
+            raise ValueError("secretName is only set on a secret Variable")
+        return self
 
 
 class CandidateKind(StrEnum):

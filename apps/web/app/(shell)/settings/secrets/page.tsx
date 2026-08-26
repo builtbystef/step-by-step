@@ -4,7 +4,6 @@ import {
   createSecret,
   deleteSecret,
   deleteSecretOverride,
-  listSecrets,
   revealSecret,
   revealSecretOverride,
   setSecretOverride,
@@ -14,7 +13,9 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
+import { loadSecrets, SECRETS_KEY } from "./queries";
 import { REVEAL_DURATION_MS } from "./reveal";
+import { deleteConsequence, usedBySummary } from "./usage";
 
 import { Callout } from "@/components/primitives/callout";
 import { Button } from "@/components/ui/button";
@@ -22,14 +23,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { relativeTime } from "@/lib/relative-time";
-
-const SECRETS_KEY = ["secrets"] as const;
-
-async function loadSecrets(): Promise<SecretSummary[]> {
-  const { data, error } = await listSecrets();
-  if (error) throw error;
-  return data;
-}
 
 /** Settings → Secrets: the active Organization's vault and the caller's layer. */
 export default function SecretsPage() {
@@ -186,6 +179,7 @@ function SecretRow({ secret }: { secret: SecretSummary }) {
       <CardHeader>
         <CardTitle>{secret.name}</CardTitle>
         <p className="text-small text-mut">Updated {relativeTime(secret.updated_at)}</p>
+        <p className="text-small text-mut">{usedBySummary(secret.used_by)}</p>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <RevealButton secretId={secret.id} own={false} />
@@ -276,7 +270,7 @@ function SecretRow({ secret }: { secret: SecretSummary }) {
               </div>
             }
           >
-            The Secret and every member&apos;s Personal Override will be deleted.
+            {deleteConsequence(secret.name, secret.used_by)}
           </Callout>
         ) : (
           <Button

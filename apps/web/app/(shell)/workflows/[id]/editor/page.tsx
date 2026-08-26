@@ -28,6 +28,7 @@ import { restoreConsequence, versionPath, viewedVersion } from "../versions";
 import { workflowsKey } from "../../queries";
 
 import { useActiveOrganization } from "../../../use-active-organization";
+import { loadSecrets, SECRETS_KEY } from "../../../settings/secrets/queries";
 
 import { InstallAndConnect } from "@/components/extension/install-and-connect";
 import { Callout } from "@/components/primitives/callout";
@@ -95,6 +96,7 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
   const draft = useQuery(draftQuery(orgId, workflowId));
   const version = useQuery(versionDocumentQuery(orgId, workflowId, viewing));
   const workflow = useQuery(workflowQuery(orgId, workflowId));
+  const vault = useQuery({ queryKey: SECRETS_KEY, queryFn: loadSecrets });
   const [edited, setEdited] = useState<WorkflowDocument | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [drawer, setDrawer] = useState(false);
@@ -370,6 +372,7 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
       <VariablesDrawer
         open={drawer}
         document={document}
+        vault={(vault.data ?? []).map((secret) => ({ id: secret.id, name: secret.name }))}
         readOnly={readOnly}
         onOpenChange={setDrawer}
         onChange={setEdited}

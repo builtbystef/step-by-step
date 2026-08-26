@@ -5,14 +5,17 @@ import { KeyRound, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import {
+  boundSecretName,
   declarationRefusal,
   deletionRefusal,
   variableRows,
+  withSecretBound,
   withVariableDeclared,
   withVariableDeleted,
   withVariableRenamed,
   withVariableSecret,
   type VariableRow,
+  type VaultSecret,
 } from "./variables";
 
 import { AttributeBadge } from "@/components/primitives/attribute-badge";
@@ -57,6 +60,7 @@ import {
 export function VariablesDrawer({
   open,
   document,
+  vault,
   readOnly,
   onOpenChange,
   onChange,
@@ -64,6 +68,7 @@ export function VariablesDrawer({
 }: {
   open: boolean;
   document: WorkflowDocument;
+  vault: VaultSecret[];
   readOnly: boolean;
   onOpenChange: (open: boolean) => void;
   onChange: (document: WorkflowDocument) => void;
@@ -99,6 +104,7 @@ export function VariablesDrawer({
                 key={row.name}
                 row={row}
                 document={document}
+                vault={vault}
                 onChange={onChange}
                 onShowUsages={(name) => {
                   onOpenChange(false);
@@ -123,11 +129,13 @@ export function VariablesDrawer({
 function VariableRowItem({
   row,
   document,
+  vault,
   onChange,
   onShowUsages,
 }: {
   row: VariableRow;
   document: WorkflowDocument;
+  vault: VaultSecret[];
   onChange: (document: WorkflowDocument) => void;
   onShowUsages: (name: string) => void;
 }) {
@@ -215,8 +223,65 @@ function VariableRowItem({
         )}
       </div>
 
+      {row.secret ? (
+        <VaultPicker row={row} document={document} vault={vault} onChange={onChange} />
+      ) : null}
+
       {refusal === null ? null : <Callout tone="warn">{refusal}</Callout>}
     </div>
+  );
+}
+
+/** Bind this secret Variable to a vault Secret, picked from the list. */
+function VaultPicker({
+  row,
+  document,
+  vault,
+  onChange,
+}: {
+  row: VariableRow;
+  document: WorkflowDocument;
+  vault: VaultSecret[];
+  onChange: (document: WorkflowDocument) => void;
+}) {
+  const shown = boundSecretName(row, vault);
+  const live = vault.some((entry) => entry.id === row.secretId);
+  const label = `Secret bound to {{${row.name}}}`;
+
+  if (vault.length === 0) {
+    return (
+      <p className="text-small text-mut">
+        {shown === null
+          ? "Create a Secret in Settings to bind one."
+          : `Bound to ${shown}, which is no longer in the vault.`}
+      </p>
+    );
+  }
+
+  return (
+    <label className="flex min-w-0 flex-col gap-1 text-small text-mut">
+      Vault Secret
+      <select
+        aria-label={label}
+        className="h-9 rounded-md border border-line bg-panel px-2 text-half text-ink"
+        value={live ? (row.secretId ?? "") : ""}
+        onChange={(chosen) => {
+          const picked = vault.find((entry) => entry.id === chosen.target.value);
+          if (picked !== undefined) {
+            onChange(withSecretBound(document, row.name, picked));
+          }
+        }}
+      >
+        {live ? null : (
+          <option value="">{shown === null ? "Bind to a Secret…" : `${shown} (deleted)`}</option>
+        )}
+        {vault.map((entry) => (
+          <option key={entry.id} value={entry.id}>
+            {entry.name}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 

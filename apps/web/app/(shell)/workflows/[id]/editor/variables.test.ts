@@ -2,10 +2,12 @@ import type { WorkflowDocument } from "@step-by-step/api-client";
 import { describe, expect, it } from "vitest";
 
 import {
+  boundSecretName,
   declarationRefusal,
   deletionRefusal,
   secretNames,
   variableRows,
+  withSecretBound,
   withVariableDeclared,
   withVariableDeleted,
   withVariableRenamed,
@@ -263,5 +265,71 @@ describe("which Variables are secret", () => {
     };
 
     expect(secretNames(document)).toEqual(new Set(["password"]));
+  });
+});
+
+describe("binding a secret Variable to the vault", () => {
+  const PORTAL = { id: "secret-acme", name: "acme-portal-password" };
+  const BILLING = { id: "secret-billing", name: "billing-password" };
+  const DOCUMENT: WorkflowDocument = {
+    steps: [typing("a", "{{password}}")],
+    variables: [{ name: "password", secret: true }],
+  };
+
+  it("shows the vault name a Draft binds {{password}} to", () => {
+    const bound = withSecretBound(DOCUMENT, "password", PORTAL);
+
+    expect(variableRows(bound)).toEqual([
+      {
+        name: "password",
+        secret: true,
+        usedBy: ["a"],
+        secretId: PORTAL.id,
+        secretName: PORTAL.name,
+      },
+    ]);
+    expect(boundSecretName(bound.variables?.[0] ?? { name: "password" }, [PORTAL])).toBe(
+      "acme-portal-password",
+    );
+  });
+
+  it("updates the Draft's binding when a different Secret is picked", () => {
+    const first = withSecretBound(DOCUMENT, "password", PORTAL);
+    const second = withSecretBound(first, "password", BILLING);
+
+    expect(second.variables).toEqual([
+      {
+        name: "password",
+        secret: true,
+        secretId: BILLING.id,
+        secretName: BILLING.name,
+      },
+    ]);
+  });
+
+  it("shows the live vault name after a rename, without rewriting the Draft", () => {
+    const bound = withSecretBound(DOCUMENT, "password", PORTAL);
+    const renamed = [{ id: PORTAL.id, name: "portal-password" }];
+
+    expect(boundSecretName(bound.variables?.[0] ?? { name: "password" }, renamed)).toBe(
+      "portal-password",
+    );
+    expect(bound.variables?.[0]?.secretId).toBe(PORTAL.id);
+    expect(bound.variables?.[0]?.secretName).toBe("acme-portal-password");
+  });
+
+  it("falls back to the cached name once the bound Secret is gone", () => {
+    const bound = withSecretBound(DOCUMENT, "password", PORTAL);
+
+    expect(boundSecretName(bound.variables?.[0] ?? { name: "password" }, [])).toBe(
+      "acme-portal-password",
+    );
+  });
+
+  it("clears the pointer when a Variable stops being secret, so the store would still accept it", () => {
+    const bound = withSecretBound(DOCUMENT, "password", PORTAL);
+    const plain = withVariableSecret(bound, "password", false);
+
+    expect(plain.variables).toEqual([{ name: "password", secret: false }]);
   });
 });

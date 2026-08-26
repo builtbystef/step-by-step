@@ -459,3 +459,51 @@ def test_the_editor_clears_a_field_by_writing_it_as_null(
     assert step["id"] == step_id
     assert "timeoutMs" not in step
     assert step["payload"] == {}
+
+
+def test_a_secret_variable_may_bind_to_a_vault_entry(
+    new_account: NewAccount,
+) -> None:
+    """The pointer is the Secret's id; the name is cached for display."""
+    account = new_account()
+    workflow_id = a_workflow(account)
+    secret_id = str(uuid4())
+    bound = [
+        {
+            "name": "password",
+            "secret": True,
+            "secretId": secret_id,
+            "secretName": "acme-portal-password",
+        }
+    ]
+
+    saved = save_draft(account, workflow_id, variables=bound)
+
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["variables"] == bound
+    assert read_draft(account, workflow_id).json()["variables"] == bound
+
+
+def test_a_non_secret_variable_may_not_carry_a_vault_pointer(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    workflow_id = a_workflow(account)
+
+    refused = save_draft(
+        account,
+        workflow_id,
+        variables=[
+            {
+                "name": "tenant",
+                "secret": False,
+                "secretId": str(uuid4()),
+                "secretName": "acme-portal-password",
+            }
+        ],
+    )
+
+    assert refused.status_code == 400, refused.text
+    assert refused.json()["code"] == "malformed_payload"
+    assert "secretId" in refused.json()["message"]
+    assert read_draft(account, workflow_id).json()["variables"] == []
