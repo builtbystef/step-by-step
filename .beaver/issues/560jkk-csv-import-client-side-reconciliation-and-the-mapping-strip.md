@@ -1,13 +1,15 @@
 ---
 id: 560jkk
 title: 'CSV import: client-side reconciliation and the mapping strip'
-state: todo
+state: in-progress
 priority: medium
+labels:
+    - needs-review
 depends_on:
     - bcyznn
 parent: nno9gj
 created: 2026-08-14T19:52:25Z
-updated: 2026-08-14T19:52:25Z
+updated: 2026-08-26T21:24:16Z
 ---
 
 ## What to build
@@ -42,3 +44,23 @@ Secret Variables are excluded from `mapping` and from the coverage test — they
 - [ ] A not-confident file shows the mapping strip with the file's real column names and any suggestions pre-filled but unconfirmed; rows land only after confirmation.
 - [ ] A messy CSV — quoted fields containing commas and newlines — parses into the right cells.
 - [ ] No network request during import carries the file or any dropped column's values (asserted over the requests made).
+
+## Notes
+
+**agent** — 2026-08-26T21:24:16Z
+
+The second acceptance criterion contradicts the near-match rule in this issue and in parent spec nno9gj. I cannot state the criteria without inventing a rule, so I am stopping before code.
+
+The rule: a suggestion is a near match — substring, or Levenshtein distance ≤ 2, under normalize. There is no built-in alias dictionary.
+
+The criterion: reconcile(["town","zip"], [city, zipCode]) → confident: false, with town → city carried as suggested: true.
+
+normalize("town") is "town" and normalize("city") is "city". Neither is a substring of the other, and their Levenshtein distance is 4. Under the stated rule town cannot be suggested for city. zip → zipCode is a valid substring suggestion (zip ⊂ zipcode).
+
+The town → city pairing is leftover from prototype tf6796, which used an alias dictionary. The spec interview (3r9p7w) replaced that dictionary with near matches and kept the old example.
+
+Options:
+1. Keep the near-match rule. Change the example to one the rule produces — e.g. ["cite","zip"] → cite → city (distance 1) and zip → zipCode (substring) — or keep ["town","zip"] and expect only zip → zipCode suggested, with city unmapped.
+2. Keep the town → city example. That needs a rule that produces it: either a built-in alias dictionary (which the spec forbids) or a leftover 1-to-1 assignment of unmatched headers to unmatched Variables (which the spec does not name).
+
+What you must do: decide which option, record the decision in a note on this issue, and remove the needs-review label.
