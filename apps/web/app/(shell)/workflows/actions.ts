@@ -22,9 +22,21 @@ export type WorkflowAction = {
 /** The one action that is not in the overflow: it is the row's own button. */
 export const RUN: WorkflowAction = { key: "run", label: "Run", needsAVersion: true };
 
+/** The empty Schedules and Batches tabs offer these; the overflow does too. */
+export const NEW_BATCH: WorkflowAction = {
+  key: "new-batch",
+  label: "New batch",
+  needsAVersion: true,
+};
+export const NEW_SCHEDULE: WorkflowAction = {
+  key: "new-schedule",
+  label: "New schedule",
+  needsAVersion: true,
+};
+
 export const OVERFLOW_ACTIONS: readonly WorkflowAction[] = [
-  { key: "new-batch", label: "New batch", needsAVersion: true },
-  { key: "new-schedule", label: "New schedule", needsAVersion: true },
+  NEW_BATCH,
+  NEW_SCHEDULE,
   { key: "duplicate", label: "Duplicate", needsAVersion: false },
   { key: "rename", label: "Rename", needsAVersion: false },
   { key: "delete", label: "Delete", needsAVersion: false, destructive: true },

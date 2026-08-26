@@ -2,10 +2,16 @@ import type { OccurrenceHistoryEntry, RunHistoryEntry } from "@step-by-step/api-
 import { describe, expect, it } from "vitest";
 
 import {
+  FILTERED_EMPTY,
+  GLOBAL_EMPTY,
+  WORKFLOW_EMPTY,
+  columnsOf,
   enabledPatch,
+  hasListFilter,
   hatchOf,
   historyItems,
   holeStory,
+  listKind,
   needsValuesBanner,
   noteOf,
   overlapBanner,
@@ -18,12 +24,65 @@ import {
 
 import { occurrenceLabel } from "../workflows/[id]/schedules/creation";
 import { editSchedulePath } from "../workflows/[id]/tabs";
+import { OVERFLOW_ACTIONS, RUN, disabledReason } from "../workflows/actions";
+import { COPY } from "../../../lib/copy";
 
 /**
  * The Schedules table's decisions, read back without a DOM: the row, the
- * strip, the three hole stories, the banners, the enabled patch, and the
- * next-Occurrence labels.
+ * strip, the three hole stories, the banners, the enabled patch, the
+ * next-Occurrence labels, and what a Workflow id changes on the list.
  */
+
+describe("what a Workflow id changes", () => {
+  it("hides the Workflow column when the list is already on one Workflow", () => {
+    expect(columnsOf(undefined)).toContain("workflow");
+    expect(columnsOf("wf-1")).not.toContain("workflow");
+  });
+
+  it("does not otherwise change the columns", () => {
+    expect(columnsOf(undefined).filter((column) => column !== "workflow")).toEqual(
+      columnsOf("wf-1"),
+    );
+  });
+});
+
+describe("empty versus filtered-empty", () => {
+  it("uses the global empty state verbatim", () => {
+    expect(GLOBAL_EMPTY.absence).toBe("Nothing runs on a clock yet");
+    expect(GLOBAL_EMPTY.whatFillsIt).toBe(
+      "A Schedule fires a published Workflow on a recurrence you choose, with a value set it owns.",
+    );
+    expect(GLOBAL_EMPTY.action).toBe("Go to Workflows");
+  });
+
+  it("swaps that empty state for the Workflow's own call to action", () => {
+    expect(WORKFLOW_EMPTY.absence).toBe("This Workflow has no Schedule yet");
+    expect(WORKFLOW_EMPTY.action).toBe("New schedule");
+  });
+
+  it("keeps a filter matching nothing inside the table, never as the empty state", () => {
+    expect(listKind({ loaded: true, itemCount: 0, filters: {} })).toBe("empty");
+    expect(listKind({ loaded: true, itemCount: 0, filters: { status: "paused" } })).toBe(
+      "filtered",
+    );
+    expect(listKind({ loaded: true, itemCount: 3, filters: { status: "paused" } })).toBe("rows");
+    expect(listKind({ loaded: false, itemCount: 0, filters: {} })).toBe("loading");
+    expect(FILTERED_EMPTY).toBe("No Schedule matches these filters.");
+  });
+
+  it("does not treat a Workflow scope as a filter", () => {
+    expect(hasListFilter({ workflow_id: "wf-1" })).toBe(false);
+    expect(hasListFilter({ workflow_id: "wf-1", status: "paused" })).toBe(true);
+  });
+
+  it("disables New schedule behind the shared sentence while never-published", () => {
+    const action = OVERFLOW_ACTIONS.find((item) => item.label === WORKFLOW_EMPTY.action);
+    expect(action?.key).toBe("new-schedule");
+    expect(disabledReason(action!, "never-published")).toBe(COPY.noPublishedVersion);
+    expect(disabledReason(RUN, "never-published")).toBe(COPY.noPublishedVersion);
+    expect(disabledReason(action!, "in-sync")).toBeNull();
+  });
+});
 
 describe("the Schedule row", () => {
   it("shows the recurrence in words with cron and timezone beneath", () => {

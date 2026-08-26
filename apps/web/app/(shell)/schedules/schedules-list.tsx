@@ -3,12 +3,18 @@
 import type { ScheduleSummary } from "@step-by-step/api-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import {
+  FILTERED_EMPTY,
+  GLOBAL_EMPTY,
+  WORKFLOW_EMPTY,
+  columnsOf,
   hatchOf,
   historyItems,
   holeStory,
+  listKind,
   needsValuesBanner,
   noteOf,
   overlapBanner,
@@ -17,73 +23,185 @@ import {
   runHref,
   runNowRefusal,
   stripMarks,
+  type Column,
   type StripMark,
 } from "./presentation";
 import {
+  SCHEDULES_KEY,
+  SCHEDULES_PATH,
+  fetchSchedulePage,
   patchEnabled,
   runNow,
   scheduleDetailKey,
   scheduleDetailQuery,
-  schedulesKey,
-  schedulesQuery,
 } from "./queries";
 
 import { occurrenceLabel } from "../workflows/[id]/schedules/creation";
+import { newSchedulePath } from "../workflows/[id]/tabs";
+import { NEW_SCHEDULE, disabledReason } from "../workflows/actions";
+import { refusalMessage } from "../workflows/messages";
+import { workflowQuery } from "../workflows/[id]/queries";
+import { useActiveOrganization } from "../use-active-organization";
 
 import { Callout } from "@/components/primitives/callout";
+import { EmptyState } from "@/components/primitives/empty-state";
 import { ExpandableRow } from "@/components/primitives/expandable-row";
 import { HatchedOccurrence } from "@/components/primitives/hatched-occurrence";
 import { StatusChip } from "@/components/primitives/status-chip";
 import { Button } from "@/components/ui/button";
+import { useCursorList } from "@/hooks/use-cursor-list";
+import { filtersFromSearch } from "@/lib/cursor-list";
 import { invalidateRunState } from "@/lib/attention";
 
-const COLUMN_COUNT = 7;
-
 /**
- * The Schedules table content: the row and its expansion. The shell spec
- * mounts this on the global route and the Workflow's Schedules tab; this
- * slice is the content those routes draw.
+ * One Schedules list.
+ *
+ * `workflowId` is the only prop, and it changes exactly three things: it
+ * scopes the request, it hides the Workflow column, and it swaps the empty
+ * state for the Workflow's own call to action. No second file renders
+ * Schedule rows.
  */
 
-export function SchedulesTable({ orgId }: { orgId: string }) {
-  const list = useQuery(schedulesQuery(orgId));
-  const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+export function SchedulesList({ workflowId }: { workflowId?: string }) {
+  const { active } = useActiveOrganization();
 
-  if (list.error) {
-    return <Callout tone="bad">Something went wrong. Try again in a moment.</Callout>;
-  }
-  if (list.data === undefined) {
+  if (active === null) {
     return null;
   }
 
+  return <Schedules orgId={active.id} workflowId={workflowId} />;
+}
+
+function Schedules({ orgId, workflowId }: { orgId: string; workflowId?: string }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlFilters = filtersFromSearch(searchParams);
+  const filters =
+    workflowId === undefined ? urlFilters : { ...urlFilters, workflow_id: workflowId };
+  const columns = columnsOf(workflowId);
+  const viewerTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  const list = useCursorList<ScheduleSummary>({
+    path: SCHEDULES_PATH,
+    orgId,
+    filters,
+    fetchPage: ({ cursor, limit }) => fetchSchedulePage(filters, cursor, limit),
+  });
+
+  const workflow = useQuery({
+    ...workflowQuery(orgId, workflowId ?? ""),
+    enabled: workflowId !== undefined,
+  });
+
+  const kind = listKind({
+    loaded: !list.loading,
+    itemCount: list.items.length,
+    filters,
+  });
+  const scheduleRefusal =
+    workflow.data === undefined ? null : disabledReason(NEW_SCHEDULE, workflow.data.draft_state);
+  const columnCount = columns.length + 1;
+
   return (
-    <table className="w-full text-left text-half">
-      <thead>
-        <tr className="text-micro font-semibold tracking-wide text-mut uppercase">
-          <th className="w-8" />
-          <th className="px-2 py-2">On</th>
-          <th className="px-2 py-2">Workflow</th>
-          <th className="px-2 py-2">Recurrence</th>
-          <th className="px-2 py-2">Next due</th>
-          <th className="px-2 py-2">Last run</th>
-          <th className="px-2 py-2">Note</th>
-        </tr>
-      </thead>
-      {list.data.map((schedule) => (
-        <ScheduleRow key={schedule.id} orgId={orgId} schedule={schedule} viewerTz={viewerTz} />
-      ))}
-    </table>
+    <>
+      {list.error ? <Callout tone="bad">{refusalMessage(list.error)}</Callout> : null}
+
+      {kind === "empty" ? (
+        workflowId === undefined ? (
+          <EmptyState
+            absence={GLOBAL_EMPTY.absence}
+            whatFillsIt={GLOBAL_EMPTY.whatFillsIt}
+            action={<Button render={<Link href="/workflows" />}>{GLOBAL_EMPTY.action}</Button>}
+          />
+        ) : (
+          <EmptyState
+            absence={WORKFLOW_EMPTY.absence}
+            whatFillsIt={WORKFLOW_EMPTY.whatFillsIt}
+            action={
+              <Button
+                disabled={scheduleRefusal !== null || workflow.data === undefined}
+                title={scheduleRefusal ?? undefined}
+                onClick={() => {
+                  router.push(newSchedulePath(workflowId));
+                }}
+              >
+                {WORKFLOW_EMPTY.action}
+              </Button>
+            }
+          />
+        )
+      ) : null}
+
+      {kind === "filtered" || kind === "rows" ? (
+        <table className="w-full text-left text-half">
+          <thead>
+            <tr className="text-micro font-semibold tracking-wide text-mut uppercase">
+              <th className="w-8" />
+              {columns.map((column) => (
+                <th key={column} className="px-2 py-2">
+                  {columnHeader(column)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          {kind === "filtered" ? (
+            <tbody>
+              <tr>
+                <td colSpan={columnCount} className="px-2 py-4 text-mut">
+                  {FILTERED_EMPTY}
+                </td>
+              </tr>
+            </tbody>
+          ) : (
+            list.items.map((schedule) => (
+              <ScheduleRow
+                key={schedule.id}
+                orgId={orgId}
+                schedule={schedule}
+                viewerTz={viewerTz}
+                showWorkflow={workflowId === undefined}
+                columnCount={columnCount}
+              />
+            ))
+          )}
+        </table>
+      ) : null}
+
+      {list.hasMore ? (
+        <Button
+          variant="ghost"
+          className="self-center text-small"
+          disabled={list.fetchingMore}
+          onClick={() => {
+            list.loadMore();
+          }}
+        >
+          Load more
+        </Button>
+      ) : null}
+    </>
   );
+}
+
+function columnHeader(column: Column): string {
+  if (column === "enabled") return "On";
+  if (column === "next-due") return "Next due";
+  if (column === "last-run") return "Last run";
+  return column;
 }
 
 function ScheduleRow({
   orgId,
   schedule,
   viewerTz,
+  showWorkflow,
+  columnCount,
 }: {
   orgId: string;
   schedule: ScheduleSummary;
   viewerTz: string;
+  showWorkflow: boolean;
+  columnCount: number;
 }) {
   const cache = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -98,13 +216,13 @@ function ScheduleRow({
   const toggle = useMutation({
     mutationFn: (enabled: boolean) => patchEnabled(schedule.id, enabled),
     onSuccess: async () => {
-      await cache.invalidateQueries({ queryKey: schedulesKey(orgId) });
+      await cache.invalidateQueries({ queryKey: SCHEDULES_KEY });
     },
   });
 
   return (
     <ExpandableRow
-      columnCount={COLUMN_COUNT}
+      columnCount={columnCount}
       expandLabel={`Expand ${schedule.workflow_name}`}
       onOpenChange={setOpen}
       cells={
@@ -120,7 +238,9 @@ function ScheduleRow({
               }}
             />
           </td>
-          <td className="px-2 py-2 align-middle font-semibold">{schedule.workflow_name}</td>
+          {showWorkflow ? (
+            <td className="px-2 py-2 align-middle font-semibold">{schedule.workflow_name}</td>
+          ) : null}
           <td className="px-2 py-2 align-middle">
             <div>{headline}</div>
             <div className="font-mono text-micro text-mut">
@@ -175,7 +295,7 @@ function ScheduleExpansion({
     mutationFn: () => runNow(schedule.id),
     onSuccess: async () => {
       await invalidateRunState(cache);
-      await cache.invalidateQueries({ queryKey: schedulesKey(orgId) });
+      await cache.invalidateQueries({ queryKey: SCHEDULES_KEY });
       await cache.invalidateQueries({ queryKey: scheduleDetailKey(orgId, schedule.id) });
     },
   });

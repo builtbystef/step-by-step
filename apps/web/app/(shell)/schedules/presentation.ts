@@ -11,12 +11,70 @@ import { editSchedulePath } from "../workflows/[id]/tabs";
 
 /**
  * The Schedules table's decisions: the row, the strip, the three hole
- * stories, the banners, the enabled patch, and the next-Occurrence labels.
+ * stories, the banners, the enabled patch, the next-Occurrence labels, and
+ * what a Workflow id changes on the list.
  *
  * The page draws these. It does not re-decide them. Occurrence *times* come
  * from GET /api/schedules/{id}; this module only phrases the timestamps it is
  * given. Recurrence words come from `humanize`.
+ *
+ * A Workflow id is the only prop, and it changes exactly three things: it
+ * scopes the request (the hook), it hides the Workflow column, and it swaps
+ * the empty state. Everything else is identical, so it lives here rather
+ * than in a second file of rows.
  */
+
+export const COLUMNS = [
+  "enabled",
+  "workflow",
+  "recurrence",
+  "next-due",
+  "last-run",
+  "note",
+] as const;
+
+export type Column = (typeof COLUMNS)[number];
+
+/** The columns this variant draws. `workflowId` hides the Workflow column. */
+export function columnsOf(workflowId: string | undefined): readonly Column[] {
+  return workflowId === undefined ? COLUMNS : COLUMNS.filter((column) => column !== "workflow");
+}
+
+export const GLOBAL_EMPTY = {
+  absence: "Nothing runs on a clock yet",
+  whatFillsIt:
+    "A Schedule fires a published Workflow on a recurrence you choose, with a value set it owns.",
+  action: "Go to Workflows",
+} as const;
+
+export const WORKFLOW_EMPTY = {
+  absence: "This Workflow has no Schedule yet",
+  whatFillsIt: "A Schedule fires the published Version on a recurrence you choose.",
+  action: "New schedule",
+} as const;
+
+export const FILTERED_EMPTY = "No Schedule matches these filters.";
+
+/** A Workflow id is a route; anything else in the query is a filter. */
+export function hasListFilter(filters: Record<string, string>): boolean {
+  return Object.entries(filters).some(([key, value]) => key !== "workflow_id" && value !== "");
+}
+
+export type ListKind = "loading" | "empty" | "filtered" | "rows";
+
+export function listKind(opts: {
+  loaded: boolean;
+  itemCount: number;
+  filters: Record<string, string>;
+}): ListKind {
+  if (!opts.loaded && opts.itemCount === 0) {
+    return "loading";
+  }
+  if (opts.itemCount > 0) {
+    return "rows";
+  }
+  return hasListFilter(opts.filters) ? "filtered" : "empty";
+}
 
 export function recurrenceHeadline(cron: string): string {
   return humanize(cron) ?? cron;

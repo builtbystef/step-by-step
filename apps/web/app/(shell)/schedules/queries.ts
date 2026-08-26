@@ -2,31 +2,43 @@ import {
   listAllSchedules,
   runScheduleNow,
   updateSchedule,
+  type SchedulePage,
   type ScheduleSummary,
 } from "@step-by-step/api-client";
 
 import { enabledPatch } from "./presentation";
 
+import { PAGE_SIZE } from "@/lib/cursor-list";
+
 export { scheduleDetailKey, scheduleDetailQuery } from "../workflows/[id]/schedules/queries";
 
 /**
- * The instance-wide Schedules list. Paging and the workflowId contract are
- * the shell spec's slice; this key is the rows the table draws.
+ * The Schedules list as server state: one key per Organization and per
+ * filter, paged by the cursor the endpoint cuts. The path is the prefix a
+ * mutation invalidates so the global list and the Workflow tab stay in
+ * agreement.
  */
 
-export function schedulesKey(orgId: string) {
-  return ["schedules", orgId] as const;
-}
+export const SCHEDULES_PATH = "/api/schedules";
 
-export function schedulesQuery(orgId: string) {
-  return {
-    queryKey: schedulesKey(orgId),
-    queryFn: async (): Promise<ScheduleSummary[]> => {
-      const { data, error } = await listAllSchedules();
-      if (error) throw error;
-      return data?.items ?? [];
+export const SCHEDULES_KEY = [SCHEDULES_PATH] as const;
+
+export async function fetchSchedulePage(
+  filters: Record<string, string>,
+  cursor: string | null,
+  limit: number = PAGE_SIZE,
+): Promise<SchedulePage> {
+  const { data, error } = await listAllSchedules({
+    query: {
+      limit,
+      ...(cursor === null ? {} : { cursor }),
+      ...(filters.workflow_id === undefined || filters.workflow_id === ""
+        ? {}
+        : { workflow_id: filters.workflow_id }),
     },
-  };
+  });
+  if (error) throw error;
+  return data ?? { items: [] };
 }
 
 export async function patchEnabled(scheduleId: string, enabled: boolean): Promise<ScheduleSummary> {

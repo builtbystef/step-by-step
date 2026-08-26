@@ -20,6 +20,11 @@ describe("the nav", () => {
     expect(NAV_DESTINATIONS).not.toContain(SETTINGS_DESTINATION);
     expect(SETTINGS_DESTINATION.path).toBe("/settings");
   });
+
+  it("does not offer a global Batches destination", () => {
+    expect(NAV_DESTINATIONS.map((item) => item.label)).not.toContain("Batches");
+    expect(NAV_DESTINATIONS.map((item) => item.path)).not.toContain("/batches");
+  });
 });
 
 describe("which item the address lights up", () => {
