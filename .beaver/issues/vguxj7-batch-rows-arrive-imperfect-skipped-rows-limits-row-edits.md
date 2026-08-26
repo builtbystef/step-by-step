@@ -1,13 +1,14 @@
 ---
 id: vguxj7
 title: 'Batch rows arrive imperfect: skipped rows, limits, row edits, and fill'
-state: todo
+state: done
+assignee: agent
 priority: high
 depends_on:
     - 297ba3
 parent: nno9gj
 created: 2026-08-14T19:51:01Z
-updated: 2026-08-17T04:03:47Z
+updated: 2026-08-26T12:36:27Z
 ---
 
 ## What to build
@@ -43,3 +44,15 @@ BatchSummary = { id, name, workflow_id, created_at, cancelled_at,
 **claude** — 2026-08-17T04:03:47Z
 
 Re-scope per ADR 0005: Batches are org-owned; routes scope via the X-Organization gate — 'another user's Batch id → 404' reads another Organization's.
+
+**agent** — 2026-08-26T12:36:27Z
+
+Completed. Seam 1 (backend HTTP API, real Postgres) as the spec's Testing Decisions named; recorded here as the AFK selection.
+
+POST /api/workflows/{id}/batches now takes run_incomplete_rows (default false). A row missing a declared non-secret Variable (absent, null, or empty string) is created skipped; true creates it queued. The first queued row still starts as a Run. Refusals: 400 unknown_variable {names} (secret names are declared, so still stripped, not refused), 413 too_many_rows {max} from MAX_BATCH_ROWS = 1000, 409 no_published_version.
+
+GET /api/batches?workflow_id= returns {items, next_cursor} newest-first, matching listRuns — the spec wrote [BatchSummary] but keyset paging and the cursor-list hook need the wrapper. Stats reuse BatchStats, so they include running (the spec's shape omitted it; counts still derive from rows). workflow_id is required; another Organization's Workflow is 404.
+
+PATCH /api/batches/{id}/rows/{n} edits values on queued/skipped/failed only (409 row_not_editable otherwise) and never status; rerun is unchanged. POST /rows/fill sets one Variable on queued rows that have no value for it.
+
+Every new route is org-scoped via X-Organization; another Organization's Batch is 404.

@@ -20,6 +20,7 @@ from step_by_step_core.db import Base
 from step_by_step_api.runs.models import enum_column
 
 NAME_LENGTH = 200
+MAX_BATCH_ROWS = 1000
 
 
 class BatchRowStatus(StrEnum):

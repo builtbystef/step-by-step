@@ -216,6 +216,10 @@ def status_from_run(run: Run, current: BatchRowStatus) -> BatchRowStatus:
     return current
 
 
+def declared_variable_names(document: dict) -> set[str]:
+    return {variable["name"] for variable in document.get("variables", [])}
+
+
 def public_variable_names(document: dict) -> set[str]:
     return {
         variable["name"]
@@ -226,6 +230,17 @@ def public_variable_names(document: dict) -> set[str]:
 
 def stored_variables(asked: dict, names: set[str]) -> dict:
     return {name: value for name, value in asked.items() if name in names}
+
+
+def has_value(variables: dict, name: str) -> bool:
+    if name not in variables:
+        return False
+    value = variables[name]
+    return value is not None and value != ""
+
+
+def is_incomplete(variables: dict, names: set[str]) -> bool:
+    return any(not has_value(variables, name) for name in names)
 
 
 def enqueue(run_ids: list[UUID]) -> None:

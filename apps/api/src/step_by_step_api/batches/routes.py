@@ -1,18 +1,19 @@
-"""The user-facing Batch create, read, output, skip, re-run, and cancel."""
+"""The user-facing Batch create, list, row edit, fill, output, skip, and cancel."""
 
 from __future__ import annotations
 
 import csv
 import io
 import json
+from base64 import urlsafe_b64decode, urlsafe_b64encode
 from datetime import datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Query, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, literal, select, tuple_
 from sqlalchemy.orm import Session
 from step_by_step_core.bus import control_channel, get_redis
 from step_by_step_core.events import batch_events_channel
@@ -21,16 +22,24 @@ from step_by_step_api import clock
 from step_by_step_api.accounts.orgs import ActiveMembership
 from step_by_step_api.batches.advance import (
     RowEvent,
+    declared_variable_names,
     emit,
     emit_row,
     enqueue,
+    has_value,
+    is_incomplete,
     latest_published,
     latest_run,
     public_variable_names,
     start_next_queued,
     stored_variables,
 )
-from step_by_step_api.batches.models import Batch, BatchRow, BatchRowStatus
+from step_by_step_api.batches.models import (
+    MAX_BATCH_ROWS,
+    Batch,
+    BatchRow,
+    BatchRowStatus,
+)
 from step_by_step_api.db import SessionDep
 from step_by_step_api.errors import ApiError, errors
 from step_by_step_api.runs.models import (
@@ -43,6 +52,13 @@ from step_by_step_api.runs.reap import close_waiting_run
 from step_by_step_api.workflows.models import Workflow
 
 router = APIRouter(tags=["batches"])
+PAGE_SIZE = 25
+MAX_PAGE_SIZE = 100
+EDITABLE_ROW_STATUSES = (
+    BatchRowStatus.QUEUED,
+    BatchRowStatus.SKIPPED,
+    BatchRowStatus.FAILED,
+)
 
 
 class BatchRowInput(BaseModel):
@@ -52,6 +68,7 @@ class BatchRowInput(BaseModel):
 class CreateBatch(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     rows: list[BatchRowInput] = Field(default_factory=list)
+    run_incomplete_rows: bool = False
 
 
 class BatchCreated(BaseModel):
@@ -94,6 +111,30 @@ class BatchStats(BaseModel):
     failed: int
     skipped: int
     cancelled: int
+
+
+class BatchSummary(BaseModel):
+    id: UUID
+    name: str
+    workflow_id: UUID
+    created_at: datetime
+    cancelled_at: datetime | None
+    row_count: int
+    stats: BatchStats
+
+
+class BatchPage(BaseModel):
+    items: list[BatchSummary]
+    next_cursor: str | None = None
+
+
+class FillRows(BaseModel):
+    name: str
+    value: Any
+
+
+class FillResult(BaseModel):
+    updated_count: int
 
 
 class BatchDetail(BaseModel):
@@ -146,7 +187,7 @@ def owned_row(db: SessionDep, batch: Batch, index: int) -> BatchRow:
     "/api/workflows/{workflow_id}/batches",
     operation_id="createBatch",
     status_code=201,
-    responses=errors(400, 401, 403, 404, 409),
+    responses=errors(400, 401, 403, 404, 409, 413),
 )
 def create_batch(
     workflow_id: UUID,
@@ -154,7 +195,7 @@ def create_batch(
     member: ActiveMembership,
     db: SessionDep,
 ) -> BatchCreated:
-    """Persist the rows and start the first one. Secrets never enter a row."""
+    """Persist the rows and start the first queued one. Secrets never enter a row."""
     owned_workflow(db, member.org_id, workflow_id)
     published = latest_published(db, workflow_id)
     if published is None:
@@ -163,17 +204,42 @@ def create_batch(
             "no_published_version",
             "Publish a Version before this Workflow can run.",
         )
+    if len(asked.rows) > MAX_BATCH_ROWS:
+        raise ApiError(
+            413,
+            "too_many_rows",
+            f"a Batch may hold at most {MAX_BATCH_ROWS} rows",
+            max=MAX_BATCH_ROWS,
+        )
+    declared = declared_variable_names(published.document)
+    unknown = sorted(
+        {name for row in asked.rows for name in row.variables if name not in declared}
+    )
+    if unknown:
+        raise ApiError(
+            400,
+            "unknown_variable",
+            "those Variables are not declared on the latest published Version",
+            names=unknown,
+        )
     names = public_variable_names(published.document)
     batch = Batch(org_id=member.org_id, workflow_id=workflow_id, name=asked.name)
     db.add(batch)
     db.flush()
     for index, row in enumerate(asked.rows):
+        stored = stored_variables(row.variables, names)
+        incomplete = is_incomplete(stored, names)
+        status = (
+            BatchRowStatus.QUEUED
+            if asked.run_incomplete_rows or not incomplete
+            else BatchRowStatus.SKIPPED
+        )
         db.add(
             BatchRow(
                 batch_id=batch.id,
                 index=index,
-                variables=stored_variables(row.variables, names),
-                status=BatchRowStatus.QUEUED,
+                variables=stored,
+                status=status,
             )
         )
     db.flush()
@@ -184,6 +250,41 @@ def create_batch(
     if started_event is not None:
         emit([started_event])
     return BatchCreated(batch_id=batch.id)
+
+
+@router.get(
+    "/api/batches",
+    operation_id="listBatches",
+    responses=errors(400, 401, 403, 404),
+)
+def list_batches(
+    member: ActiveMembership,
+    db: SessionDep,
+    workflow_id: UUID,
+    limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = PAGE_SIZE,
+    cursor: str | None = None,
+) -> BatchPage:
+    """The Workflow's Batches, newest first, with counts derived from rows."""
+    owned_workflow(db, member.org_id, workflow_id)
+    conditions = [Batch.org_id == member.org_id, Batch.workflow_id == workflow_id]
+    if cursor is not None:
+        created_at, batch_id = read_batch_cursor(cursor)
+        conditions.append(
+            tuple_(Batch.created_at, Batch.id)
+            < tuple_(literal(created_at), literal(batch_id))
+        )
+    rows = list(
+        db.execute(
+            select(Batch)
+            .where(*conditions)
+            .order_by(Batch.created_at.desc(), Batch.id.desc())
+            .limit(limit + 1)
+        ).scalars()
+    )
+    return BatchPage(
+        items=summaries_of(db, rows[:limit]),
+        next_cursor=batch_cursor_for(rows[limit - 1]) if len(rows) > limit else None,
+    )
 
 
 @router.get(
@@ -324,6 +425,65 @@ def cancel_batch(batch_id: UUID, member: ActiveMembership, db: SessionDep) -> Re
     return Response(status_code=202)
 
 
+@router.patch(
+    "/api/batches/{batch_id}/rows/{index}",
+    operation_id="updateBatchRow",
+    responses=errors(400, 401, 403, 404, 409),
+)
+def update_batch_row(
+    batch_id: UUID,
+    index: int,
+    asked: BatchRowInput,
+    member: ActiveMembership,
+    db: SessionDep,
+) -> BatchRowRecord:
+    """Edit a queued, skipped, or failed row's values. Status does not change."""
+    batch = owned_batch(db, member.org_id, batch_id)
+    row = owned_row(db, batch, index)
+    if row.status not in EDITABLE_ROW_STATUSES:
+        raise ApiError(409, "row_not_editable", "that row's values cannot be changed")
+    published = latest_published(db, batch.workflow_id)
+    names = public_variable_names({} if published is None else published.document)
+    row.variables = stored_variables(asked.variables, names)
+    attempts = attempts_by_row(db, [row.id]).get(row.id, [])
+    record = row_record(row, attempts)
+    db.commit()
+    return record
+
+
+@router.post(
+    "/api/batches/{batch_id}/rows/fill",
+    operation_id="fillBatchRows",
+    responses=errors(400, 401, 403, 404),
+)
+def fill_batch_rows(
+    batch_id: UUID,
+    asked: FillRows,
+    member: ActiveMembership,
+    db: SessionDep,
+) -> FillResult:
+    """Set one Variable on every queued row that has no value for it."""
+    batch = owned_batch(db, member.org_id, batch_id)
+    rows = list(
+        db.execute(
+            select(BatchRow)
+            .where(
+                BatchRow.batch_id == batch.id,
+                BatchRow.status == BatchRowStatus.QUEUED,
+            )
+            .order_by(BatchRow.index)
+        ).scalars()
+    )
+    updated = 0
+    for row in rows:
+        if has_value(row.variables, asked.name):
+            continue
+        row.variables = {**row.variables, asked.name: asked.value}
+        updated += 1
+    db.commit()
+    return FillResult(updated_count=updated)
+
+
 @router.post(
     "/api/batches/{batch_id}/rows/{index}/skip",
     operation_id="skipBatchRow",
@@ -441,6 +601,65 @@ def row_record(row: BatchRow, attempts: list[Run]) -> BatchRowRecord:
             for run in attempts
         ],
     )
+
+
+def summaries_of(db: Session, batches: list[Batch]) -> list[BatchSummary]:
+    counts = counts_by_batch(db, [batch.id for batch in batches])
+    return [batch_summary(batch, counts.get(batch.id, {})) for batch in batches]
+
+
+def counts_by_batch(
+    db: Session, batch_ids: list[UUID]
+) -> dict[UUID, dict[BatchRowStatus, int]]:
+    if not batch_ids:
+        return {}
+    grouped: dict[UUID, dict[BatchRowStatus, int]] = {
+        batch_id: {status: 0 for status in BatchRowStatus} for batch_id in batch_ids
+    }
+    rows = db.execute(
+        select(BatchRow.batch_id, BatchRow.status, func.count())
+        .where(BatchRow.batch_id.in_(batch_ids))
+        .group_by(BatchRow.batch_id, BatchRow.status)
+    ).all()
+    for batch_id, status, n in rows:
+        grouped[batch_id][status] = n
+    return grouped
+
+
+def batch_summary(batch: Batch, counts: dict[BatchRowStatus, int]) -> BatchSummary:
+    tallies = {status: counts.get(status, 0) for status in BatchRowStatus}
+    return BatchSummary(
+        id=batch.id,
+        name=batch.name,
+        workflow_id=batch.workflow_id,
+        created_at=batch.created_at,
+        cancelled_at=batch.cancelled_at,
+        row_count=sum(tallies.values()),
+        stats=BatchStats(
+            queued=tallies[BatchRowStatus.QUEUED],
+            running=tallies[BatchRowStatus.RUNNING],
+            succeeded=tallies[BatchRowStatus.SUCCEEDED],
+            failed=tallies[BatchRowStatus.FAILED],
+            skipped=tallies[BatchRowStatus.SKIPPED],
+            cancelled=tallies[BatchRowStatus.CANCELLED],
+        ),
+    )
+
+
+def batch_cursor_for(batch: Batch) -> str:
+    return urlsafe_b64encode(
+        json.dumps({"at": batch.created_at.isoformat(), "id": str(batch.id)}).encode()
+    ).decode()
+
+
+def read_batch_cursor(cursor: str) -> tuple[datetime, UUID]:
+    try:
+        payload = json.loads(urlsafe_b64decode(cursor.encode()))
+        return datetime.fromisoformat(payload["at"]), UUID(payload["id"])
+    except Exception:
+        raise ApiError(
+            400, "bad_cursor", "that cursor did not come from this list"
+        ) from None
 
 
 def stats_of(rows: list[BatchRow]) -> BatchStats:

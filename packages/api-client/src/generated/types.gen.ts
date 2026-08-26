@@ -245,6 +245,20 @@ export type BatchDetail = {
 };
 
 /**
+ * BatchPage
+ */
+export type BatchPage = {
+    /**
+     * Items
+     */
+    items: Array<BatchSummary>;
+    /**
+     * Next Cursor
+     */
+    next_cursor?: string | null;
+};
+
+/**
  * BatchRecord
  */
 export type BatchRecord = {
@@ -340,6 +354,37 @@ export type BatchStats = {
      * Cancelled
      */
     cancelled: number;
+};
+
+/**
+ * BatchSummary
+ */
+export type BatchSummary = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Workflow Id
+     */
+    workflow_id: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Cancelled At
+     */
+    cancelled_at: string | null;
+    /**
+     * Row Count
+     */
+    row_count: number;
+    stats: BatchStats;
 };
 
 /**
@@ -537,6 +582,10 @@ export type CreateBatch = {
      * Rows
      */
     rows?: Array<BatchRowInput>;
+    /**
+     * Run Incomplete Rows
+     */
+    run_incomplete_rows?: boolean;
 };
 
 /**
@@ -783,6 +832,30 @@ export type ExtractStep = {
  * FailureReason
  */
 export type FailureReason = 'step_failed' | 'auth_challenge' | 'takeover_timeout' | 'takeover_abandoned' | 'run_timeout' | 'worker_lost' | 'missing_secret' | 'startup_failed';
+
+/**
+ * FillResult
+ */
+export type FillResult = {
+    /**
+     * Updated Count
+     */
+    updated_count: number;
+};
+
+/**
+ * FillRows
+ */
+export type FillRows = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Value
+     */
+    value: unknown;
+};
 
 /**
  * FinalizeRequest
@@ -5272,6 +5345,10 @@ export type CreateBatchErrors = {
      */
     409: ErrorBody;
     /**
+     * Content Too Large
+     */
+    413: ErrorBody;
+    /**
      * Validation Error
      */
     422: HttpValidationError;
@@ -5287,6 +5364,66 @@ export type CreateBatchResponses = {
 };
 
 export type CreateBatchResponse = CreateBatchResponses[keyof CreateBatchResponses];
+
+export type ListBatchesData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path?: never;
+    query: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+        /**
+         * Limit
+         */
+        limit?: number;
+        /**
+         * Cursor
+         */
+        cursor?: string | null;
+    };
+    url: '/api/batches';
+};
+
+export type ListBatchesErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListBatchesError = ListBatchesErrors[keyof ListBatchesErrors];
+
+export type ListBatchesResponses = {
+    /**
+     * Successful Response
+     */
+    200: BatchPage;
+};
+
+export type ListBatchesResponse = ListBatchesResponses[keyof ListBatchesResponses];
 
 export type GetBatchData = {
     body?: never;
@@ -5496,6 +5633,118 @@ export type CancelBatchResponses = {
      */
     202: unknown;
 };
+
+export type UpdateBatchRowData = {
+    body: BatchRowInput;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Batch Id
+         */
+        batch_id: string;
+        /**
+         * Index
+         */
+        index: number;
+    };
+    query?: never;
+    url: '/api/batches/{batch_id}/rows/{index}';
+};
+
+export type UpdateBatchRowErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Conflict
+     */
+    409: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateBatchRowError = UpdateBatchRowErrors[keyof UpdateBatchRowErrors];
+
+export type UpdateBatchRowResponses = {
+    /**
+     * Successful Response
+     */
+    200: BatchRowRecord;
+};
+
+export type UpdateBatchRowResponse = UpdateBatchRowResponses[keyof UpdateBatchRowResponses];
+
+export type FillBatchRowsData = {
+    body: FillRows;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Batch Id
+         */
+        batch_id: string;
+    };
+    query?: never;
+    url: '/api/batches/{batch_id}/rows/fill';
+};
+
+export type FillBatchRowsErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type FillBatchRowsError = FillBatchRowsErrors[keyof FillBatchRowsErrors];
+
+export type FillBatchRowsResponses = {
+    /**
+     * Successful Response
+     */
+    200: FillResult;
+};
+
+export type FillBatchRowsResponse = FillBatchRowsResponses[keyof FillBatchRowsResponses];
 
 export type SkipBatchRowData = {
     body?: never;

@@ -108,6 +108,10 @@ def get_batch(account: Account, batch_id: str):
     return account.client.get(f"/api/batches/{batch_id}")
 
 
+def list_batches(account: Account, **params: object):
+    return account.client.get("/api/batches", params=params)
+
+
 def batch_output(account: Account, batch_id: str, **params: object):
     return account.client.get(f"/api/batches/{batch_id}/output", params=params)
 
@@ -548,6 +552,20 @@ def test_another_organizations_batch_is_hidden(new_account: NewAccount) -> None:
     assert (
         stranger.client.post(f"/api/batches/{batch_id}/rows/0/rerun").status_code == 404
     )
+    assert list_batches(stranger, workflow_id=workflow_id).status_code == 404
+    assert (
+        stranger.client.patch(
+            f"/api/batches/{batch_id}/rows/0", json={"variables": {"name": "x"}}
+        ).status_code
+        == 404
+    )
+    assert (
+        stranger.client.post(
+            f"/api/batches/{batch_id}/rows/fill",
+            json={"name": "name", "value": "x"},
+        ).status_code
+        == 404
+    )
     member = join(owner, stranger)
     assert get_batch(member, batch_id).status_code == 200
 
@@ -564,3 +582,233 @@ def test_creating_a_batch_requires_a_published_version(new_account: NewAccount) 
         ).status_code
         == 201
     )
+
+
+def test_incomplete_rows_are_skipped_unless_run_anyway(new_account: NewAccount) -> None:
+    account = new_account()
+    workflow_id = published_workflow(
+        account, variables=[{"name": "name"}, {"name": "city"}]
+    )
+    rows = [
+        {"variables": {"name": "Ada", "city": "London"}},
+        {"variables": {"name": "Ben"}},
+        {"variables": {"name": "Cyd", "city": "Rome"}},
+    ]
+
+    created = create_batch(account, workflow_id, name="Cities", rows=rows)
+    assert created.status_code == 201, created.text
+    body = get_batch(account, created.json()["batch_id"]).json()
+    assert [row["status"] for row in body["rows"]] == [
+        "running",
+        "skipped",
+        "queued",
+    ]
+
+    anyway = create_batch(
+        account, workflow_id, name="Anyway", rows=rows, run_incomplete_rows=True
+    )
+    assert anyway.status_code == 201, anyway.text
+    queued = get_batch(account, anyway.json()["batch_id"]).json()
+    assert [row["status"] for row in queued["rows"]] == [
+        "running",
+        "queued",
+        "queued",
+    ]
+
+
+def test_creating_a_batch_refuses_more_than_the_row_cap(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    workflow_id = workflow_with_name(account)
+    refused = create_batch(
+        account,
+        workflow_id,
+        name="Huge",
+        rows=[{"variables": {"name": str(index)}} for index in range(1001)],
+    )
+    assert refused.status_code == 413
+    assert refused.json()["code"] == "too_many_rows"
+    assert refused.json()["max"] == 1000
+
+
+def test_creating_a_batch_refuses_unknown_variables(new_account: NewAccount) -> None:
+    account = new_account()
+    workflow_id = published_workflow(account, variables=[{"name": "city"}])
+    refused = create_batch(
+        account,
+        workflow_id,
+        name="Unknown",
+        rows=[
+            {"variables": {"city": "London", "town": "X"}},
+            {"variables": {"county": "Y"}},
+        ],
+    )
+    assert refused.status_code == 400
+    assert refused.json()["code"] == "unknown_variable"
+    assert refused.json()["names"] == ["county", "town"]
+
+
+def test_patching_a_skipped_row_edits_values_not_status(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    workflow_id = published_workflow(
+        account, variables=[{"name": "name"}, {"name": "city"}]
+    )
+    batch_id = create_batch(
+        account,
+        workflow_id,
+        name="Fix",
+        rows=[
+            {"variables": {"name": "Ada", "city": "London"}},
+            {"variables": {"name": "Ben"}},
+        ],
+    ).json()["batch_id"]
+    finish_run(current_run_id(account, batch_id))
+    on_terminal_run(UUID(current_run_id(account, batch_id)))
+
+    patched = account.client.patch(
+        f"/api/batches/{batch_id}/rows/1",
+        json={"variables": {"name": "Ben", "city": "Paris"}},
+    )
+    assert patched.status_code == 200, patched.text
+    row = patched.json()
+    assert row["status"] == "skipped"
+    assert row["variables"] == {"name": "Ben", "city": "Paris"}
+
+    rerun = account.client.post(f"/api/batches/{batch_id}/rows/1/rerun")
+    assert rerun.status_code == 201, rerun.text
+    body = get_batch(account, batch_id).json()
+    assert body["rows"][1]["status"] == "running"
+    assert body["rows"][1]["latest_run_id"] == rerun.json()["run_id"]
+    assert body["rows"][1]["variables"] == {"name": "Ben", "city": "Paris"}
+
+
+def test_patching_a_running_succeeded_or_cancelled_row_is_refused(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    workflow_id = workflow_with_name(account)
+    batch_id = create_batch(
+        account, workflow_id, name="Locked", rows=five_rows()[:3]
+    ).json()["batch_id"]
+
+    running = account.client.patch(
+        f"/api/batches/{batch_id}/rows/0", json={"variables": {"name": "x"}}
+    )
+    assert running.status_code == 409
+    assert running.json()["code"] == "row_not_editable"
+
+    finish_run(current_run_id(account, batch_id))
+    on_terminal_run(UUID(current_run_id(account, batch_id)))
+    succeeded = account.client.patch(
+        f"/api/batches/{batch_id}/rows/0", json={"variables": {"name": "x"}}
+    )
+    assert succeeded.status_code == 409
+    assert succeeded.json()["code"] == "row_not_editable"
+
+    cancelled = account.client.post(f"/api/batches/{batch_id}/cancel")
+    assert cancelled.status_code == 202, cancelled.text
+    locked = account.client.patch(
+        f"/api/batches/{batch_id}/rows/2", json={"variables": {"name": "x"}}
+    )
+    assert locked.status_code == 409
+    assert locked.json()["code"] == "row_not_editable"
+
+
+def test_fill_sets_one_variable_on_queued_rows_that_lack_it(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    workflow_id = published_workflow(
+        account, variables=[{"name": "name"}, {"name": "region"}]
+    )
+    batch_id = create_batch(
+        account,
+        workflow_id,
+        name="Fill",
+        run_incomplete_rows=True,
+        rows=[
+            {"variables": {"name": "r0", "region": "keep"}},
+            {"variables": {"name": "r1"}},
+            {"variables": {"name": "r2", "region": "west"}},
+            {"variables": {"name": "r3"}},
+            {"variables": {"name": "r4", "region": "east"}},
+            {"variables": {"name": "r5"}},
+        ],
+    ).json()["batch_id"]
+
+    filled = account.client.post(
+        f"/api/batches/{batch_id}/rows/fill", json={"name": "region", "value": "EU"}
+    )
+    assert filled.status_code == 200, filled.text
+    assert filled.json() == {"updated_count": 3}
+
+    rows = get_batch(account, batch_id).json()["rows"]
+    assert rows[0]["status"] == "running"
+    assert rows[0]["variables"] == {"name": "r0", "region": "keep"}
+    assert rows[1]["variables"] == {"name": "r1", "region": "EU"}
+    assert rows[2]["variables"] == {"name": "r2", "region": "west"}
+    assert rows[3]["variables"] == {"name": "r3", "region": "EU"}
+    assert rows[4]["variables"] == {"name": "r4", "region": "east"}
+    assert rows[5]["variables"] == {"name": "r5", "region": "EU"}
+    assert [row["status"] for row in rows[1:]] == ["queued"] * 5
+
+
+def test_listing_batches_pages_summaries_with_derived_stats(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    workflow_id = workflow_with_name(account)
+    other = workflow_with_name(account)
+    seeded: list[str] = []
+    for index in range(5):
+        rows = five_rows()[:2] if index == 0 else five_rows()[:1]
+        created = create_batch(account, workflow_id, name=f"B{index}", rows=rows)
+        assert created.status_code == 201, created.text
+        seeded.append(created.json()["batch_id"])
+    assert (
+        create_batch(account, other, name="Other", rows=five_rows()[:1]).status_code
+        == 201
+    )
+
+    found: list[str] = []
+    cursor = None
+    while True:
+        response = list_batches(
+            account,
+            workflow_id=workflow_id,
+            limit=2,
+            **({"cursor": cursor} if cursor else {}),
+        )
+        assert response.status_code == 200, response.text
+        page = response.json()
+        found.extend(item["id"] for item in page["items"])
+        cursor = page.get("next_cursor")
+        if cursor is None:
+            break
+
+    assert found == list(reversed(seeded))
+    assert len(found) == len(set(found)) == 5
+
+    first = list_batches(account, workflow_id=workflow_id, limit=1).json()["items"][0]
+    assert first["id"] == seeded[-1]
+    assert first["name"] == "B4"
+    assert first["workflow_id"] == workflow_id
+    assert first["cancelled_at"] is None
+    assert first["row_count"] == 1
+    assert first["stats"] == {
+        "succeeded": 0,
+        "failed": 0,
+        "queued": 0,
+        "skipped": 0,
+        "cancelled": 0,
+        "running": 1,
+    }
+
+    two_row = list_batches(account, workflow_id=workflow_id).json()["items"][-1]
+    assert two_row["id"] == seeded[0]
+    assert two_row["row_count"] == 2
+    assert two_row["stats"]["running"] == 1
+    assert two_row["stats"]["queued"] == 1
