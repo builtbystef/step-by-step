@@ -49,6 +49,7 @@ from step_by_step_worker.credentials import (
     inject,
 )
 from step_by_step_worker.heartbeat import RunTerminal
+from step_by_step_worker.redact import RedactingStore
 from step_by_step_worker.selectors import Deadline, Resolved, SelectorFailure, resolve
 
 log = getLogger(__name__)
@@ -148,6 +149,75 @@ class DownloadCapture:
     body: bytes
 
 
+class TraceCapture:
+    """Playwright tracing, with holes around secrets and takeover."""
+
+    def __init__(
+        self,
+        context: Any,
+        profile: str,
+        store: ResultStore,
+        work: RunWork,
+    ) -> None:
+        self._context = context
+        self._profile = profile
+        self._store = store
+        self._work = work
+        self._index = 0
+        self._active = False
+        self._reasons: set[str] = set()
+
+    def start(self) -> None:
+        self._context.tracing.start(snapshots=True, screenshots=True)
+        self._active = True
+
+    def pause(self, reason: str) -> None:
+        self._reasons.add(reason)
+        self._stop_current()
+
+    def resume(self, reason: str) -> None:
+        self._reasons.discard(reason)
+        if not self._reasons:
+            self._start_current()
+
+    def finish(self) -> None:
+        if self._active:
+            self._save(final=True)
+            self._active = False
+            return
+        try:
+            self._context.tracing.stop()
+        except Exception:
+            log.exception("trace stop failed")
+
+    def _stop_current(self) -> None:
+        if not self._active:
+            return
+        self._save(final=False)
+        self._active = False
+
+    def _start_current(self) -> None:
+        if self._active:
+            return
+        try:
+            self._context.tracing.start_chunk()
+        except Exception:
+            log.exception("trace start failed")
+            return
+        self._active = True
+
+    def _save(self, *, final: bool) -> None:
+        save_trace_chunk(
+            self._context,
+            self._profile,
+            self._store,
+            self._work,
+            self._index,
+            final=final,
+        )
+        self._index += 1
+
+
 def now() -> datetime:
     return datetime.now(UTC)
 
@@ -178,6 +248,7 @@ def execute(
     stop = Event()
     lost = Event()
     context_holder: list[Any] = []
+    traces: list[TraceCapture | None] = [None]
     watcher = start_heartbeat(heartbeat, heartbeat_every, stop, lost, context_holder)
 
     def close_open(at: datetime) -> None:
@@ -233,6 +304,9 @@ def execute(
     def park_for_human(
         timeout_ms: int, page: Page, success_check: Target | None
     ) -> str:
+        capture = traces[0]
+        if capture is not None:
+            capture.pause("takeover")
         at = now()
         leave_automation(at)
         deadline_at = at + timedelta(milliseconds=timeout_ms)
@@ -316,6 +390,8 @@ def execute(
                     write_auth_states(
                         credentials, loaded, page.context, include_consented=False
                     )
+                if capture is not None:
+                    capture.resume("takeover")
                 return "verified" if verdict is True else "handback"
             sleep(PARK_POLL_SECONDS)
         close_open(now())
@@ -343,6 +419,13 @@ def execute(
         _skip_remaining(work, store, 0)
         loaded = None
 
+    secret_values = (
+        [value for value in loaded.secrets.values() if value]
+        if loaded is not None
+        else []
+    )
+    store = RedactingStore(store, secret_values)
+
     with TemporaryDirectory(prefix=f"run-{work.run_id}-", dir=profile_root) as profile:
         if failure_reason == "missing_secret":
             context = None
@@ -361,11 +444,14 @@ def execute(
                 _skip_remaining(work, store, 0)
                 context = None
         if context is not None:
-            tracing = False
+            capture = TraceCapture(context, profile, store, work)
+            traces[0] = capture
             download_index = 0
+            secret_variable_names = frozenset(
+                variable.name for variable in work.document.variables if variable.secret
+            )
             try:
-                context.tracing.start(snapshots=True, screenshots=True)
-                tracing = True
+                capture.start()
                 page = context.pages[0] if context.pages else context.new_page()
                 for position, step in enumerate(work.document.steps):
                     if lost.is_set():
@@ -414,6 +500,7 @@ def execute(
                                 outcome,
                                 [],
                                 download_index,
+                                automation=in_automation,
                             )
                             store.add_result(work.run_id, outcome)
                             announce_finished(store, work, outcome)
@@ -421,24 +508,12 @@ def execute(
 
                     announce_started(store, work, step, position)
                     downloads: list[DownloadCapture] = []
+                    hole = any(
+                        name in secret_variable_names for name in step.references()
+                    )
+                    if hole:
+                        capture.pause("secret")
                     try:
-                        outcome = execute_step(
-                            page,
-                            step,
-                            position,
-                            work.default_step_timeout_ms,
-                            values,
-                            on_control=check_control,
-                            on_challenge=report_challenge(store, work, step),
-                            downloads=downloads,
-                        )
-                    except RunPaused:
-                        if (
-                            park_for_human(work.takeover_timeout_ms, page, None)
-                            == "lost"
-                        ):
-                            break
-                        downloads = []
                         try:
                             outcome = execute_step(
                                 page,
@@ -450,14 +525,35 @@ def execute(
                                 on_challenge=report_challenge(store, work, step),
                                 downloads=downloads,
                             )
+                        except RunPaused:
+                            if (
+                                park_for_human(work.takeover_timeout_ms, page, None)
+                                == "lost"
+                            ):
+                                break
+                            downloads = []
+                            try:
+                                outcome = execute_step(
+                                    page,
+                                    step,
+                                    position,
+                                    work.default_step_timeout_ms,
+                                    values,
+                                    on_control=check_control,
+                                    on_challenge=report_challenge(store, work, step),
+                                    downloads=downloads,
+                                )
+                            except RunCancelled:
+                                terminal_status = "cancelled"
+                                _skip_remaining(work, store, position)
+                                break
                         except RunCancelled:
                             terminal_status = "cancelled"
                             _skip_remaining(work, store, position)
                             break
-                    except RunCancelled:
-                        terminal_status = "cancelled"
-                        _skip_remaining(work, store, position)
-                        break
+                    finally:
+                        if hole:
+                            capture.resume("secret")
                     if lost.is_set():
                         break
                     download_index = record_step_artifacts(
@@ -468,6 +564,7 @@ def execute(
                         outcome,
                         downloads,
                         download_index,
+                        automation=in_automation,
                     )
                     store.add_result(work.run_id, outcome)
                     announce_finished(store, work, outcome)
@@ -504,8 +601,7 @@ def execute(
                     write_auth_states(
                         credentials, loaded, context, include_consented=True
                     )
-                if tracing:
-                    save_trace_chunk(context, profile, store, work, 0)
+                capture.finish()
                 close_quietly(context)
 
     stop.set()
@@ -683,7 +779,13 @@ def extracted_count(value: Any) -> int | None:
     return 1
 
 
-def should_screenshot(step: Step, outcome: StepOutcome) -> bool:
+def should_screenshot(
+    step: Step, outcome: StepOutcome, *, automation: bool = True
+) -> bool:
+    # Leak prevention outranks diagnostics: a Step that fails during
+    # waiting/human/verifying takes no screenshot (an MFA code may be on screen).
+    if not automation:
+        return False
     if outcome.status == "failed":
         return True
     return outcome.status == "passed" and step.screenshot
@@ -697,6 +799,8 @@ def record_step_artifacts(
     outcome: StepOutcome,
     downloads: list[DownloadCapture],
     download_index: int,
+    *,
+    automation: bool = True,
 ) -> int:
     next_index = download_index
     for captured in downloads:
@@ -710,7 +814,7 @@ def record_step_artifacts(
             filename=captured.filename,
         )
         next_index += 1
-    if should_screenshot(step, outcome):
+    if should_screenshot(step, outcome, automation=automation):
         try:
             body = page.screenshot(type="png")
         except PlaywrightError:
@@ -729,11 +833,20 @@ def record_step_artifacts(
 
 
 def save_trace_chunk(
-    context: Any, profile: str, store: ResultStore, work: RunWork, index: int
+    context: Any,
+    profile: str,
+    store: ResultStore,
+    work: RunWork,
+    index: int,
+    *,
+    final: bool = False,
 ) -> None:
     path = Path(profile) / f"trace-{index}.zip"
     try:
-        context.tracing.stop(path=str(path))
+        if final:
+            context.tracing.stop(path=str(path))
+        else:
+            context.tracing.stop_chunk(path=str(path))
     except Exception:
         log.exception("trace stop failed")
         return

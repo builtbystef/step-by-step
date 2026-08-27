@@ -1,7 +1,8 @@
 ---
 id: mdwnma
 title: 'Leak prevention: redaction, trace holes, and the takeover pause'
-state: todo
+state: done
+assignee: agent
 priority: medium
 depends_on:
     - qf8loh
@@ -10,7 +11,7 @@ depends_on:
     - tls69i
 parent: 54i6da
 created: 2026-08-14T06:16:25Z
-updated: 2026-08-17T04:03:58Z
+updated: 2026-08-27T07:21:28Z
 ---
 
 ## What to build
@@ -33,3 +34,17 @@ This slice's edge on the execution spec is an umbrella; tighten it when that spe
 **claude** — 2026-08-17T04:03:58Z
 
 Precedence pin (mirrored on tls69i): during waiting/human/verifying phases the no-screenshot rule wins over tls69i's always-screenshot-on-failure — a Step failed by takeover_timeout or takeover_abandoned takes no failure screenshot. Leak prevention outranks diagnostics.
+
+**agent** — 2026-08-27T06:45:07Z
+
+Seams (AFK): (1) Worker publish helper driven directly — log lines, two-character secrets, and error/failure strings redacted before Redis; the parent spec's SSE assertion is an integration test of that same helper. (2) Worker executor against Playwright fixture pages for trace holes around secret-referencing Steps, takeover pause of tracing/screenshots with the live page still open, and a sweep of stored results/artifacts for the secret value. Failure-screenshot precedence during waiting/human/verifying is encoded on the executor; VNC itself is 5yu03g.
+
+**agent** — 2026-08-27T07:21:28Z
+
+Completed leak prevention.
+
+Redaction lives in the Worker, before Redis or Postgres: RedactingStore wraps the ResultStore after credentials fetch and substring-replaces every handed plaintext (org or override) with •••• in log lines, error_message, failure_detail, and trace-zip text. No minimum length. Driven directly in fast tests; the parent-spec SSE assertion is apps/api/tests/integration/test_run_events.py::test_a_secret_in_a_log_line_arrives_over_sse_redacted.
+
+TraceCapture brackets secret-referencing Steps (stop_chunk before, start_chunk after) and pauses for the whole waiting/human/verifying interval, resuming at hand-back. Screenshots of secret Steps are not suppressed. Failure screenshots are refused when automation is off (takeover_timeout / takeover_abandoned). The live page stays open during park.
+
+Seams as noted: helper + SSE; executor against Playwright fixture pages (trace holes, takeover pause, sweep of results/artifacts).

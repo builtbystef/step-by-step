@@ -18,6 +18,8 @@ from step_by_step_api.runs.models import StepResult, StepResultStatus
 from step_by_step_core.bus import get_redis
 from step_by_step_core.db import session_scope
 from step_by_step_core.events import events_channel, publish, publish_log
+from step_by_step_worker.redact import MASK, RedactingStore
+from step_by_step_worker.store import PostgresRunStore
 from test_runs import NewAccount, published_workflow, start
 
 pytestmark = pytest.mark.integration
@@ -332,3 +334,31 @@ def test_watching_published_step_events_delivers_each_exactly_once(
     ]
     assert events[-1][1]["status"] == "succeeded"
     assert kinds.count("run.status") == 1
+
+
+SECRET = "s3cret-zx9q2m"
+SHORT = "qz"
+
+
+def test_a_secret_in_a_log_line_arrives_over_sse_redacted(
+    new_account: NewAccount, live_origin: str
+) -> None:
+    account = new_account()
+    run_id = start(account, published_workflow(account), variables={}).json()["run_id"]
+    store = RedactingStore(PostgresRunStore(), [SECRET, SHORT])
+
+    with (
+        http_client(account, live_origin) as client,
+        client.stream("GET", f"/api/runs/{run_id}/events") as stream,
+    ):
+        assert stream.status_code == 200
+        store.log(UUID(run_id), "info", f"password is {SECRET} leftover")
+        store.log(UUID(run_id), "error", f"fill({SHORT}) failed")
+        events = parse_sse(stream.iter_lines(), 2)
+
+    texts = [payload["text"] for _, payload in events]
+    assert texts == [f"password is {MASK} leftover", f"fill({MASK}) failed"]
+    stored = [line["text"] for line in logs(account, run_id).json()]
+    assert stored == texts
+    assert SECRET not in " ".join(texts)
+    assert SHORT not in " ".join(texts)
