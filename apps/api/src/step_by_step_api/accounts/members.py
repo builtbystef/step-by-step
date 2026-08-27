@@ -19,12 +19,13 @@ Personal Overrides waits for the vault that holds them.
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session as DbSession
 
 from step_by_step_api.accounts.models import Membership, Role, User
 from step_by_step_api.accounts.orgs import not_an_admin, not_the_owner
 from step_by_step_api.errors import ApiError
+from step_by_step_api.secrets.models import Secret, SecretOverride
 
 
 def listing(db: DbSession, org_id: UUID) -> list[tuple[Membership, User]]:
@@ -80,6 +81,14 @@ def remove(db: DbSession, caller: Membership, user_id: UUID) -> None:
     membership = member(db, caller.org_id, user_id)
     if membership.role is Role.OWNER:
         raise is_owner()
+    db.execute(
+        delete(SecretOverride).where(
+            SecretOverride.user_id == membership.user_id,
+            SecretOverride.secret_id.in_(
+                select(Secret.id).where(Secret.org_id == membership.org_id)
+            ),
+        )
+    )
     db.delete(membership)
 
 
