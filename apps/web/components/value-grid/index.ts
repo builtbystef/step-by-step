@@ -3,6 +3,7 @@
  * one-row set, and the run-start grid.
  */
 export { ValueGrid, initialRows } from "./value-grid";
+export { CsvImportPanel } from "./csv-import-panel";
 export {
   applyCopiedBatch,
   applyPaste,
@@ -18,3 +19,13 @@ export {
   type GridColumn,
   type GridRow,
 } from "./grid";
+export {
+  assignHeader,
+  beginImport,
+  confirmImport,
+  dismissSummary,
+  parseCsv,
+  reopenSummary,
+  stripFromSummary,
+  type ImportPanel,
+} from "./csv-import";

@@ -25,13 +25,21 @@ import { workflowQuery } from "../../queries";
 import { useActiveOrganization } from "../../../../use-active-organization";
 
 import {
+  CsvImportPanel,
   ValueGrid,
   applyCopiedBatch,
+  assignHeader,
+  beginImport,
   columnsOf,
+  confirmImport,
+  dismissSummary,
   fillEveryRow,
   initialRows,
+  reopenSummary,
   rowCounts,
+  stripFromSummary,
   type GridRow,
+  type ImportPanel,
 } from "@/components/value-grid";
 import { Callout } from "@/components/primitives/callout";
 import { StickyActionFooter } from "@/components/primitives/sticky-action-footer";
@@ -47,10 +55,10 @@ import { COPY } from "@/lib/copy";
 
 /**
  * One page, always a grid. Columns are the Workflow's declared Variables;
- * typing, pasting, and copying a past Batch's rows all land in this table.
- * A Version that gains a Variable while this page is open raises a banner
- * rather than reaching unattended Runs. Submitting creates the Batch and
- * navigates to its progress view.
+ * typing, pasting, importing a CSV, and copying a past Batch's rows all land
+ * in this table. A Version that gains a Variable while this page is open
+ * raises a banner rather than reaching unattended Runs. Submitting creates
+ * the Batch and navigates to its progress view.
  */
 
 export default function NewBatchPage() {
@@ -78,7 +86,9 @@ function NewBatch({ orgId, workflowId }: { orgId: string; workflowId: string }) 
   const [added, setAdded] = useState<Variable[]>([]);
   const [fillValue, setFillValue] = useState("");
   const [checkError, setCheckError] = useState<unknown>(null);
+  const [importPanel, setImportPanel] = useState<ImportPanel>({ kind: "idle" });
   const baselineNames = useRef<string[]>([]);
+  const csvFile = useRef<HTMLInputElement>(null);
 
   const variables: Variable[] = declared ?? [];
   const columns = columnsOf(variables);
@@ -176,38 +186,110 @@ function NewBatch({ orgId, workflowId }: { orgId: string; workflowId: string }) 
     setFillValue("");
   };
 
+  const landCsv = (file: File) => {
+    void file.text().then((text) => {
+      const outcome = beginImport(text, variables, columns);
+      if (outcome.kind === "landed") {
+        setRows(outcome.rows);
+      }
+      setImportPanel(outcome.panel);
+    });
+  };
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-title font-semibold">New batch</h2>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button variant="secondary" size="sm" className="ml-auto">
-                Copy from a past Batch
-              </Button>
-            }
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <input
+            ref={csvFile}
+            type="file"
+            accept=".csv,text/csv,text/tab-separated-values,.tsv"
+            className="hidden"
+            onChange={(picked) => {
+              const file = picked.target.files?.[0];
+              picked.target.value = "";
+              if (file !== undefined) {
+                landCsv(file);
+              }
+            }}
           />
-          <DropdownMenuContent align="end" className="min-w-56">
-            {(past.data ?? []).length === 0 ? (
-              <DropdownMenuItem disabled>No past Batches yet</DropdownMenuItem>
-            ) : (
-              (past.data ?? []).map((batch) => (
-                <DropdownMenuItem
-                  key={batch.id}
-                  onClick={() => {
-                    copy.mutate(batch.id);
-                  }}
-                >
-                  {batch.name}
-                </DropdownMenuItem>
-              ))
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              csvFile.current?.click();
+            }}
+          >
+            Import CSV
+          </Button>
+          {importPanel.kind === "summary" && importPanel.dismissed ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setImportPanel(reopenSummary(importPanel));
+              }}
+            >
+              Import summary
+            </Button>
+          ) : null}
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <Button variant="secondary" size="sm">
+                  Copy from a past Batch
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="end" className="min-w-56">
+              {(past.data ?? []).length === 0 ? (
+                <DropdownMenuItem disabled>No past Batches yet</DropdownMenuItem>
+              ) : (
+                (past.data ?? []).map((batch) => (
+                  <DropdownMenuItem
+                    key={batch.id}
+                    onClick={() => {
+                      copy.mutate(batch.id);
+                    }}
+                  >
+                    {batch.name}
+                  </DropdownMenuItem>
+                ))
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       {refused ? <Callout tone="bad">{refusalMessage(refused)}</Callout> : null}
+
+      <CsvImportPanel
+        panel={importPanel}
+        onAssign={(variableName, header) => {
+          if (importPanel.kind === "strip") {
+            setImportPanel(assignHeader(importPanel, variableName, header));
+          }
+        }}
+        onConfirm={() => {
+          if (importPanel.kind !== "strip") {
+            return;
+          }
+          const confirmed = confirmImport(importPanel, columns);
+          setRows(confirmed.rows);
+          setImportPanel(confirmed.panel);
+        }}
+        onDismiss={() => {
+          if (importPanel.kind === "summary") {
+            setImportPanel(dismissSummary(importPanel));
+          }
+        }}
+        onChangeMapping={() => {
+          if (importPanel.kind === "summary") {
+            setImportPanel(stripFromSummary(importPanel));
+          }
+        }}
+      />
 
       {banner === null ? null : (
         <Callout

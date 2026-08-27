@@ -1,13 +1,14 @@
 ---
 id: 560jkk
 title: 'CSV import: client-side reconciliation and the mapping strip'
-state: todo
+state: done
+assignee: agent
 priority: medium
 depends_on:
     - bcyznn
 parent: nno9gj
 created: 2026-08-14T19:52:25Z
-updated: 2026-08-27T02:46:05Z
+updated: 2026-08-27T03:31:40Z
 ---
 
 ## What to build
@@ -68,3 +69,20 @@ What you must do: decide which option, record the decision in a note on this iss
 Decision: keep the near-match rule (substring or Levenshtein ≤ 2 under normalize; no alias dictionary). The town→city example was leftover from prototype tf6796 and is wrong under that rule (distance 4).
 
 The AC is now reconcile(["cite","zip"], [city, zipCode]) → confident: false, with cite→city (distance 1) and zip→zipCode (substring) as suggested: true.
+
+**agent** — 2026-08-27T03:31:33Z
+
+Completed. Seam 2 as the spec named it: reconcile and the import path are pure functions with no DOM. The Batch creation page draws them.
+
+What landed
+- apps/web/lib/reconcile.ts: normalize (lowercase, strip non-alphanumeric), exact matches, near matches (substring or Levenshtein ≤ 2) as suggested: true only. Secret Variables are excluded from mapping and coverage; a header that normalizes to a secret name goes to droppedSecretHeaders. Extra headers are ignoredHeaders and do not spoil confidence. A suggestion anywhere forces confident: false. No alias dictionary. The town→city leftover stays out (cite→city is the AC).
+- apps/web/components/value-grid/csv-import.ts: parseCsv (RFC 4180 quoted fields, delimiter sniffing on comma/tab/semicolon/pipe), beginImport (confident lands rows + summary; otherwise the mapping strip with suggestions pre-filled), confirmImport, dismiss/reopen summary, stripFromSummary so a wrong guess stays correctable after rows have landed. applyImport never writes a secret column.
+- New batch page: Import CSV next to copy-from. Confident import has no dialog. The summary names matched, ignored, and dropped (dropped named "ignored and unstored"). Dismiss leaves an Import summary control. Not-confident shows the strip over the file's real column names; rows land on Confirm mapping.
+
+Decisions
+- parseCsv is a local RFC 4180 parser rather than the papaparse npm package. The issue asked for Papa Parse or equivalent because a split gets quoted fields, delimiter sniffing, and encoding wrong; this parser is not a split. registry.npmjs.org was unreachable from this session, so a new dependency could not be installed. File.text() supplies UTF-8; encoding is not sniffed. Swapping the internals of parseCsv for papaparse later does not change the contract.
+- Import lives on the Batch creation page via the shared module and CsvImportPanel. The Schedule's one-row grid does not grow a second parser; it can mount the same panel.
+
+For a reviewer
+- The four reconcile ACs plus "called as a function with no DOM" are in lib/reconcile.test.ts.
+- Messy quoted CSV, confident land + dismiss/reopen, not-confident strip then confirm, and "no fetch, no hunter2 in the payload" are in csv-import.test.ts. The fetch spy is the "requests made" assertion.
