@@ -85,6 +85,16 @@ def finalize(account: Account, session_id: str, token: str, **body: object):
     )
 
 
+def create_recording_secret(
+    account: Account, session_id: str, token: str, name: str, value: str
+):
+    return account.client.post(
+        f"/api/recording-sessions/{session_id}/secrets",
+        headers=token_headers(token),
+        json={"name": name, "value": value},
+    )
+
+
 def test_checkpoints_keep_the_newest_full_buffer_and_finalize_replaces_the_draft(
     new_account: NewAccount,
 ) -> None:
@@ -186,6 +196,95 @@ def test_finalize_refuses_an_unresolved_needs_secret_marker(
     assert (
         account.client.get(f"/api/workflows/{workflow_id}/draft").json()["steps"] == []
     )
+
+
+def test_recording_creates_and_binds_an_organization_secret_without_storing_its_value(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    other = new_account()
+    workflow_id = a_workflow(account)
+    issued = mint(account, workflow_id).json()
+    other_issued = mint(other, a_workflow(other)).json()
+    literal = "one-request-only"
+    step = {
+        "id": str(uuid4()),
+        "type": "type",
+        "label": "Type password",
+        "needsSecret": True,
+        "payload": {
+            "target": {"candidates": [{"kind": "label", "value": "Password"}]},
+            "value": "",
+        },
+    }
+    assert (
+        checkpoint(
+            account, issued["session_id"], issued["token"], 1, [step]
+        ).status_code
+        == 204
+    )
+
+    created = create_recording_secret(
+        account, issued["session_id"], issued["token"], "Portal password", literal
+    )
+
+    assert created.status_code == 201, created.text
+    identity = created.json()
+    assert identity["name"] == "Portal password"
+    listed = account.client.get("/api/secrets")
+    assert listed.status_code == 200, listed.text
+    assert [(row["id"], row["name"]) for row in listed.json()] == [
+        (identity["id"], "Portal password")
+    ]
+    assert other.client.get("/api/secrets").json() == []
+    revealed = account.client.post(f"/api/secrets/{identity['id']}/reveal")
+    assert revealed.json() == {"value": literal}
+
+    duplicate = create_recording_secret(
+        account, issued["session_id"], issued["token"], "Portal password", "different"
+    )
+    assert duplicate.status_code == 409
+    assert duplicate.json()["code"] == "name_taken"
+    foreign = create_recording_secret(
+        account,
+        issued["session_id"],
+        other_issued["token"],
+        "Foreign",
+        "not-stored",
+    )
+    assert foreign.status_code == 401
+
+    ordinary_step = dict(step)
+    ordinary_step.pop("needsSecret")
+    ordinary_step["payload"] = {
+        **step["payload"],
+        "value": "{{password}}",
+    }
+    variable = {
+        "name": "password",
+        "secret": True,
+        "secretId": identity["id"],
+        "secretName": identity["name"],
+    }
+    saved = finalize(
+        account,
+        issued["session_id"],
+        issued["token"],
+        steps=[ordinary_step],
+        variables=[variable],
+    )
+    assert saved.status_code == 200, saved.text
+    assert saved.json()["variables"] == [variable]
+    assert literal not in saved.text
+    assert literal not in str(
+        account.client.get(f"/api/workflows/{workflow_id}/draft").json()
+    )
+
+    finalized = create_recording_secret(
+        account, issued["session_id"], issued["token"], "Too late", "not-stored"
+    )
+    assert finalized.status_code == 409
+    assert finalized.json()["code"] == "recording_session_finalized"
 
 
 def test_a_repick_finalize_changes_only_the_scoped_steps_candidates(

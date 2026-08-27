@@ -67,7 +67,9 @@ label {
 
 #secret-bindings,
 #auth-state-choices,
-.auth-state-choice {
+.auth-state-choice,
+.secret-binding,
+.secret-create {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -87,7 +89,8 @@ label {
   gap: 0.5rem;
 }
 
-input {
+input,
+select {
   padding: 0.375rem 0.5rem;
   font: inherit;
   color: FieldText;

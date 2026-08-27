@@ -23,6 +23,11 @@ from step_by_step_api.db import SessionDep
 from step_by_step_api.errors import ApiError, errors
 from step_by_step_api.extension import package
 from step_by_step_api.extension.routes import INSTALL_PAGE
+from step_by_step_api.secrets.routes import (
+    CreateSecret,
+    SecretIdentity,
+    create_for_organization,
+)
 from step_by_step_api.workflows import document
 from step_by_step_api.workflows.document import SelectorCandidate, WorkflowDocument
 from step_by_step_api.workflows.models import (
@@ -207,6 +212,26 @@ def save_checkpoint(
         session.checkpoint_steps = checkpoint.steps
     db.commit()
     return Response(status_code=204)
+
+
+@router.post(
+    "/api/recording-sessions/{session_id}/secrets",
+    operation_id="createRecordingSecret",
+    status_code=201,
+    responses=errors(401, 409),
+)
+def create_recording_secret(
+    session_id: UUID,
+    asked: CreateSecret,
+    db: SessionDep,
+    authorization: Annotated[str | None, Header()] = None,
+) -> SecretIdentity:
+    """Create an Organization Secret through this recording capability."""
+    session = authorized_session(db, session_id, authorization)
+    org_id = db.execute(
+        select(Workflow.org_id).where(Workflow.id == session.workflow_id)
+    ).scalar_one()
+    return create_for_organization(asked, db, org_id)
 
 
 class AuthStateHosts(BaseModel):

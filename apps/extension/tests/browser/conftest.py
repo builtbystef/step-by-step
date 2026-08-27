@@ -72,12 +72,14 @@ class RecordingSink:
         self.condition = threading.Condition()
         self.checkpoints: list[dict[str, Any]] = []
         self.finalizations: list[dict[str, Any]] = []
+        self.secret_creations: list[dict[str, Any]] = []
         self.auth_captures: list[dict[str, Any]] = []
 
     def clear(self) -> None:
         with self.condition:
             self.checkpoints.clear()
             self.finalizations.clear()
+            self.secret_creations.clear()
             self.auth_captures.clear()
 
     def append(self, checkpoint: dict[str, Any]) -> None:
@@ -97,6 +99,12 @@ class RecordingSink:
             )
             assert ready
             return deepcopy(self.finalizations[-1])
+
+    def create_secret(self, body: dict[str, Any]) -> dict[str, Any]:
+        with self.condition:
+            self.secret_creations.append(deepcopy(body))
+            self.condition.notify_all()
+        return {"id": "created-secret", "name": body.get("name")}
 
     def capture_auth(self, body: dict[str, Any]) -> None:
         with self.condition:
@@ -171,6 +179,20 @@ class SiteHandler(http.server.SimpleHTTPRequestHandler):
                 ]
             ).encode()
             status = 200
+        elif self.path.startswith("/api/recording-sessions/") and self.path.endswith(
+            "/secrets"
+        ):
+            identity = RECORDING_SINK.create_secret(asked)
+            if asked.get("name") == "Taken":
+                refusal = {
+                    "code": "name_taken",
+                    "message": "that Secret name is already used",
+                }
+                body = json.dumps(refusal).encode()
+                status = 409
+            else:
+                body = json.dumps(identity).encode()
+                status = 201
         elif self.path.startswith("/api/recording-sessions/") and self.path.endswith(
             "/auth-states"
         ):

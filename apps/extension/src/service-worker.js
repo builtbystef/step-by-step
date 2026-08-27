@@ -238,7 +238,8 @@ async function acceptRecordingPageMessage(message, sender) {
       typeof message.workflowName !== "string" ||
       typeof message.workflowId !== "string" ||
       message.mode !== "record" ||
-      !Array.isArray(message.variables)
+      !Array.isArray(message.variables) ||
+      !Array.isArray(message.secrets)
     ) {
       return { accepted: false };
     }
@@ -251,6 +252,7 @@ async function acceptRecordingPageMessage(message, sender) {
         workflowId: message.workflowId,
         workflowName: message.workflowName,
         variables: message.variables,
+        secrets: message.secrets,
         steps: [],
         visitedHosts: [],
         storageByOrigin: {},
@@ -792,9 +794,11 @@ async function finalizeRecording(bindings, authSelections = []) {
   if (active === null || active.state !== "ended" || !Array.isArray(bindings)) {
     return { saved: false, reason: "not-ended" };
   }
+  const resolved = await resolveRecordingSecrets(active, bindings);
+  if (!resolved.ok) return resolved.answer;
   let document;
   try {
-    document = bindSecretSteps(active.steps, bindings, active.variables ?? []);
+    document = bindSecretSteps(active.steps, resolved.bindings, active.variables ?? []);
   } catch (failure) {
     return { saved: false, reason: "needs-secret", message: failure.message };
   }
@@ -826,6 +830,59 @@ async function finalizeRecording(bindings, authSelections = []) {
   await chrome.storage.local.remove(RECORDING_KEY);
   await broadcastRecording(RECORDING_FINISHED, active.sessionId);
   return { saved: true };
+}
+
+async function resolveRecordingSecrets(active, bindings) {
+  const resolved = [];
+  for (const binding of bindings) {
+    if (binding?.secret && typeof binding.secret.id === "string") {
+      resolved.push(binding);
+      continue;
+    }
+    if (typeof binding?.create?.name !== "string" || typeof binding.create.value !== "string") {
+      resolved.push(binding);
+      continue;
+    }
+    let response;
+    try {
+      response = await fetch(
+        `${active.backendOrigin}/api/recording-sessions/${encodeURIComponent(active.sessionId)}/secrets`,
+        {
+          method: "POST",
+          headers: { Authorization: active.token, "Content-Type": "application/json" },
+          body: JSON.stringify({ name: binding.create.name, value: binding.create.value }),
+        },
+      );
+    } catch {
+      return { ok: false, answer: { saved: false, reason: "unreachable" } };
+    }
+    if (response.status === 401) {
+      await markTokenExpired(active);
+      return { ok: false, answer: { saved: false, reason: "token-expired" } };
+    }
+    if (!response.ok) {
+      let refusal = null;
+      try {
+        refusal = await response.json();
+      } catch {
+        // The application's refusal shape is expected, but prose is optional.
+      }
+      if (response.status === 409 && refusal?.code === "name_taken") {
+        return {
+          ok: false,
+          answer: {
+            saved: false,
+            reason: "name-taken",
+            message: "That Secret name is already used. Rename it or pick the existing Secret.",
+          },
+        };
+      }
+      return { ok: false, answer: { saved: false, reason: "refused" } };
+    }
+    const secret = await response.json();
+    resolved.push({ ...binding, secret });
+  }
+  return { ok: true, bindings: resolved };
 }
 
 async function endRecordingAfterDetach(tabId) {

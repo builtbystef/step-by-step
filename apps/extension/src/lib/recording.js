@@ -24,27 +24,50 @@ export function replacementHint(choice, scope, locale) {
 
 /** Turn password markers into ordinary type Steps before they reach finalize. */
 export function bindSecretSteps(steps, bindings, variables) {
-  const byStep = new Map(bindings.map((binding) => [binding.stepId, binding.name.trim()]));
+  const byStep = new Map(bindings.map((binding) => [binding.stepId, binding]));
   const declared = new Map(variables.map((variable) => [variable.name, variable]));
-  const added = [];
+  const boundVariables = new Map();
 
   const bound = steps.map((step) => {
     if (step.needsSecret !== true) return step;
-    const name = byStep.get(step.id);
+    const binding = byStep.get(step.id);
+    const name = binding?.name?.trim();
     if (!name) throw new Error("Bind every password Step before saving.");
     if (!VARIABLE_NAME.test(name)) throw new Error("Choose a valid Variable name.");
+    if (
+      typeof binding.secret?.id !== "string" ||
+      binding.secret.id === "" ||
+      typeof binding.secret?.name !== "string" ||
+      binding.secret.name === ""
+    ) {
+      throw new Error("Choose or create a Secret for every password Step.");
+    }
     const existing = declared.get(name);
     if (existing && existing.secret !== true) {
       throw new Error("A password Step needs a secret Variable.");
     }
-    if (!existing) {
-      const variable = { name, secret: true };
-      declared.set(name, variable);
-      added.push(variable);
+    const variable = {
+      ...(existing ?? { name }),
+      secret: true,
+      secretId: binding.secret.id,
+      secretName: binding.secret.name,
+    };
+    const previous = boundVariables.get(name);
+    if (previous && previous.secretId !== variable.secretId) {
+      throw new Error("One secret Variable cannot use two Secrets.");
     }
+    declared.set(name, variable);
+    boundVariables.set(name, variable);
     const { needsSecret: _marker, ...ordinary } = step;
     return { ...ordinary, payload: { ...ordinary.payload, value: `{{${name}}}` } };
   });
 
-  return { steps: bound, variables: [...variables, ...added] };
+  const existingNames = new Set(variables.map((variable) => variable.name));
+  return {
+    steps: bound,
+    variables: [
+      ...variables.map((variable) => declared.get(variable.name)),
+      ...[...boundVariables.values()].filter((variable) => !existingNames.has(variable.name)),
+    ],
+  };
 }

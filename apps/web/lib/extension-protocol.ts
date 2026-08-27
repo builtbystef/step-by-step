@@ -58,6 +58,7 @@ export type PendingRecording = {
   workflowId: string;
   workflowName: string;
   variables: Variable[];
+  secrets: { id: string; name: string }[];
 };
 
 export function recordingPendingMessage(recording: PendingRecording) {

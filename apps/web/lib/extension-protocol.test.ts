@@ -111,6 +111,7 @@ describe("recording messages the app hands over", () => {
         workflowId: "workflow-1",
         workflowName: "Invoices",
         variables: [{ name: "password", secret: true }],
+        secrets: [{ id: "secret-1", name: "Portal password" }],
       }),
     ).toEqual({
       channel: EXTENSION_CHANNEL,
@@ -122,6 +123,7 @@ describe("recording messages the app hands over", () => {
       workflowName: "Invoices",
       mode: "record",
       variables: [{ name: "password", secret: true }],
+      secrets: [{ id: "secret-1", name: "Portal password" }],
     });
   });
 

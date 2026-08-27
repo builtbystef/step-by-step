@@ -109,6 +109,7 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
       if (connection.version === null || workflow.data === undefined) {
         throw new Error("The connected extension is not ready.");
       }
+      const availableSecrets = vault.data ?? (await loadSecrets());
       const { data, error } = await createRecordingSession({
         path: { workflow_id: workflowId },
         headers: { "X-Extension-Version": connection.version },
@@ -123,6 +124,7 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
           workflowId,
           workflowName: workflow.data.name,
           variables: document.variables ?? [],
+          secrets: availableSecrets.map(({ id, name }) => ({ id, name })),
         }),
         window.location.origin,
       );
@@ -143,6 +145,7 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
           cache.invalidateQueries({ queryKey: draftKey(orgId, workflowId) }),
           cache.invalidateQueries({ queryKey: workflowKey(orgId, workflowId) }),
           cache.invalidateQueries({ queryKey: workflowsKey(orgId) }),
+          cache.invalidateQueries({ queryKey: SECRETS_KEY }),
         ]);
       }
       if (

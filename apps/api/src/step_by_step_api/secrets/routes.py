@@ -191,9 +191,16 @@ def list_secrets(
 def create_secret(
     body: CreateSecret, db: SessionDep, membership: ActiveMembership
 ) -> SecretIdentity:
+    return create_for_organization(body, db, membership.org_id)
+
+
+def create_for_organization(
+    body: CreateSecret, db: SessionDep, org_id: UUID
+) -> SecretIdentity:
+    """Create the Organization Secret shared by both authorized surfaces."""
     sealed = sealed_text(body.value)
     secret = Secret(
-        org_id=membership.org_id,
+        org_id=org_id,
         name=body.name,
         sealed_value=sealed.value,
         sealed_data_key=sealed.data_key,

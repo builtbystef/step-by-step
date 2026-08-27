@@ -31,6 +31,7 @@ def start_recording(browser: BrowserContext, fixture_site: str, page: Page) -> P
           workflowName: "Fixture Workflow",
           mode: "record",
           variables: [],
+          secrets: [{id: "fixture-existing", name: "Existing password"}],
         }, origin)""",
         fixture_site,
     )
@@ -77,6 +78,7 @@ def test_connected_app_hands_a_pending_recording_to_restartable_storage(
           workflowName: "Invoices",
           mode: "record",
           variables: [{name: "password", secret: true}],
+          secrets: [{id: "secret-1", name: "Portal password"}],
         }, origin)""",
         fixture_site,
     )
@@ -88,6 +90,7 @@ def test_connected_app_hands_a_pending_recording_to_restartable_storage(
     assert stored["state"] == "pending"
     assert stored["sessionId"] == "pending-session"
     assert stored["workflowName"] == "Invoices"
+    assert stored["secrets"] == [{"id": "secret-1", "name": "Portal password"}]
     assert stored["steps"] == []
     page.close()
 
@@ -185,23 +188,97 @@ def test_finished_recording_binds_password_and_finalizes_directly(
     page.click('[data-testid="save"]')
     page.fill('[data-testid="password"]', "not-in-the-document")
     page.press('[data-testid="password"]', "Tab")
-    steps = recording_sink.wait_for_steps(2)
+    recording_sink.wait_for_steps(2)
     surface.evaluate("() => chrome.runtime.sendMessage({type: 'stop-recording'})")
-    answer = surface.evaluate(
+    surface.locator("input[data-variable-name]").fill("site_password")
+    surface.locator("select[data-secret-choice]").select_option("new")
+    surface.locator("input[data-secret-name]").fill("Fixture password")
+    surface.locator("input[data-secret-value]").fill("one-request-only")
+    surface.locator("#save-button").click()
+    saved = recording_sink.wait_for_finalization()
+
+    assert recording_sink.auth_captures == []
+    assert recording_sink.secret_creations == [
+        {"name": "Fixture password", "value": "one-request-only"}
+    ]
+    assert saved["steps"][1]["payload"]["value"] == "{{site_password}}"
+    assert "needsSecret" not in saved["steps"][1]
+    assert saved["variables"] == [
+        {
+            "name": "site_password",
+            "secret": True,
+            "secretId": "created-secret",
+            "secretName": "Fixture password",
+        }
+    ]
+    assert "not-in-the-document" not in str(saved)
+    assert "one-request-only" not in str(recording_sink.checkpoints)
+    assert "one-request-only" not in str(saved)
+
+    surface.close()
+    page.close()
+
+
+def test_taken_recording_secret_name_can_switch_to_an_existing_secret(
+    connected_browser: BrowserContext,
+    fixture_site: str,
+    recording_sink: RecordingSink,
+) -> None:
+    page = connected_browser.new_page()
+    page.goto(f"{fixture_site}/recording.html")
+    surface = start_recording(connected_browser, fixture_site, page)
+
+    page.fill('[data-testid="password"]', "never-captured")
+    page.press('[data-testid="password"]', "Tab")
+    step = recording_sink.wait_for_steps(1)[0]
+    surface.evaluate("() => chrome.runtime.sendMessage({type: 'stop-recording'})")
+    conflict = surface.evaluate(
         """(stepId) => chrome.runtime.sendMessage({
           type: "finalize-recording",
-          bindings: [{stepId, name: "site_password"}],
+          bindings: [{
+            stepId,
+            name: "password",
+            create: {name: "Taken", value: "conflicting-value"},
+          }],
         })""",
-        steps[1]["id"],
+        step["id"],
+    )
+
+    assert conflict == {
+        "saved": False,
+        "reason": "name-taken",
+        "message": (
+            "That Secret name is already used. Rename it or pick the existing Secret."
+        ),
+    }
+    assert recording_sink.finalizations == []
+
+    switched = surface.evaluate(
+        """(stepId) => chrome.runtime.sendMessage({
+          type: "finalize-recording",
+          bindings: [{
+            stepId,
+            name: "password",
+            secret: {id: "fixture-existing", name: "Existing password"},
+          }],
+        })""",
+        step["id"],
     )
     saved = recording_sink.wait_for_finalization()
 
-    assert answer == {"saved": True}
-    assert recording_sink.auth_captures == []
-    assert saved["steps"][1]["payload"]["value"] == "{{site_password}}"
-    assert "needsSecret" not in saved["steps"][1]
-    assert saved["variables"] == [{"name": "site_password", "secret": True}]
-    assert "not-in-the-document" not in str(saved)
+    assert switched == {"saved": True}
+    assert recording_sink.secret_creations == [
+        {"name": "Taken", "value": "conflicting-value"}
+    ]
+    assert saved["variables"] == [
+        {
+            "name": "password",
+            "secret": True,
+            "secretId": "fixture-existing",
+            "secretName": "Existing password",
+        }
+    ]
+    assert "conflicting-value" not in str(saved)
 
     surface.close()
     page.close()

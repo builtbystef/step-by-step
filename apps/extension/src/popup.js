@@ -99,10 +99,29 @@ document.querySelector("#discard-button").addEventListener("click", () => {
 });
 
 document.querySelector("#save-button").addEventListener("click", () => {
-  const bindings = [...view.bindings.querySelectorAll("input[data-step-id]")].map((input) => ({
-    stepId: input.dataset.stepId,
-    name: input.value,
-  }));
+  const bindings = [...view.bindings.querySelectorAll("[data-step-id]")].map((row) => {
+    const choice = row.querySelector("select[data-secret-choice]");
+    const selected = choice.selectedOptions[0];
+    const common = {
+      stepId: row.dataset.stepId,
+      name: row.querySelector("input[data-variable-name]").value,
+    };
+    if (choice.value === "new") {
+      return {
+        ...common,
+        create: {
+          name: row.querySelector("input[data-secret-name]").value,
+          value: row.querySelector("input[data-secret-value]").value,
+        },
+      };
+    }
+    return {
+      ...common,
+      ...(choice.value
+        ? { secret: { id: choice.value, name: selected?.dataset.secretName ?? "" } }
+        : {}),
+    };
+  });
   const authSelections = [...view.authChoices.querySelectorAll("[data-auth-domain]")].map(
     (row) => ({
       domain: row.dataset.authDomain,
@@ -291,15 +310,55 @@ function renderSave(recording) {
     view.authChoices.append(row);
   }
   for (const step of recording.steps.filter((candidate) => candidate.needsSecret === true)) {
-    const label = document.createElement("label");
-    label.textContent = `${step.label} — secret Variable`;
-    const input = document.createElement("input");
-    input.dataset.stepId = step.id;
-    input.setAttribute("list", "secret-variables");
-    input.placeholder = "password";
-    input.autocomplete = "off";
-    label.append(input);
-    view.bindings.append(label);
+    const row = document.createElement("div");
+    row.className = "secret-binding";
+    row.dataset.stepId = step.id;
+
+    const variableLabel = document.createElement("label");
+    variableLabel.textContent = `${step.label} — Variable name`;
+    const variable = document.createElement("input");
+    variable.dataset.variableName = "";
+    variable.setAttribute("list", "secret-variables");
+    variable.placeholder = "password";
+    variable.autocomplete = "off";
+    variableLabel.append(variable);
+
+    const secretLabel = document.createElement("label");
+    secretLabel.textContent = "Secret";
+    const choice = document.createElement("select");
+    choice.dataset.secretChoice = "";
+    choice.append(new Option("Choose a Secret", ""));
+    for (const secret of recording.secrets ?? []) {
+      const option = new Option(secret.name, secret.id);
+      option.dataset.secretName = secret.name;
+      choice.append(option);
+    }
+    choice.append(new Option("Create a new Secret", "new"));
+    secretLabel.append(choice);
+
+    const create = document.createElement("div");
+    create.className = "secret-create";
+    create.hidden = true;
+    const nameLabel = document.createElement("label");
+    nameLabel.textContent = "New Secret name";
+    const name = document.createElement("input");
+    name.dataset.secretName = "";
+    name.autocomplete = "off";
+    nameLabel.append(name);
+    const valueLabel = document.createElement("label");
+    valueLabel.textContent = "Value";
+    const value = document.createElement("input");
+    value.type = "password";
+    value.dataset.secretValue = "";
+    value.autocomplete = "new-password";
+    valueLabel.append(value);
+    create.append(nameLabel, valueLabel);
+    choice.addEventListener("change", () => {
+      create.hidden = choice.value !== "new";
+    });
+
+    row.append(variableLabel, secretLabel, create);
+    view.bindings.append(row);
   }
 }
 

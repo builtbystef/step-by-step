@@ -4326,6 +4326,50 @@ export type CheckpointRecordingSessionResponses = {
 
 export type CheckpointRecordingSessionResponse = CheckpointRecordingSessionResponses[keyof CheckpointRecordingSessionResponses];
 
+export type CreateRecordingSecretData = {
+    body: CreateSecret;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/recording-sessions/{session_id}/secrets';
+};
+
+export type CreateRecordingSecretErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Conflict
+     */
+    409: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateRecordingSecretError = CreateRecordingSecretErrors[keyof CreateRecordingSecretErrors];
+
+export type CreateRecordingSecretResponses = {
+    /**
+     * Successful Response
+     */
+    201: SecretIdentity;
+};
+
+export type CreateRecordingSecretResponse = CreateRecordingSecretResponses[keyof CreateRecordingSecretResponses];
+
 export type RecordingAuthStateOptionsData = {
     body: AuthStateHosts;
     headers?: {

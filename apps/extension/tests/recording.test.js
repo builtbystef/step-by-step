@@ -56,8 +56,16 @@ describe("binding password Steps before finalizing", () => {
       bindSecretSteps(
         [password("one"), password("two")],
         [
-          { stepId: "one", name: "existing" },
-          { stepId: "two", name: "new_secret" },
+          {
+            stepId: "one",
+            name: "existing",
+            secret: { id: "secret-1", name: "Existing password" },
+          },
+          {
+            stepId: "two",
+            name: "new_secret",
+            secret: { id: "secret-2", name: "New password" },
+          },
         ],
         [
           { name: "plain", secret: false },
@@ -81,8 +89,18 @@ describe("binding password Steps before finalizing", () => {
       ],
       variables: [
         { name: "plain", secret: false },
-        { name: "existing", secret: true },
-        { name: "new_secret", secret: true },
+        {
+          name: "existing",
+          secret: true,
+          secretId: "secret-1",
+          secretName: "Existing password",
+        },
+        {
+          name: "new_secret",
+          secret: true,
+          secretId: "secret-2",
+          secretName: "New password",
+        },
       ],
     });
   });
@@ -91,17 +109,60 @@ describe("binding password Steps before finalizing", () => {
     ["an unbound Step", [], "Bind every password Step before saving."],
     [
       "an invalid new name",
-      [{ stepId: "one", name: "not a name" }],
+      [
+        {
+          stepId: "one",
+          name: "not a name",
+          secret: { id: "secret-1", name: "Password" },
+        },
+      ],
       "Choose a valid Variable name.",
     ],
     [
       "an existing plain Variable",
-      [{ stepId: "one", name: "plain" }],
+      [
+        {
+          stepId: "one",
+          name: "plain",
+          secret: { id: "secret-1", name: "Password" },
+        },
+      ],
       "A password Step needs a secret Variable.",
     ],
   ])("refuses %s", (_case, bindings, message) => {
     expect(() => bindSecretSteps([password("one")], bindings, [{ name: "plain" }])).toThrow(
       message,
     );
+  });
+
+  it("requires a vault Secret and can bind an existing secret Variable", () => {
+    expect(() =>
+      bindSecretSteps(
+        [password("one")],
+        [{ stepId: "one", name: "password" }],
+        [{ name: "password", secret: true }],
+      ),
+    ).toThrow("Choose or create a Secret for every password Step.");
+
+    expect(
+      bindSecretSteps(
+        [password("one")],
+        [
+          {
+            stepId: "one",
+            name: "password",
+            secret: { id: "vault-id", name: "Portal password" },
+          },
+        ],
+        [{ name: "password", secret: true }],
+      ).variables,
+    ).toEqual([
+      {
+        name: "password",
+        secret: true,
+        secretId: "vault-id",
+        secretName: "Portal password",
+      },
+    ]);
   });
 });
