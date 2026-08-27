@@ -49,6 +49,7 @@ describe("the extension package", () => {
       "debugger",
       "webNavigation",
       "downloads",
+      "cookies",
     ]);
   });
 

@@ -42,7 +42,7 @@ import {
 } from "./lib/handshake.js";
 import { originPattern, readInstanceUrl } from "./lib/instance.js";
 import { pageBridge } from "./lib/page-bridge.js";
-import { bindSecretSteps } from "./lib/recording.js";
+import { bindSecretSteps, captureChoices } from "./lib/recording.js";
 
 /** The connected instance, in `storage.local`: it outlives the browser. */
 const CONNECTION_KEY = "connection";
@@ -133,7 +133,12 @@ chrome.permissions.onAdded.addListener((granted) => {
   void finishRecordingStart(granted.origins ?? []);
 });
 
+chrome.webNavigation.onBeforeNavigate.addListener((details) => {
+  if (details.frameId === 0) void enqueueRecording(captureOpenFrameStorage);
+});
+
 chrome.webNavigation.onCommitted.addListener((details) => {
+  void enqueueRecording(() => rememberVisitedHost(details));
   if (details.frameId === 0) void enqueueRecording(() => recordNavigation(details));
 });
 
@@ -194,7 +199,7 @@ async function answer(message, sender) {
     case "discard-recording":
       return discardRecording();
     case "finalize-recording":
-      return finalizeRecording(message.bindings);
+      return finalizeRecording(message.bindings, message.authSelections);
     case "arm-extract":
       return armExtract(message);
     case "disconnect":
@@ -247,6 +252,9 @@ async function acceptRecordingPageMessage(message, sender) {
         workflowName: message.workflowName,
         variables: message.variables,
         steps: [],
+        visitedHosts: [],
+        storageByOrigin: {},
+        authChoices: [],
         checkpointSeq: 0,
       },
     });
@@ -723,8 +731,10 @@ async function startRecording(message) {
   await debuggerCommand(tab.id, "Accessibility.enable");
   active.tabId = tab.id;
   active.state = "recording";
+  active.visitedHosts = [new URL(message.targetUrl).hostname];
   await chrome.storage.local.set({ [RECORDING_KEY]: active });
   await injectRecorder(tab.id);
+  await captureOpenFrameStorage();
   return { started: true };
 }
 
@@ -751,6 +761,10 @@ async function armExtract(message) {
 async function stopRecording() {
   const active = await activeRecording();
   if (active?.state === "recording") {
+    await captureOpenFrameStorage();
+    const fresh = await activeRecording();
+    if (fresh !== null) Object.assign(active, fresh);
+    active.authChoices = await loadAuthChoices(active);
     active.state = "ended";
     active.endedReason = "stopped";
     active.endedAt = new Date().toISOString();
@@ -773,7 +787,7 @@ async function discardRecording() {
   return { discarded: true };
 }
 
-async function finalizeRecording(bindings) {
+async function finalizeRecording(bindings, authSelections = []) {
   const active = await activeRecording();
   if (active === null || active.state !== "ended" || !Array.isArray(bindings)) {
     return { saved: false, reason: "not-ended" };
@@ -783,6 +797,13 @@ async function finalizeRecording(bindings) {
     document = bindSecretSteps(active.steps, bindings, active.variables ?? []);
   } catch (failure) {
     return { saved: false, reason: "needs-secret", message: failure.message };
+  }
+  const selected = Array.isArray(authSelections)
+    ? authSelections.filter((choice) => choice.checked === true)
+    : [];
+  if (selected.length > 0) {
+    const uploaded = await uploadAuthStates(active, selected);
+    if (!uploaded.ok) return uploaded.answer;
   }
   let response;
   try {
@@ -810,6 +831,7 @@ async function finalizeRecording(bindings) {
 async function endRecordingAfterDetach(tabId) {
   const active = await activeRecording();
   if (active?.tabId !== tabId || active.state !== "recording") return;
+  active.authChoices = await loadAuthChoices(active);
   active.state = "ended";
   active.endedReason = "debugger-detached";
   active.endedAt = new Date().toISOString();
@@ -983,6 +1005,135 @@ async function recordRecentClickAsDownload() {
   step.payload = { target: step.payload.target };
   delete active.recentClick;
   await checkpoint(active);
+}
+
+async function rememberVisitedHost(details) {
+  const active = await activeRecording();
+  if (active === null || active.tabId !== details.tabId || !details.url.startsWith("http")) return;
+  const host = new URL(details.url).hostname;
+  active.visitedHosts ??= [];
+  if (!active.visitedHosts.includes(host)) active.visitedHosts.push(host);
+  await chrome.storage.local.set({ [RECORDING_KEY]: active });
+}
+
+async function captureOpenFrameStorage() {
+  const active = await activeRecording();
+  if (active?.state !== "recording" || typeof active.tabId !== "number") return;
+  let frames;
+  try {
+    frames = await chrome.webNavigation.getAllFrames({ tabId: active.tabId });
+  } catch {
+    return;
+  }
+  for (const frame of frames ?? []) {
+    try {
+      const snapshot = await chrome.tabs.sendMessage(
+        active.tabId,
+        { type: "recorder-read-storage" },
+        { frameId: frame.frameId },
+      );
+      if (typeof snapshot?.origin !== "string" || !snapshot.origin.startsWith("http")) continue;
+      active.storageByOrigin ??= {};
+      active.storageByOrigin[snapshot.origin] = {
+        localStorage: snapshot.localStorage ?? [],
+        sessionStorage: snapshot.sessionStorage ?? [],
+      };
+      const host = new URL(snapshot.origin).hostname;
+      active.visitedHosts ??= [];
+      if (!active.visitedHosts.includes(host)) active.visitedHosts.push(host);
+    } catch {
+      // A navigation can destroy a frame between listing and reading it.
+    }
+  }
+  await chrome.storage.local.set({ [RECORDING_KEY]: active });
+}
+
+async function loadAuthChoices(active) {
+  if ((active.visitedHosts ?? []).length === 0) return [];
+  try {
+    const response = await fetch(
+      `${active.backendOrigin}/api/recording-sessions/${encodeURIComponent(active.sessionId)}/auth-state-options`,
+      {
+        method: "POST",
+        headers: { Authorization: active.token, "Content-Type": "application/json" },
+        body: JSON.stringify({ hosts: active.visitedHosts }),
+      },
+    );
+    if (response.status === 401) await markTokenExpired(active);
+    if (!response.ok) return [];
+    return captureChoices(await response.json());
+  } catch {
+    return [];
+  }
+}
+
+function belongsToDomain(origin, domain) {
+  const host = new URL(origin).hostname;
+  return host === domain || host.endsWith(`.${domain}`);
+}
+
+function chromeCookie(cookie) {
+  const sameSites = { lax: "Lax", strict: "Strict", no_restriction: "None" };
+  const { expirationDate, sameSite, ...rest } = cookie;
+  return {
+    ...rest,
+    ...(typeof expirationDate === "number" ? { expires: expirationDate } : {}),
+    ...(sameSites[sameSite] ? { sameSite: sameSites[sameSite] } : {}),
+  };
+}
+
+async function uploadAuthStates(active, selected) {
+  const captures = [];
+  for (const choice of selected) {
+    const origins = Object.entries(active.storageByOrigin ?? {}).filter(([origin]) =>
+      belongsToDomain(origin, choice.domain),
+    );
+    const cookieGroups = await Promise.all([
+      chrome.cookies.getAll({ domain: choice.domain }),
+      ...origins.map(([origin]) => chrome.cookies.getAll({ url: `${origin}/` })),
+    ]);
+    const cookies = [
+      ...new Map(
+        cookieGroups
+          .flat()
+          .map((cookie) => [
+            `${cookie.storeId}:${cookie.partitionKey?.topLevelSite ?? ""}:${cookie.domain}:${cookie.path}:${cookie.name}`,
+            cookie,
+          ]),
+      ).values(),
+    ];
+    captures.push({
+      domain: choice.domain,
+      scope: choice.scope === "personal" ? "personal" : "organization",
+      cookies: cookies.map(chromeCookie),
+      origins: origins.map(([origin, values]) => ({
+        origin,
+        local_storage: values.localStorage ?? [],
+      })),
+      session_storage: origins.map(([origin, values]) => ({
+        origin,
+        items: values.sessionStorage ?? [],
+      })),
+    });
+  }
+  try {
+    const response = await fetch(
+      `${active.backendOrigin}/api/recording-sessions/${encodeURIComponent(active.sessionId)}/auth-states`,
+      {
+        method: "POST",
+        headers: { Authorization: active.token, "Content-Type": "application/json" },
+        body: JSON.stringify({ captures }),
+      },
+    );
+    if (response.status === 401) {
+      await markTokenExpired(active);
+      return { ok: false, answer: { saved: false, reason: "token-expired" } };
+    }
+    if (!response.ok) return { ok: false, answer: { saved: false, reason: "refused" } };
+    return { ok: true };
+  } catch {
+    return { ok: false, answer: { saved: false, reason: "unreachable" } };
+  }
 }
 
 async function recordNavigation(details) {

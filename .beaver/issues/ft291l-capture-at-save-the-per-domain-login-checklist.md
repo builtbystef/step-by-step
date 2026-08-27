@@ -1,14 +1,15 @@
 ---
 id: ft291l
 title: 'Capture at save: the per-domain login checklist'
-state: todo
+state: done
+assignee: agent
 priority: medium
 depends_on:
     - gl1cnk
     - 7vuup5
 parent: 54i6da
 created: 2026-08-14T06:15:34Z
-updated: 2026-08-15T04:32:52Z
+updated: 2026-08-27T04:38:08Z
 ---
 
 ## What to build
@@ -32,3 +33,9 @@ POST /api/recording-sessions/{sessionId}/auth-states
 - [ ] A cookie's partition key survives into the stored blob.
 - [ ] One domain captured for the Organization and another just-for-me lands as an org row and a personal row for the recording member; re-capturing one at the same destination in a later recording replaces that row's content on the same row id with `created_at` unchanged, leaving the other layer untouched.
 - [ ] The endpoint honors the recording-session credential rules: a foreign or finalized session's credential is rejected.
+
+## Notes
+
+**agent** — 2026-08-27T04:38:08Z
+
+Completed recording-save Auth State capture. The extension now tracks every visited host, snapshots localStorage and sessionStorage from recorded frames, asks the backend to collapse hosts with the public-suffix rules, and renders an unchecked per-domain checklist whose checked default is the Organization and whose destination-specific replacement hint uses the existing saved date. Checked rows capture chrome.cookies data (including httpOnly and partitionKey) plus both storage kinds and upload to the selected Organization or Personal Override layer; no checked rows make no capture request. The recording-capability API now returns capture options and atomically upserts captures in the session Workflow's Organization and recording member scope, retaining row id and created_at while rejecting foreign and finalized capabilities. Updated the OpenAPI contract/client and architecture. Verified with vp check, direct ruff/ty checks, the 499-test TypeScript fast tier, the Python fast tier, all 13 recorder browser tests, and the recording-session real-Postgres integration tests.

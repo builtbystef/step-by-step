@@ -2,10 +2,15 @@
 
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from conftest import Account
+from sqlalchemy import select
+from step_by_step_api.auth_states.models import AuthState
+from step_by_step_api.auth_states.store import open_blob
+from step_by_step_api.workflows.models import Workflow
+from step_by_step_core.db import session_scope
 
 pytestmark = pytest.mark.integration
 
@@ -232,6 +237,161 @@ def test_a_repick_finalize_changes_only_the_scoped_steps_candidates(
     assert patched.json()["steps"][1] == before["steps"][1]
     before["steps"][0]["payload"]["target"]["candidates"] = fresh
     assert patched.json() == before
+
+
+def auth_blob(domain: str, value: str) -> dict[str, object]:
+    return {
+        "domain": domain,
+        "cookies": [
+            {
+                "name": "session",
+                "value": value,
+                "domain": f".{domain}",
+                "httpOnly": True,
+                "secure": True,
+                "sameSite": "Lax",
+                "partitionKey": {"topLevelSite": f"https://{domain}"},
+            }
+        ],
+        "origins": [
+            {
+                "origin": f"https://app.{domain}",
+                "local_storage": [{"name": "local", "value": value}],
+            }
+        ],
+        "session_storage": [
+            {
+                "origin": f"https://app.{domain}",
+                "items": [{"name": "session", "value": value}],
+            }
+        ],
+    }
+
+
+def test_capture_options_and_upload_use_the_recording_member_and_organization(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    workflow_id = a_workflow(account)
+    first = mint(account, workflow_id).json()
+
+    options = account.client.post(
+        f"/api/recording-sessions/{first['session_id']}/auth-state-options",
+        headers=token_headers(first["token"]),
+        json={
+            "hosts": ["www.example.co.uk", "app.example.co.uk", "accounts.google.com"]
+        },
+    )
+    assert options.status_code == 200, options.text
+    assert options.json() == [
+        {
+            "domain": "example.co.uk",
+            "organization_saved_at": None,
+            "personal_saved_at": None,
+        },
+        {
+            "domain": "google.com",
+            "organization_saved_at": None,
+            "personal_saved_at": None,
+        },
+    ]
+
+    captured = account.client.post(
+        f"/api/recording-sessions/{first['session_id']}/auth-states",
+        headers=token_headers(first["token"]),
+        json={
+            "captures": [
+                {**auth_blob("example.co.uk", "org-one"), "scope": "organization"},
+                {**auth_blob("example.co.uk", "mine-example"), "scope": "personal"},
+                {**auth_blob("google.com", "mine-one"), "scope": "personal"},
+            ]
+        },
+    )
+    assert captured.status_code == 204, captured.text
+    existing = account.client.post(
+        f"/api/recording-sessions/{first['session_id']}/auth-state-options",
+        headers=token_headers(first["token"]),
+        json={"hosts": ["app.example.co.uk"]},
+    ).json()[0]
+    assert existing["organization_saved_at"] is not None
+    assert existing["personal_saved_at"] is not None
+
+    with session_scope() as db:
+        workflow = db.get_one(Workflow, UUID(workflow_id))
+        rows = list(
+            db.execute(
+                select(AuthState)
+                .where(AuthState.org_id == workflow.org_id)
+                .order_by(AuthState.domain)
+            ).scalars()
+        )
+        rows.sort(key=lambda row: (row.domain, row.user_id is not None))
+        assert [(row.domain, row.user_id is None) for row in rows] == [
+            ("example.co.uk", True),
+            ("example.co.uk", False),
+            ("google.com", False),
+        ]
+        org_blob = open_blob(rows[0])
+        assert org_blob.cookies[0].http_only is True
+        assert org_blob.cookies[0].partition_key == {
+            "topLevelSite": "https://example.co.uk"
+        }
+        assert org_blob.origins[0].local_storage[0].value == "org-one"
+        assert org_blob.session_storage[0].items[0].value == "org-one"
+        org_id = rows[0].id
+        untouched_ids = {rows[1].id, rows[2].id}
+        org_created_at = rows[0].created_at
+        org_scope = workflow.org_id
+
+    second = mint(account, workflow_id).json()
+    replaced = account.client.post(
+        f"/api/recording-sessions/{second['session_id']}/auth-states",
+        headers=token_headers(second["token"]),
+        json={
+            "captures": [
+                {**auth_blob("example.co.uk", "org-two"), "scope": "organization"}
+            ]
+        },
+    )
+    assert replaced.status_code == 204, replaced.text
+    with session_scope() as db:
+        rows = (
+            db.execute(select(AuthState).where(AuthState.org_id == org_scope))
+            .scalars()
+            .all()
+        )
+        by_id = {row.id: row for row in rows}
+        assert set(by_id) == {org_id, *untouched_ids}
+        assert by_id[org_id].created_at == org_created_at
+        assert open_blob(by_id[org_id]).cookies[0].value == "org-two"
+        assert {
+            open_blob(by_id[row_id]).cookies[0].value for row_id in untouched_ids
+        } == {"mine-example", "mine-one"}
+
+    finalized = finalize(
+        account, second["session_id"], second["token"], steps=[], variables=[]
+    )
+    assert finalized.status_code == 200, finalized.text
+    refused = account.client.post(
+        f"/api/recording-sessions/{second['session_id']}/auth-states",
+        headers=token_headers(second["token"]),
+        json={
+            "captures": [
+                {**auth_blob("example.co.uk", "too-late"), "scope": "organization"}
+            ]
+        },
+    )
+    assert refused.status_code == 409
+    foreign = account.client.post(
+        f"/api/recording-sessions/{first['session_id']}/auth-states",
+        headers=token_headers(second["token"]),
+        json={
+            "captures": [
+                {**auth_blob("example.co.uk", "foreign"), "scope": "organization"}
+            ]
+        },
+    )
+    assert foreign.status_code == 401
 
 
 def test_a_token_opens_only_the_session_it_was_minted_for(

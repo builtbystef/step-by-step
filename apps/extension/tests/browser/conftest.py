@@ -72,11 +72,13 @@ class RecordingSink:
         self.condition = threading.Condition()
         self.checkpoints: list[dict[str, Any]] = []
         self.finalizations: list[dict[str, Any]] = []
+        self.auth_captures: list[dict[str, Any]] = []
 
     def clear(self) -> None:
         with self.condition:
             self.checkpoints.clear()
             self.finalizations.clear()
+            self.auth_captures.clear()
 
     def append(self, checkpoint: dict[str, Any]) -> None:
         with self.condition:
@@ -95,6 +97,19 @@ class RecordingSink:
             )
             assert ready
             return deepcopy(self.finalizations[-1])
+
+    def capture_auth(self, body: dict[str, Any]) -> None:
+        with self.condition:
+            self.auth_captures.append(deepcopy(body))
+            self.condition.notify_all()
+
+    def wait_for_auth_capture(self) -> dict[str, Any]:
+        with self.condition:
+            ready = self.condition.wait_for(
+                lambda: bool(self.auth_captures), timeout=10
+            )
+            assert ready
+            return deepcopy(self.auth_captures[-1])
 
     def wait_for_steps(self, count: int) -> list[dict[str, Any]]:
         with self.condition:
@@ -144,6 +159,25 @@ class SiteHandler(http.server.SimpleHTTPRequestHandler):
         except json.JSONDecodeError:
             asked = {}
         if self.path.startswith("/api/recording-sessions/") and self.path.endswith(
+            "/auth-state-options"
+        ):
+            body = json.dumps(
+                [
+                    {
+                        "domain": "127.0.0.1",
+                        "organization_saved_at": None,
+                        "personal_saved_at": None,
+                    }
+                ]
+            ).encode()
+            status = 200
+        elif self.path.startswith("/api/recording-sessions/") and self.path.endswith(
+            "/auth-states"
+        ):
+            RECORDING_SINK.capture_auth(asked)
+            body = b"{}"
+            status = 200
+        elif self.path.startswith("/api/recording-sessions/") and self.path.endswith(
             "/checkpoint"
         ):
             RECORDING_SINK.append(asked)
@@ -237,7 +271,10 @@ def connected_browser(
     granted = tmp_path_factory.mktemp("granted-package")
     shutil.copytree(PACKAGE, granted, dirs_exist_ok=True)
     manifest = json.loads((granted / "manifest.json").read_text())
-    manifest["host_permissions"] = [f"{fixture_site}/*", f"{insecure_site}/*"]
+    manifest["host_permissions"] = [
+        f"{fixture_site.rsplit(':', 1)[0]}/*",
+        f"{insecure_site.rsplit(':', 1)[0]}/*",
+    ]
     (granted / "manifest.json").write_text(json.dumps(manifest, indent=2))
 
     context = playwright_driver.chromium.launch_persistent_context(

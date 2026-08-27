@@ -175,6 +175,39 @@ export type AuthStateCandidateRecord = {
 };
 
 /**
+ * AuthStateCapture
+ */
+export type AuthStateCapture = {
+    /**
+     * Domain
+     */
+    domain: string;
+    /**
+     * Cookies
+     */
+    cookies: Array<Cookie>;
+    /**
+     * Origins
+     */
+    origins: Array<OriginStorage>;
+    /**
+     * Session Storage
+     */
+    session_storage: Array<SessionStorage>;
+    scope: AuthStateScope;
+};
+
+/**
+ * AuthStateCaptures
+ */
+export type AuthStateCaptures = {
+    /**
+     * Captures
+     */
+    captures: Array<AuthStateCapture>;
+};
+
+/**
  * AuthStateConsentRequest
  */
 export type AuthStateConsentRequest = {
@@ -189,6 +222,34 @@ export type AuthStateConsentRequest = {
  * AuthStateConsentScope
  */
 export type AuthStateConsentScope = 'organization' | 'personal';
+
+/**
+ * AuthStateHosts
+ */
+export type AuthStateHosts = {
+    /**
+     * Hosts
+     */
+    hosts: Array<string>;
+};
+
+/**
+ * AuthStateOption
+ */
+export type AuthStateOption = {
+    /**
+     * Domain
+     */
+    domain: string;
+    /**
+     * Organization Saved At
+     */
+    organization_saved_at: string | null;
+    /**
+     * Personal Saved At
+     */
+    personal_saved_at: string | null;
+};
 
 /**
  * AuthStateScope
@@ -568,6 +629,51 @@ export type ControlIntervalRecord = {
      * Ended At
      */
     ended_at: string | null;
+};
+
+/**
+ * Cookie
+ *
+ * The common Chrome and Playwright cookie fields, preserving newer fields.
+ */
+export type Cookie = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Value
+     */
+    value: string;
+    /**
+     * Domain
+     */
+    domain: string;
+    /**
+     * Path
+     */
+    path?: string;
+    /**
+     * Expires
+     */
+    expires?: number | null;
+    /**
+     * Httponly
+     */
+    httpOnly?: boolean;
+    /**
+     * Secure
+     */
+    secure?: boolean;
+    /**
+     * Samesite
+     */
+    sameSite?: string | null;
+    /**
+     * Partitionkey
+     */
+    partitionKey?: unknown | null;
+    [key: string]: unknown;
 };
 
 /**
@@ -1242,6 +1348,20 @@ export type OrganizationRequest = {
 };
 
 /**
+ * OriginStorage
+ */
+export type OriginStorage = {
+    /**
+     * Origin
+     */
+    origin: string;
+    /**
+     * Local Storage
+     */
+    local_storage: Array<StorageItem>;
+};
+
+/**
  * OverrideSummary
  */
 export type OverrideSummary = {
@@ -1826,6 +1946,20 @@ export type SelectorCandidate = {
 };
 
 /**
+ * SessionStorage
+ */
+export type SessionStorage = {
+    /**
+     * Origin
+     */
+    origin: string;
+    /**
+     * Items
+     */
+    items: Array<StorageItem>;
+};
+
+/**
  * SignedIn
  *
  * What signing in tells the screen: whether this visit made the account.
@@ -1938,6 +2072,20 @@ export type StepResultRecord = {
  * StepResultStatus
  */
 export type StepResultStatus = 'passed' | 'failed' | 'skipped';
+
+/**
+ * StorageItem
+ */
+export type StorageItem = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Value
+     */
+    value: string;
+};
 
 /**
  * StrandedScheduleRef
@@ -4177,6 +4325,96 @@ export type CheckpointRecordingSessionResponses = {
 };
 
 export type CheckpointRecordingSessionResponse = CheckpointRecordingSessionResponses[keyof CheckpointRecordingSessionResponses];
+
+export type RecordingAuthStateOptionsData = {
+    body: AuthStateHosts;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/recording-sessions/{session_id}/auth-state-options';
+};
+
+export type RecordingAuthStateOptionsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Conflict
+     */
+    409: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RecordingAuthStateOptionsError = RecordingAuthStateOptionsErrors[keyof RecordingAuthStateOptionsErrors];
+
+export type RecordingAuthStateOptionsResponses = {
+    /**
+     * Response Recordingauthstateoptions
+     *
+     * Successful Response
+     */
+    200: Array<AuthStateOption>;
+};
+
+export type RecordingAuthStateOptionsResponse = RecordingAuthStateOptionsResponses[keyof RecordingAuthStateOptionsResponses];
+
+export type CaptureRecordingAuthStatesData = {
+    body: AuthStateCaptures;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Session Id
+         */
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/recording-sessions/{session_id}/auth-states';
+};
+
+export type CaptureRecordingAuthStatesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Conflict
+     */
+    409: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CaptureRecordingAuthStatesError = CaptureRecordingAuthStatesErrors[keyof CaptureRecordingAuthStatesErrors];
+
+export type CaptureRecordingAuthStatesResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type CaptureRecordingAuthStatesResponse = CaptureRecordingAuthStatesResponses[keyof CaptureRecordingAuthStatesResponses];
 
 export type FinalizeRecordingSessionData = {
     body: FinalizeRequest;

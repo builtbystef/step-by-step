@@ -158,7 +158,20 @@
   }
 
   chrome.runtime.onMessage.addListener((message, _sender, respond) => {
-    if (message?.type === "recorder-arm-extract") {
+    if (message?.type === "recorder-read-storage") {
+      const entries = (storage) => {
+        try {
+          return Object.entries(storage).map(([name, value]) => ({ name, value }));
+        } catch {
+          return [];
+        }
+      };
+      respond({
+        origin: location.origin,
+        localStorage: entries(localStorage),
+        sessionStorage: entries(sessionStorage),
+      });
+    } else if (message?.type === "recorder-arm-extract") {
       extract = message.extract;
       respond({ armed: true });
     } else if (message?.type === "recorder-warning" && message.unsupported) {

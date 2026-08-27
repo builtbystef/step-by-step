@@ -65,10 +65,21 @@ label {
   font-weight: 600;
 }
 
-#secret-bindings {
+#secret-bindings,
+#auth-state-choices,
+.auth-state-choice {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.auth-state-choice > label {
+  display: block;
+  font-weight: 400;
+}
+
+.auth-state-choice select {
+  align-self: flex-start;
 }
 
 .button-row {

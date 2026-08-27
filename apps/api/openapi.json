@@ -2974,6 +2974,177 @@
         }
       }
     },
+    "/api/recording-sessions/{session_id}/auth-state-options": {
+      "post": {
+        "summary": "Auth State Options",
+        "description": "Collapse visited hosts and describe both destinations for the checklist.",
+        "operationId": "recordingAuthStateOptions",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthStateHosts"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuthStateOption"
+                  },
+                  "title": "Response Recordingauthstateoptions"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/recording-sessions/{session_id}/auth-states": {
+      "post": {
+        "summary": "Capture Auth States",
+        "description": "Store only the destinations explicitly selected at recording save.",
+        "operationId": "captureRecordingAuthStates",
+        "parameters": [
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthStateCaptures"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/recording-sessions/{session_id}/finalize": {
       "post": {
         "summary": "Finalize Session",
@@ -7686,6 +7857,63 @@
         ],
         "title": "AuthStateCandidateRecord"
       },
+      "AuthStateCapture": {
+        "properties": {
+          "domain": {
+            "type": "string",
+            "title": "Domain"
+          },
+          "cookies": {
+            "items": {
+              "$ref": "#/components/schemas/Cookie"
+            },
+            "type": "array",
+            "title": "Cookies"
+          },
+          "origins": {
+            "items": {
+              "$ref": "#/components/schemas/OriginStorage"
+            },
+            "type": "array",
+            "title": "Origins"
+          },
+          "session_storage": {
+            "items": {
+              "$ref": "#/components/schemas/SessionStorage"
+            },
+            "type": "array",
+            "title": "Session Storage"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/AuthStateScope"
+          }
+        },
+        "type": "object",
+        "required": [
+          "domain",
+          "cookies",
+          "origins",
+          "session_storage",
+          "scope"
+        ],
+        "title": "AuthStateCapture"
+      },
+      "AuthStateCaptures": {
+        "properties": {
+          "captures": {
+            "items": {
+              "$ref": "#/components/schemas/AuthStateCapture"
+            },
+            "type": "array",
+            "title": "Captures"
+          }
+        },
+        "type": "object",
+        "required": [
+          "captures"
+        ],
+        "title": "AuthStateCaptures"
+      },
       "AuthStateConsentRequest": {
         "properties": {
           "domain": {
@@ -7710,6 +7938,61 @@
           "personal"
         ],
         "title": "AuthStateConsentScope"
+      },
+      "AuthStateHosts": {
+        "properties": {
+          "hosts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Hosts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hosts"
+        ],
+        "title": "AuthStateHosts"
+      },
+      "AuthStateOption": {
+        "properties": {
+          "domain": {
+            "type": "string",
+            "title": "Domain"
+          },
+          "organization_saved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Saved At"
+          },
+          "personal_saved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Personal Saved At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "domain",
+          "organization_saved_at",
+          "personal_saved_at"
+        ],
+        "title": "AuthStateOption"
       },
       "AuthStateScope": {
         "type": "string",
@@ -8334,6 +8617,77 @@
           "ended_at"
         ],
         "title": "ControlIntervalRecord"
+      },
+      "Cookie": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "domain": {
+            "type": "string",
+            "title": "Domain"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "default": "/"
+          },
+          "expires": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires"
+          },
+          "httpOnly": {
+            "type": "boolean",
+            "title": "Httponly",
+            "default": false
+          },
+          "secure": {
+            "type": "boolean",
+            "title": "Secure",
+            "default": false
+          },
+          "sameSite": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Samesite"
+          },
+          "partitionKey": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Partitionkey"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name",
+          "value",
+          "domain"
+        ],
+        "title": "Cookie",
+        "description": "The common Chrome and Playwright cookie fields, preserving newer fields."
       },
       "CreateBatch": {
         "properties": {
@@ -9433,6 +9787,27 @@
         "title": "OrganizationRequest",
         "description": "What an Organization is made and renamed with: a name people read."
       },
+      "OriginStorage": {
+        "properties": {
+          "origin": {
+            "type": "string",
+            "title": "Origin"
+          },
+          "local_storage": {
+            "items": {
+              "$ref": "#/components/schemas/StorageItem"
+            },
+            "type": "array",
+            "title": "Local Storage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "origin",
+          "local_storage"
+        ],
+        "title": "OriginStorage"
+      },
       "OverrideSummary": {
         "properties": {
           "updated_at": {
@@ -10531,6 +10906,27 @@
         "title": "SelectorCandidate",
         "description": "One way of finding an element, verified unique when it was recorded."
       },
+      "SessionStorage": {
+        "properties": {
+          "origin": {
+            "type": "string",
+            "title": "Origin"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/StorageItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "origin",
+          "items"
+        ],
+        "title": "SessionStorage"
+      },
       "SignedIn": {
         "properties": {
           "created": {
@@ -10728,6 +11124,24 @@
           "skipped"
         ],
         "title": "StepResultStatus"
+      },
+      "StorageItem": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "value"
+        ],
+        "title": "StorageItem"
       },
       "StrandedScheduleRef": {
         "properties": {

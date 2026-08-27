@@ -4,16 +4,21 @@ import hashlib
 import re
 import secrets
 from copy import deepcopy
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Header, Response
 from pydantic import BaseModel, Field, ValidationError, model_validator
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from step_by_step_api import clock
 from step_by_step_api.accounts.orgs import ActiveMembership
+from step_by_step_api.auth_states.blob import AuthStateBlob
+from step_by_step_api.auth_states.domains import registrable_domain
+from step_by_step_api.auth_states.models import AuthState
+from step_by_step_api.auth_states.routes import AuthStateScope
+from step_by_step_api.auth_states.store import store
 from step_by_step_api.db import SessionDep
 from step_by_step_api.errors import ApiError, errors
 from step_by_step_api.extension import package
@@ -23,6 +28,7 @@ from step_by_step_api.workflows.document import SelectorCandidate, WorkflowDocum
 from step_by_step_api.workflows.models import (
     RecordingMode,
     RecordingSession,
+    Workflow,
     WorkflowDraft,
 )
 from step_by_step_api.workflows.routes import draft_of
@@ -199,6 +205,90 @@ def save_checkpoint(
     if session.checkpoint_seq is None or checkpoint.seq > session.checkpoint_seq:
         session.checkpoint_seq = checkpoint.seq
         session.checkpoint_steps = checkpoint.steps
+    db.commit()
+    return Response(status_code=204)
+
+
+class AuthStateHosts(BaseModel):
+    hosts: list[str]
+
+
+class AuthStateOption(BaseModel):
+    domain: str
+    organization_saved_at: datetime | None
+    personal_saved_at: datetime | None
+
+
+@router.post(
+    "/api/recording-sessions/{session_id}/auth-state-options",
+    operation_id="recordingAuthStateOptions",
+    responses=errors(401, 409),
+)
+def auth_state_options(
+    session_id: UUID,
+    asked: AuthStateHosts,
+    db: SessionDep,
+    authorization: Annotated[str | None, Header()] = None,
+) -> list[AuthStateOption]:
+    """Collapse visited hosts and describe both destinations for the checklist."""
+    session = authorized_session(db, session_id, authorization)
+    domains = sorted({registrable_domain(host) for host in asked.hosts})
+    org_id = db.execute(
+        select(Workflow.org_id).where(Workflow.id == session.workflow_id)
+    ).scalar_one()
+    existing = db.execute(
+        select(AuthState).where(
+            AuthState.org_id == org_id,
+            AuthState.domain.in_(domains),
+            or_(AuthState.user_id.is_(None), AuthState.user_id == session.user_id),
+        )
+    ).scalars()
+    by_destination = {(row.domain, row.user_id): row.updated_at for row in existing}
+    return [
+        AuthStateOption(
+            domain=domain,
+            organization_saved_at=by_destination.get((domain, None)),
+            personal_saved_at=by_destination.get((domain, session.user_id)),
+        )
+        for domain in domains
+    ]
+
+
+class AuthStateCapture(AuthStateBlob):
+    scope: AuthStateScope
+
+
+class AuthStateCaptures(BaseModel):
+    captures: list[AuthStateCapture]
+
+
+@router.post(
+    "/api/recording-sessions/{session_id}/auth-states",
+    operation_id="captureRecordingAuthStates",
+    status_code=204,
+    responses=errors(401, 409),
+)
+def capture_auth_states(
+    session_id: UUID,
+    asked: AuthStateCaptures,
+    db: SessionDep,
+    authorization: Annotated[str | None, Header()] = None,
+) -> Response:
+    """Store only the destinations explicitly selected at recording save."""
+    session = authorized_session(db, session_id, authorization)
+    org_id = db.execute(
+        select(Workflow.org_id).where(Workflow.id == session.workflow_id)
+    ).scalar_one()
+    for capture in asked.captures:
+        destination = (
+            session.user_id if capture.scope is AuthStateScope.PERSONAL else None
+        )
+        store(
+            db,
+            org_id,
+            destination,
+            AuthStateBlob.model_validate(capture.model_dump(exclude={"scope"})),
+        )
     db.commit()
     return Response(status_code=204)
 

@@ -18,6 +18,7 @@
  */
 
 import { originPattern, readInstanceUrl } from "./lib/instance.js";
+import { replacementHint } from "./lib/recording.js";
 
 const ADDRESS_PROBLEMS = {
   empty: "Enter the address of your Step by Step instance.",
@@ -62,6 +63,7 @@ const view = {
   saveSummary: document.querySelector("#save-summary"),
   bindings: document.querySelector("#secret-bindings"),
   secretVariables: document.querySelector("#secret-variables"),
+  authChoices: document.querySelector("#auth-state-choices"),
 };
 
 // Read the tab while the popup is opening. The later click must call
@@ -101,7 +103,14 @@ document.querySelector("#save-button").addEventListener("click", () => {
     stepId: input.dataset.stepId,
     name: input.value,
   }));
-  void ask("finalize-recording", { bindings }).then((answer) => {
+  const authSelections = [...view.authChoices.querySelectorAll("[data-auth-domain]")].map(
+    (row) => ({
+      domain: row.dataset.authDomain,
+      checked: row.querySelector('input[type="checkbox"]').checked,
+      scope: row.querySelector("select").value,
+    }),
+  );
+  void ask("finalize-recording", { bindings, authSelections }).then((answer) => {
     if (answer.saved === true) {
       void ask("connection").then(show);
     } else {
@@ -247,12 +256,39 @@ function renderSave(recording) {
   view.saveWorkflow.textContent = recording.workflowName;
   view.saveSummary.textContent = `${String(recording.steps.length)} Steps captured.`;
   view.bindings.replaceChildren();
+  view.authChoices.replaceChildren();
   view.secretVariables.replaceChildren();
   for (const variable of recording.variables ?? []) {
     if (variable.secret !== true) continue;
     const option = document.createElement("option");
     option.value = variable.name;
     view.secretVariables.append(option);
+  }
+  for (const choice of recording.authChoices ?? []) {
+    const row = document.createElement("div");
+    row.dataset.authDomain = choice.domain;
+    row.className = "auth-state-choice";
+    const consent = document.createElement("label");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    consent.append(
+      checkbox,
+      ` Save your login for ${choice.domain}? Future runs will start already signed in.`,
+    );
+    const destination = document.createElement("select");
+    destination.hidden = true;
+    destination.append(new Option("for the Organization", "organization"));
+    destination.append(new Option("just for me", "personal"));
+    const hint = document.createElement("span");
+    hint.className = "quiet";
+    const update = () => {
+      destination.hidden = !checkbox.checked;
+      hint.textContent = checkbox.checked ? replacementHint(choice, destination.value) : "";
+    };
+    checkbox.addEventListener("change", update);
+    destination.addEventListener("change", update);
+    row.append(consent, destination, hint);
+    view.authChoices.append(row);
   }
   for (const step of recording.steps.filter((candidate) => candidate.needsSecret === true)) {
     const label = document.createElement("label");

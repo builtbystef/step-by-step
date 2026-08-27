@@ -197,10 +197,84 @@ def test_finished_recording_binds_password_and_finalizes_directly(
     saved = recording_sink.wait_for_finalization()
 
     assert answer == {"saved": True}
+    assert recording_sink.auth_captures == []
     assert saved["steps"][1]["payload"]["value"] == "{{site_password}}"
     assert "needsSecret" not in saved["steps"][1]
     assert saved["variables"] == [{"name": "site_password", "secret": True}]
     assert "not-in-the-document" not in str(saved)
+
+    surface.close()
+    page.close()
+
+
+def test_checked_domain_captures_http_only_cookie_and_both_web_storages(
+    connected_browser: BrowserContext,
+    fixture_site: str,
+    recording_sink: RecordingSink,
+) -> None:
+    page = connected_browser.new_page()
+    page.goto(f"{fixture_site}/recording.html")
+    page.evaluate(
+        """() => {
+          localStorage.setItem('local-token', 'local-secret');
+          sessionStorage.setItem('session-token', 'session-secret');
+        }"""
+    )
+    surface = start_recording(connected_browser, fixture_site, page)
+    cookie = surface.evaluate(
+        """(url) => chrome.cookies.set({
+          url,
+          name: 'http-only-session',
+          value: 'cookie-secret',
+          httpOnly: true,
+          secure: false,
+          sameSite: 'lax',
+        })""",
+        fixture_site,
+    )
+    assert cookie["httpOnly"] is True
+    assert surface.evaluate("(url) => chrome.cookies.getAll({url})", f"{fixture_site}/")
+    surface.evaluate("() => chrome.runtime.sendMessage({type: 'stop-recording'})")
+    recording = surface.evaluate(
+        "() => chrome.runtime.sendMessage({type: 'recording-state'})"
+    )["recording"]
+    assert recording["authChoices"] == [
+        {
+            "domain": "127.0.0.1",
+            "checked": False,
+            "scope": "organization",
+            "organizationSavedAt": None,
+            "personalSavedAt": None,
+        }
+    ]
+
+    answer = surface.evaluate(
+        """() => chrome.runtime.sendMessage({
+          type: 'finalize-recording',
+          bindings: [],
+          authSelections: [{domain: '127.0.0.1', checked: true, scope: 'personal'}],
+        })"""
+    )
+    capture = recording_sink.wait_for_auth_capture()["captures"][0]
+
+    assert answer == {"saved": True}
+    assert capture["scope"] == "personal"
+    cookie = next(
+        item for item in capture["cookies"] if item["name"] == "http-only-session"
+    )
+    assert cookie["httpOnly"] is True
+    assert capture["origins"] == [
+        {
+            "origin": fixture_site,
+            "local_storage": [{"name": "local-token", "value": "local-secret"}],
+        }
+    ]
+    assert capture["session_storage"] == [
+        {
+            "origin": fixture_site,
+            "items": [{"name": "session-token", "value": "session-secret"}],
+        }
+    ]
 
     surface.close()
     page.close()
