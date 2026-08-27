@@ -1,15 +1,13 @@
 ---
 id: 560jkk
 title: 'CSV import: client-side reconciliation and the mapping strip'
-state: in-progress
+state: todo
 priority: medium
-labels:
-    - needs-review
 depends_on:
     - bcyznn
 parent: nno9gj
 created: 2026-08-14T19:52:25Z
-updated: 2026-08-26T21:24:16Z
+updated: 2026-08-27T02:46:05Z
 ---
 
 ## What to build
@@ -36,7 +34,7 @@ Secret Variables are excluded from `mapping` and from the coverage test — they
 ## Acceptance criteria
 
 - [ ] `reconcile(["City","zip_code","notes"], [city, zipCode])` → `confident: true`, `ignoredHeaders: ["notes"]`.
-- [ ] `reconcile(["town","zip"], [city, zipCode])` → `confident: false`, with `town → city` carried as `suggested: true`.
+- [ ] `reconcile(["cite","zip"], [city, zipCode])` → `confident: false`, with `cite → city` (Levenshtein 1) and `zip → zipCode` (substring) carried as `suggested: true`.
 - [ ] `reconcile(["city","password"], [city, password(secret)])` → `confident: true`, `droppedSecretHeaders: ["password"]` — a secret Variable is not part of coverage.
 - [ ] `reconcile(["city","City"], [city])` → `confident: false` — two headers claim one Variable.
 - [ ] The module's tests call it as a function with no DOM and no component rendering.
@@ -64,3 +62,9 @@ Options:
 2. Keep the town → city example. That needs a rule that produces it: either a built-in alias dictionary (which the spec forbids) or a leftover 1-to-1 assignment of unmatched headers to unmatched Variables (which the spec does not name).
 
 What you must do: decide which option, record the decision in a note on this issue, and remove the needs-review label.
+
+**agent** — 2026-08-27T02:46:05Z
+
+Decision: keep the near-match rule (substring or Levenshtein ≤ 2 under normalize; no alias dictionary). The town→city example was leftover from prototype tf6796 and is wrong under that rule (distance 4).
+
+The AC is now reconcile(["cite","zip"], [city, zipCode]) → confident: false, with cite→city (distance 1) and zip→zipCode (substring) as suggested: true.
