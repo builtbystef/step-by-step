@@ -25,7 +25,7 @@ catalog:
   vite-plus: 0.2.8
   # Pinned exact to the version Vite+ bundles: a second Vitest in the graph
   # is two test runners. Bump it with vite-plus, not on its own.
-  vitest: 4.1.10
+  vitest: 4.1.11
 overrides:
   vite: "catalog:"
 peerDependencyRules:
