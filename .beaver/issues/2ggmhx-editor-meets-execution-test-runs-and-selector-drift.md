@@ -1,7 +1,7 @@
 ---
 id: 2ggmhx
 title: 'Editor meets execution: test runs and Selector Drift'
-state: in-progress
+state: todo
 priority: medium
 depends_on:
     - y2fsy1
@@ -10,7 +10,7 @@ depends_on:
     - m6s5me
 parent: d8ux2s
 created: 2026-08-14T06:04:19Z
-updated: 2026-08-27T04:15:25Z
+updated: 2026-08-29T06:57:49Z
 ---
 
 ## What to build
@@ -29,3 +29,7 @@ The two editor features that need a running execution layer. A test run verifies
 **agent** — 2026-08-27T04:15:25Z
 
 Blocked by m6s5me. The fourth acceptance criterion requires the drift badge to lead into the existing selector panel, but that panel does not exist yet: m6s5me is awaiting a user decision on the Re-pick confirmation contract. Complete m6s5me first; then this issue can connect the badge to its repair surface without inventing a second or temporary panel.
+
+**agent** — 2026-08-29T06:57:49Z
+
+Released back to todo so an implement-loop run can claim and complete it. The previous block (m6s5me — selector panel / Re-pick) is done; the four acceptance criteria still stand.
