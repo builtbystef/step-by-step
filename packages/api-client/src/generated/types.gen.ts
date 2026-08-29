@@ -1946,6 +1946,16 @@ export type SelectorCandidate = {
 };
 
 /**
+ * SelectorDrift
+ */
+export type SelectorDrift = {
+    /**
+     * Drifted Step Ids
+     */
+    drifted_step_ids: Array<string>;
+};
+
+/**
  * SessionStorage
  */
 export type SessionStorage = {
@@ -4775,6 +4785,58 @@ export type StartRunResponses = {
 };
 
 export type StartRunResponse = StartRunResponses[keyof StartRunResponses];
+
+export type GetWorkflowSelectorDriftData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Workflow Id
+         */
+        workflow_id: string;
+    };
+    query?: never;
+    url: '/api/workflows/{workflow_id}/selector-drift';
+};
+
+export type GetWorkflowSelectorDriftErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetWorkflowSelectorDriftError = GetWorkflowSelectorDriftErrors[keyof GetWorkflowSelectorDriftErrors];
+
+export type GetWorkflowSelectorDriftResponses = {
+    /**
+     * Successful Response
+     */
+    200: SelectorDrift;
+};
+
+export type GetWorkflowSelectorDriftResponse = GetWorkflowSelectorDriftResponses[keyof GetWorkflowSelectorDriftResponses];
 
 export type ListRunsData = {
     body?: never;

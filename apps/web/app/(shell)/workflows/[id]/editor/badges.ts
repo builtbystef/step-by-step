@@ -1,5 +1,6 @@
 import type { Target } from "@step-by-step/api-client";
 
+import { DRIFT_WARNING } from "./drift";
 import { targetsOf, type Step } from "./steps";
 
 import type { AttributeTone } from "../../../../../components/primitives/attribute-badge";
@@ -81,7 +82,7 @@ const FRAGILE_WARNING =
  * one thing in that column a person operates rather than reads, so the card
  * draws it as the control it is.
  */
-export function stepBadges(step: Step, workflowDefaultMs: number): StepBadge[] {
+export function stepBadges(step: Step, workflowDefaultMs: number, drifted = false): StepBadge[] {
   const badges: StepBadge[] = [];
   if (step.optional === true) {
     badges.push({
@@ -117,6 +118,14 @@ export function stepBadges(step: Step, workflowDefaultMs: number): StepBadge[] {
     });
   } else if (health.state === "fragile") {
     badges.push({ key: "fragile", label: "fragile", tone: "wait", title: FRAGILE_WARNING });
+  }
+  if (drifted) {
+    badges.push({
+      key: "drift",
+      label: "drifting",
+      tone: "wait",
+      title: DRIFT_WARNING,
+    });
   }
   return badges;
 }

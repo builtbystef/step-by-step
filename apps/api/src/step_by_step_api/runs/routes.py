@@ -56,6 +56,7 @@ router = APIRouter(tags=["runs"])
 PAGE_SIZE = 25
 MAX_PAGE_SIZE = 100
 PRESIGN_SECONDS = 60
+RECENT_DRIFT_RUNS = 10
 
 
 class StartRun(BaseModel):
@@ -109,6 +110,10 @@ class RunSummary(BaseModel):
 class RunPage(BaseModel):
     items: list[RunSummary]
     next_cursor: str | None = None
+
+
+class SelectorDrift(BaseModel):
+    drifted_step_ids: list[UUID]
 
 
 class WaitingAttention(BaseModel):
@@ -282,6 +287,48 @@ def start_run(
     db.commit()
     get_redis().lpush(DISPATCH_LIST, str(run.id))
     return RunCreated(run_id=run.id)
+
+
+@router.get(
+    "/api/workflows/{workflow_id}/selector-drift",
+    operation_id="getWorkflowSelectorDrift",
+    responses=errors(400, 401, 403, 404),
+)
+def get_workflow_selector_drift(
+    workflow_id: UUID,
+    member: ActiveMembership,
+    db: SessionDep,
+) -> SelectorDrift:
+    """The Steps whose recent Runs resolved through a lower-ranked candidate.
+
+    The editor is where repair happens, so the warning is computed here from
+    Step Results rather than on each Run. Rank 0 is the recorded best; anything
+    above it in the last ten Runs of this Workflow is Selector Drift.
+    """
+    owned = db.execute(
+        select(Workflow.id).where(
+            Workflow.id == workflow_id, Workflow.org_id == member.org_id
+        )
+    ).scalar_one_or_none()
+    if owned is None:
+        raise ApiError(404, "workflow_not_found", "no such Workflow")
+    recent = (
+        select(Run.id)
+        .where(Run.workflow_id == workflow_id, Run.org_id == member.org_id)
+        .order_by(Run.queued_at.desc(), Run.id.desc())
+        .limit(RECENT_DRIFT_RUNS)
+        .subquery()
+    )
+    drifted = db.execute(
+        select(StepResult.step_id)
+        .where(
+            StepResult.run_id.in_(select(recent.c.id)),
+            StepResult.matched_candidate_rank > 0,
+        )
+        .distinct()
+        .order_by(StepResult.step_id)
+    ).scalars()
+    return SelectorDrift(drifted_step_ids=list(drifted))
 
 
 @router.get(

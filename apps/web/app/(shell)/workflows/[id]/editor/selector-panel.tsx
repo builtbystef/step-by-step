@@ -34,11 +34,13 @@ import { cn } from "@/lib/utils";
 export function SelectorPanel({
   target,
   label = "Element",
+  open = false,
   onChange,
   onRepick,
 }: {
   target: Target;
   label?: string;
+  open?: boolean;
   onChange: (target: Target) => void;
   onRepick?: () => void;
 }) {
@@ -54,7 +56,7 @@ export function SelectorPanel({
   return (
     <div className="flex flex-col gap-1">
       <span className="text-small font-semibold text-ink">{label}</span>
-      <details className="group rounded-lg border border-line bg-panel">
+      <details className="group rounded-lg border border-line bg-panel" open={open || undefined}>
         <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 [&::-webkit-details-marker]:hidden">
           <span className="text-small text-mut transition-transform group-open:rotate-90">▸</span>
           <span className="min-w-0 flex-1 text-half font-semibold text-ink">

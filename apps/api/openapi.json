@@ -3846,6 +3846,106 @@
         }
       }
     },
+    "/api/workflows/{workflow_id}/selector-drift": {
+      "get": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Get Workflow Selector Drift",
+        "description": "The Steps whose recent Runs resolved through a lower-ranked candidate.\n\nThe editor is where repair happens, so the warning is computed here from\nStep Results rather than on each Run. Rank 0 is the recorded best; anything\nabove it in the last ten Runs of this Workflow is Selector Drift.",
+        "operationId": "getWorkflowSelectorDrift",
+        "parameters": [
+          {
+            "name": "workflow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workflow Id"
+            }
+          },
+          {
+            "name": "X-Organization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SelectorDrift"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/runs": {
       "get": {
         "tags": [
@@ -10992,6 +11092,23 @@
         ],
         "title": "SelectorCandidate",
         "description": "One way of finding an element, verified unique when it was recorded."
+      },
+      "SelectorDrift": {
+        "properties": {
+          "drifted_step_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Drifted Step Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "drifted_step_ids"
+        ],
+        "title": "SelectorDrift"
       },
       "SessionStorage": {
         "properties": {

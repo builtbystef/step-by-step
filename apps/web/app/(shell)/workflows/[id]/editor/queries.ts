@@ -1,5 +1,6 @@
 import {
   getWorkflowDraft,
+  getWorkflowSelectorDrift,
   getWorkflowVersion,
   type WorkflowDocument,
 } from "@step-by-step/api-client";
@@ -49,6 +50,30 @@ export function versionDocumentQuery(orgId: string, workflowId: string, version:
       });
       if (error) throw error;
       return data;
+    },
+  };
+}
+
+/**
+ * Which Steps have been drifting in recent Runs, for the editor's badges.
+ *
+ * Its own key, because a save of the Draft does not change what recent Runs
+ * did, and a test Run finishing does.
+ */
+
+export function selectorDriftKey(orgId: string, workflowId: string) {
+  return ["workflow-selector-drift", orgId, workflowId] as const;
+}
+
+export function selectorDriftQuery(orgId: string, workflowId: string) {
+  return {
+    queryKey: selectorDriftKey(orgId, workflowId),
+    queryFn: async (): Promise<ReadonlySet<string>> => {
+      const { data, error } = await getWorkflowSelectorDrift({
+        path: { workflow_id: workflowId },
+      });
+      if (error) throw error;
+      return new Set(data.drifted_step_ids);
     },
   };
 }

@@ -35,6 +35,7 @@ export function StepForm({
   workflowDefaultMs,
   variables,
   readOnly,
+  selectorOpen = false,
   onChange,
   onConvert,
   onRepick,
@@ -43,6 +44,7 @@ export function StepForm({
   workflowDefaultMs: number;
   variables: Variable[];
   readOnly: boolean;
+  selectorOpen?: boolean;
   onChange: (step: Step) => void;
   onConvert: (variable: Variable, span: Span) => void;
   onRepick?: () => void;
@@ -55,6 +57,7 @@ export function StepForm({
       <Payload
         step={step}
         variables={variables}
+        selectorOpen={selectorOpen}
         onChange={onChange}
         onConvert={onConvert}
         onRepick={onRepick}
@@ -68,12 +71,14 @@ export function StepForm({
 function Payload({
   step,
   variables,
+  selectorOpen,
   onChange,
   onConvert,
   onRepick,
 }: {
   step: Step;
   variables: Variable[];
+  selectorOpen: boolean;
   onChange: (step: Step) => void;
   onConvert: (variable: Variable, span: Span) => void;
   onRepick?: () => void;
@@ -98,6 +103,7 @@ function Payload({
         <>
           <SelectorPanel
             target={step.payload.target}
+            open={selectorOpen}
             onChange={(target) => {
               onChange({ ...step, payload: { ...step.payload, target } });
             }}
@@ -117,6 +123,7 @@ function Payload({
         <>
           <SelectorPanel
             target={step.payload.target}
+            open={selectorOpen}
             onChange={(target) => {
               onChange({ ...step, payload: { ...step.payload, target } });
             }}
@@ -139,6 +146,7 @@ function Payload({
         <>
           <SelectorPanel
             target={step.payload.target}
+            open={selectorOpen}
             onChange={(target) => {
               onChange({ ...step, payload: { ...step.payload, target } });
             }}
@@ -158,6 +166,7 @@ function Payload({
       return (
         <SelectorPanel
           target={step.payload.target}
+          open={selectorOpen}
           onChange={(target) => {
             onChange({ ...step, payload: { ...step.payload, target } });
           }}
@@ -165,21 +174,37 @@ function Payload({
         />
       );
     case "extract":
-      return <ExtractPayload step={step} onChange={onChange} onRepick={onRepick} />;
+      return (
+        <ExtractPayload
+          step={step}
+          selectorOpen={selectorOpen}
+          onChange={onChange}
+          onRepick={onRepick}
+        />
+      );
     case "wait":
-      return <WaitPayload step={step} onChange={onChange} onRepick={onRepick} />;
+      return (
+        <WaitPayload
+          step={step}
+          selectorOpen={selectorOpen}
+          onChange={onChange}
+          onRepick={onRepick}
+        />
+      );
     case "pause-for-takeover":
-      return <TakeoverPayload step={step} onChange={onChange} />;
+      return <TakeoverPayload step={step} selectorOpen={selectorOpen} onChange={onChange} />;
   }
 }
 
 /** An extraction: one named value, or a flat list of records. */
 function ExtractPayload({
   step,
+  selectorOpen,
   onChange,
   onRepick,
 }: {
   step: Extract<Step, { type: "extract" }>;
+  selectorOpen: boolean;
   onChange: (step: Step) => void;
   onRepick?: () => void;
 }) {
@@ -188,6 +213,7 @@ function ExtractPayload({
     <>
       <SelectorPanel
         target={payload.target}
+        open={selectorOpen}
         onChange={(target) => {
           onChange({ ...step, payload: { ...payload, target } });
         }}
@@ -356,10 +382,12 @@ function ExtractPayload({
  */
 function WaitPayload({
   step,
+  selectorOpen,
   onChange,
   onRepick,
 }: {
   step: Extract<Step, { type: "wait" }>;
+  selectorOpen: boolean;
   onChange: (step: Step) => void;
   onRepick?: () => void;
 }) {
@@ -369,6 +397,7 @@ function WaitPayload({
       <SelectorPanel
         target={payload.target}
         label="Wait for this element"
+        open={selectorOpen}
         onChange={(target) => {
           onChange({ ...step, payload: { ...payload, target } });
         }}
@@ -391,9 +420,11 @@ function WaitPayload({
 /** A pause: what the person is asked, how long it waits, and how it ends. */
 function TakeoverPayload({
   step,
+  selectorOpen,
   onChange,
 }: {
   step: Extract<Step, { type: "pause-for-takeover" }>;
+  selectorOpen: boolean;
   onChange: (step: Step) => void;
 }) {
   const payload = step.payload;
@@ -427,6 +458,7 @@ function TakeoverPayload({
           <div className="flex flex-col gap-2">
             <SelectorPanel
               target={payload.successCheck}
+              open={selectorOpen}
               onChange={(successCheck) => {
                 onChange({ ...step, payload: { ...payload, successCheck } });
               }}

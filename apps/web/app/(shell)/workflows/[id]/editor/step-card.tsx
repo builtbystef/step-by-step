@@ -48,12 +48,15 @@ export function StepCard({
   highlighted,
   expanded,
   readOnly,
+  drifted = false,
+  selectorOpen = false,
   onExpand,
   onChange,
   onConvert,
   onMove,
   onDelete,
   onRepick,
+  onRepairDrift,
 }: {
   step: Step;
   position: number;
@@ -64,14 +67,17 @@ export function StepCard({
   highlighted: boolean;
   expanded: boolean;
   readOnly: boolean;
+  drifted?: boolean;
+  selectorOpen?: boolean;
   onExpand: (expanded: boolean) => void;
   onChange: (step: Step) => void;
   onConvert: (variable: Variable, span: Span) => void;
   onMove: (direction: "up" | "down") => void;
   onDelete: () => void;
   onRepick?: () => void;
+  onRepairDrift?: () => void;
 }) {
-  const badges = stepBadges(step, workflowDefaultMs);
+  const badges = stepBadges(step, workflowDefaultMs, drifted);
   const off = step.disabled === true;
   const card = useRef<HTMLLIElement>(null);
 
@@ -122,6 +128,7 @@ export function StepCard({
             workflowDefaultMs={workflowDefaultMs}
             variables={variables}
             readOnly={readOnly}
+            selectorOpen={selectorOpen}
             onChange={onChange}
             onConvert={onConvert}
             onRepick={onRepick}
@@ -168,11 +175,26 @@ export function StepCard({
       )}
 
       <div className="flex w-36 shrink-0 flex-wrap items-start justify-end gap-1">
-        {badges.map((badge) => (
-          <AttributeBadge key={badge.key} tone={badge.tone}>
-            <span title={badge.title}>{badge.label}</span>
-          </AttributeBadge>
-        ))}
+        {badges.map((badge) =>
+          badge.key === "drift" && onRepairDrift !== undefined ? (
+            <button
+              key={badge.key}
+              type="button"
+              aria-label={`Repair drifting selectors of step ${String(position + 1)}`}
+              title={badge.title}
+              className="outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
+              onClick={() => {
+                onRepairDrift();
+              }}
+            >
+              <AttributeBadge tone={badge.tone}>{badge.label}</AttributeBadge>
+            </button>
+          ) : (
+            <AttributeBadge key={badge.key} tone={badge.tone}>
+              <span title={badge.title}>{badge.label}</span>
+            </AttributeBadge>
+          ),
+        )}
         {readOnly ? (
           step.screenshot === true ? (
             <AttributeBadge tone="accent">

@@ -368,3 +368,110 @@ def test_a_normal_run_requires_a_published_version_but_a_test_run_does_not(
     assert refused.status_code == 409
     assert refused.json()["code"] == "no_published_version"
     assert accepted.status_code == 201
+
+
+def test_a_test_run_freezes_the_draft_and_mints_no_version(
+    new_account: NewAccount,
+) -> None:
+    """Draft edits after start do not affect the Run; the Version list is untouched."""
+    account = new_account()
+    workflow_id = a_workflow(account)
+    first = [a_navigate_step(str(uuid4()))]
+    assert save_draft(account, workflow_id, steps=first).status_code == 200
+    assert account.client.get(f"/api/workflows/{workflow_id}/versions").json() == []
+
+    created = start(account, workflow_id, variables={}, test=True)
+    assert created.status_code == 201, created.text
+    run_id = created.json()["run_id"]
+    later = [a_navigate_step(str(uuid4()))]
+    assert save_draft(account, workflow_id, steps=later).status_code == 200
+
+    run = detail(account, run_id).json()["run"]
+    assert run["is_test"] is True
+    assert run["draft_snapshot"]["steps"] == first
+    assert run["version_number"] is None
+    assert account.client.get(f"/api/workflows/{workflow_id}/versions").json() == []
+
+
+def test_selector_drift_flags_steps_that_matched_below_the_recorded_best(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    workflow_id = published_workflow(account)
+    stable = uuid4()
+    moved = uuid4()
+    run_id = start(account, workflow_id, variables={}).json()["run_id"]
+    with session_scope() as db:
+        db.add_all(
+            [
+                StepResult(
+                    run_id=UUID(run_id),
+                    step_id=stable,
+                    position=0,
+                    status=StepResultStatus.PASSED,
+                    matched_candidate_rank=0,
+                ),
+                StepResult(
+                    run_id=UUID(run_id),
+                    step_id=moved,
+                    position=1,
+                    status=StepResultStatus.PASSED,
+                    matched_candidate_rank=2,
+                ),
+            ]
+        )
+        db.commit()
+
+    drifted = account.client.get(f"/api/workflows/{workflow_id}/selector-drift")
+
+    assert drifted.status_code == 200, drifted.text
+    assert drifted.json()["drifted_step_ids"] == [str(moved)]
+
+
+def test_selector_drift_only_reads_the_most_recent_runs(
+    new_account: NewAccount,
+) -> None:
+    """Eleven Runs: only the ten newest count, matching the catalog's recent window."""
+    account = new_account()
+    workflow_id = published_workflow(account)
+    stale = uuid4()
+    fresh = uuid4()
+    with session_scope() as db:
+        for index in range(11):
+            run = Run(
+                org_id=UUID(account.org_id),
+                workflow_id=UUID(workflow_id),
+                status=RunStatus.SUCCEEDED,
+                queued_at=clock.now() + timedelta(seconds=index),
+                variables={},
+            )
+            db.add(run)
+            db.flush()
+            db.add(
+                StepResult(
+                    run_id=run.id,
+                    step_id=stale if index == 0 else fresh,
+                    position=0,
+                    status=StepResultStatus.PASSED,
+                    matched_candidate_rank=2 if index == 0 else 0,
+                )
+            )
+        db.commit()
+
+    drifted = account.client.get(f"/api/workflows/{workflow_id}/selector-drift")
+
+    assert drifted.status_code == 200, drifted.text
+    assert drifted.json()["drifted_step_ids"] == []
+
+
+def test_selector_drift_hides_another_organizations_workflow(
+    new_account: NewAccount,
+) -> None:
+    owner = new_account()
+    stranger = new_account()
+    workflow_id = published_workflow(owner)
+
+    assert (
+        stranger.client.get(f"/api/workflows/{workflow_id}/selector-drift").status_code
+        == 404
+    )

@@ -10,18 +10,21 @@ import {
   type WorkflowDocument,
 } from "@step-by-step/api-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Braces, History, Plus } from "lucide-react";
+import { Braces, History, Play, Plus } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { withStepAdded, withStepDeleted, withStepMoved, withStepReplaced } from "./edits";
 import { readRefusal, saveRefusal } from "./messages";
-import { draftKey, draftQuery, versionDocumentQuery } from "./queries";
+import { repairFromDrift } from "./drift";
+import { draftKey, draftQuery, selectorDriftQuery, versionDocumentQuery } from "./queries";
 import { RepickDialog } from "./repick-dialog";
 import { RestoreDialog } from "./restore-dialog";
 import { repickRefusal } from "./selectors";
 import { StepCard } from "./step-card";
+import { TestRunDialog } from "./test-run-dialog";
+import { testRunFields, testRunRefusal } from "./test-run";
 import { ADDABLE_STEP_TYPES, STEP_TYPE_LABELS, blankStep, targetsOf, type Step } from "./steps";
 import { VariablesDrawer } from "./variables-drawer";
 import { secretNames, variableRows, withLiteralMadeVariable, type Span } from "./variables";
@@ -79,9 +82,15 @@ import {
  * same thing as a Draft with the changing stopped, so reading one is not a
  * second screen about it.
  *
- * Test runs belong to a later slice (`2ggmhx`). Re-pick confirm is the
- * existing recording finalize, not a second write: the extension messages
- * the new candidate list here and does not finalize; confirming does.
+ * A test run verifies the Draft without publishing: the modal collects
+ * Variable values (secrets masked), the Run snapshots the Draft as it
+ * stands, and no Version is minted. Selector Drift is an aggregate badge
+ * on the card, computed from recent Step Results, and leads into the
+ * selector panel that repairs it.
+ *
+ * Re-pick confirm is the existing recording finalize, not a second write:
+ * the extension messages the new candidate list here and does not finalize;
+ * confirming does.
  */
 export default function EditorTab() {
   const { active } = useActiveOrganization();
@@ -102,9 +111,12 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
   const draft = useQuery(draftQuery(orgId, workflowId));
   const version = useQuery(versionDocumentQuery(orgId, workflowId, viewing));
   const workflow = useQuery(workflowQuery(orgId, workflowId));
+  const drift = useQuery(selectorDriftQuery(orgId, workflowId));
   const vault = useQuery({ queryKey: SECRETS_KEY, queryFn: loadSecrets });
   const [edited, setEdited] = useState<WorkflowDocument | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [repairing, setRepairing] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
   const [drawer, setDrawer] = useState(false);
   const [highlighted, setHighlighted] = useState<string | null>(null);
   const [restoring, setRestoring] = useState<number | null>(null);
@@ -431,6 +443,25 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
             Start recording
           </Button>
         )}
+        {readOnly ? null : (
+          <Button
+            variant="secondary"
+            onClick={() => {
+              const blocked = testRunRefusal(
+                workflow.data?.draft_state ?? "never-published",
+                unsaved,
+              );
+              if (blocked !== null) {
+                setRecordingNote(blocked);
+                return;
+              }
+              setTesting(true);
+            }}
+          >
+            <Play className="size-3.5" />
+            Test run
+          </Button>
+        )}
         {variablesButton}
       </div>
 
@@ -505,8 +536,13 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
                   highlighted={usages.has(step.id)}
                   expanded={expanded === step.id}
                   readOnly={readOnly}
+                  drifted={drift.data?.has(step.id) === true}
+                  selectorOpen={repairing === step.id}
                   onExpand={(open) => {
                     setExpanded(open ? step.id : null);
+                    if (!open && repairing === step.id) {
+                      setRepairing(null);
+                    }
                   }}
                   onChange={(next: Step) => {
                     setEdited(withStepReplaced(document, next));
@@ -532,6 +568,11 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
                           startRepick.mutate(step);
                         }
                   }
+                  onRepairDrift={() => {
+                    const repair = repairFromDrift(step.id);
+                    setExpanded(repair.expand);
+                    setRepairing(repair.expand);
+                  }}
                 />
               ))}
             </ul>
@@ -564,6 +605,13 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
           </Button>
         </StickyActionFooter>
       ) : null}
+
+      <TestRunDialog
+        open={testing}
+        workflowId={workflowId}
+        fields={testRunFields(variables)}
+        onOpenChange={setTesting}
+      />
 
       <RepickDialog
         open={repick !== null && repick.next !== null}
