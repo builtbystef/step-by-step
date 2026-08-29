@@ -4,7 +4,7 @@ import type { Variable } from "@step-by-step/api-client";
 import { Braces, KeyRound } from "lucide-react";
 import { useRef, useState } from "react";
 
-import { declarationRefusal, withReferenceInserted, type Span } from "./variables";
+import { declarationRefusal, undeclaredNames, withReferenceInserted, type Span } from "./variables";
 
 import { Callout } from "@/components/primitives/callout";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,10 @@ import { Input } from "@/components/ui/input";
  * the account name a person typed as a literal; converting it declares the
  * Variable and leaves a reference in its place, in one edit, so the document
  * is never in the state the store refuses.
+ *
+ * A `{{name}}` nothing declares is said here too, under the input it was
+ * typed into, in the same amber the drawer uses. Declaring it happens in the
+ * drawer, on the row that lists it.
  */
 export function ValueField({
   label,
@@ -57,6 +61,11 @@ export function ValueField({
     caret.current.from < caret.current.to && caret.current.to <= value.length
       ? caret.current
       : { from: 0, to: value.length };
+
+  const missing = undeclaredNames(
+    value,
+    variables.map((variable) => variable.name),
+  );
 
   return (
     <div className="flex flex-col gap-1">
@@ -118,6 +127,7 @@ export function ValueField({
         </DropdownMenu>
       </div>
       <span className="text-small text-mut">{hint}</span>
+      {missing.length === 0 ? null : <Callout tone="warn">{undeclaredHint(missing)}</Callout>}
 
       {converting ? (
         <ConvertForm
@@ -134,6 +144,12 @@ export function ValueField({
       ) : null}
     </div>
   );
+}
+
+/** What the field says when a value reaches for a name nothing declares. */
+function undeclaredHint(names: string[]): string {
+  const listed = names.map((name) => `{{${name}}}`).join(", ");
+  return names.length === 1 ? `${listed} is not declared.` : `${listed} are not declared.`;
 }
 
 /** Naming the Variable a literal becomes, and saying whether it is secret. */

@@ -11,6 +11,11 @@ import { interpolatedValue, withInterpolatedValue, type Step } from "./steps";
  * does not declare — that is what makes deleting a used Variable impossible —
  * and refusing it in the drawer instead says which Steps stand in the way,
  * before a save comes back with a sentence about a document.
+ *
+ * The other half of that refusal is a `{{name}}` typed into a value that no
+ * declaration covers. The drawer lists those beside the declarations, and
+ * declaring one from that row is the same edit as declaring by hand: the
+ * Variable is added, the Steps are untouched, and the flag clears.
  */
 
 export const REFERENCE = /\{\{\s*([A-Za-z_][A-Za-z0-9_-]*)\s*\}\}/g;
@@ -52,6 +57,41 @@ export function variableRows(document: WorkflowDocument): VariableRow[] {
       .map((step) => step.id),
     ...pointerOf(variable),
   }));
+}
+
+/** A `{{name}}` a value reaches for that no declaration covers. */
+export type UndeclaredRow = {
+  name: string;
+  /** The ids of the Steps whose value names it, in the order the list runs. */
+  usedBy: string[];
+};
+
+/** The undeclared `{{name}}`s inside one value, each one once, as written. */
+export function undeclaredNames(value: string, declared: readonly string[]): string[] {
+  const known = new Set(declared);
+  const names = [...value.matchAll(REFERENCE)].map(([, name]) => name ?? "");
+  return [...new Set(names)].filter((name) => !known.has(name));
+}
+
+/** Every undeclared reference, with the Steps that use it, first-seen first. */
+export function undeclaredRows(document: WorkflowDocument): UndeclaredRow[] {
+  const declared = (document.variables ?? []).map((variable) => variable.name);
+  const found = new Map<string, string[]>();
+  for (const step of document.steps ?? []) {
+    const value = interpolatedValue(step);
+    if (value === null) {
+      continue;
+    }
+    for (const name of undeclaredNames(value, declared)) {
+      const usedBy = found.get(name);
+      if (usedBy === undefined) {
+        found.set(name, [step.id]);
+      } else {
+        usedBy.push(step.id);
+      }
+    }
+  }
+  return [...found.entries()].map(([name, usedBy]) => ({ name, usedBy }));
 }
 
 const VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_-]*$/;

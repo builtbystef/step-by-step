@@ -28,7 +28,13 @@ import { TestRunDialog } from "./test-run-dialog";
 import { testRunFields, testRunRefusal } from "./test-run";
 import { ADDABLE_STEP_TYPES, STEP_TYPE_LABELS, blankStep, targetsOf, type Step } from "./steps";
 import { VariablesDrawer } from "./variables-drawer";
-import { secretNames, variableRows, withLiteralMadeVariable, type Span } from "./variables";
+import {
+  secretNames,
+  undeclaredRows,
+  variableRows,
+  withLiteralMadeVariable,
+  type Span,
+} from "./variables";
 
 import { workflowKey, workflowQuery } from "../queries";
 import { restoreConsequence, versionPath, viewedVersion } from "../versions";
@@ -407,7 +413,10 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
   // Which cards a drawer row lit up. The names are the document's, so a
   // highlight of a Variable that a later edit deletes simply lights nothing.
   const usages = new Set(
-    variableRows(document).find((row) => row.name === highlighted)?.usedBy ?? [],
+    (
+      variableRows(document).find((row) => row.name === highlighted) ??
+      undeclaredRows(document).find((row) => row.name === highlighted)
+    )?.usedBy ?? [],
   );
 
   const add = (type: (typeof ADDABLE_STEP_TYPES)[number]) => {

@@ -8,12 +8,14 @@ import {
   boundSecretName,
   declarationRefusal,
   deletionRefusal,
+  undeclaredRows,
   variableRows,
   withSecretBound,
   withVariableDeclared,
   withVariableDeleted,
   withVariableRenamed,
   withVariableSecret,
+  type UndeclaredRow,
   type VariableRow,
   type VaultSecret,
 } from "./variables";
@@ -48,6 +50,12 @@ import {
  * about a whole document cannot. A name the Workflow already declares is
  * refused for the same reason: a repeated name does not say what it declares.
  *
+ * The other half of that rule is listed here too: a `{{name}}` a value
+ * reaches for that nothing declares. Those rows sit in the amber that already
+ * means look at this, name the Steps that use them, and offer a one-click
+ * Declare it. A Draft with none of them shows no such section — absent, not
+ * empty.
+ *
  * Activating a row's usage count closes the drawer, because what it does is
  * highlight the cards behind it — a modal panel over the thing it is pointing
  * at would be pointing at nothing.
@@ -75,6 +83,7 @@ export function VariablesDrawer({
   onShowUsages: (name: string) => void;
 }) {
   const rows = variableRows(document);
+  const undeclared = undeclaredRows(document);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -112,6 +121,23 @@ export function VariablesDrawer({
                 }}
               />
             ))
+          )}
+          {undeclared.length === 0 ? null : (
+            <div className="flex flex-col gap-2">
+              <p className="pt-2 text-small font-semibold text-ink">Not declared</p>
+              {undeclared.map((row) => (
+                <UndeclaredRowItem
+                  key={row.name}
+                  row={row}
+                  document={document}
+                  onChange={onChange}
+                  onShowUsages={(name) => {
+                    onOpenChange(false);
+                    onShowUsages(name);
+                  }}
+                />
+              ))}
+            </div>
           )}
         </fieldset>
 
@@ -228,6 +254,65 @@ function VariableRowItem({
       ) : null}
 
       {refusal === null ? null : <Callout tone="warn">{refusal}</Callout>}
+    </div>
+  );
+}
+
+/** A `{{name}}` nothing declares: flagged amber, with the Steps that use it. */
+function UndeclaredRowItem({
+  row,
+  document,
+  onChange,
+  onShowUsages,
+}: {
+  row: UndeclaredRow;
+  document: WorkflowDocument;
+  onChange: (document: WorkflowDocument) => void;
+  onShowUsages: (name: string) => void;
+}) {
+  const [secret, setSecret] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-2 rounded-md border border-wait/30 bg-wait-bg/40 p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-mono text-small text-ink">{`{{${row.name}}}`}</span>
+        <AttributeBadge tone="wait">undeclared</AttributeBadge>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-small text-mut"
+          onClick={() => {
+            onShowUsages(row.name);
+          }}
+        >
+          {usage(row.usedBy.length)}
+        </Button>
+        <label className="flex items-center gap-2 text-half text-ink">
+          <input
+            type="checkbox"
+            className="size-4 accent-human"
+            checked={secret}
+            onChange={(ticked) => {
+              setSecret(ticked.target.checked);
+            }}
+          />
+          <KeyRound className="size-3.5 text-human" />
+          Secret
+        </label>
+        <Button
+          variant="secondary"
+          size="sm"
+          className="text-small"
+          onClick={() => {
+            onChange(withVariableDeclared(document, { name: row.name, secret }));
+          }}
+        >
+          Declare it
+        </Button>
+      </div>
     </div>
   );
 }

@@ -6,6 +6,8 @@ import {
   declarationRefusal,
   deletionRefusal,
   secretNames,
+  undeclaredNames,
+  undeclaredRows,
   variableRows,
   withSecretBound,
   withVariableDeclared,
@@ -331,5 +333,79 @@ describe("binding a secret Variable to the vault", () => {
     const plain = withVariableSecret(bound, "password", false);
 
     expect(plain.variables).toEqual([{ name: "password", secret: false }]);
+  });
+});
+
+describe("a {{name}} nothing declares", () => {
+  it("is listed with the Steps that use it", () => {
+    const document: WorkflowDocument = {
+      steps: [typing("a", "{{tenatn}}"), going("b", "https://{{tenatn}}.example.test")],
+      variables: [{ name: "password", secret: true }],
+    };
+
+    expect(undeclaredRows(document)).toEqual([{ name: "tenatn", usedBy: ["a", "b"] }]);
+  });
+
+  it("declaring it adds the Variable and clears the flag, and leaves the Steps alone", () => {
+    const document: WorkflowDocument = {
+      steps: [going("b", "https://{{tenatn}}.example.test")],
+      variables: [{ name: "password", secret: true }],
+    };
+
+    const declared = withVariableDeclared(document, { name: "tenatn", secret: false });
+
+    expect(declared.variables).toEqual([
+      { name: "password", secret: true },
+      { name: "tenatn", secret: false },
+    ]);
+    expect(undeclaredRows(declared)).toEqual([]);
+    expect(declared.steps).toEqual(document.steps);
+  });
+
+  it("lists nothing extra when every reference is declared", () => {
+    const document: WorkflowDocument = {
+      steps: [typing("a", "{{password}}"), going("b", "https://{{tenant}}.example.test")],
+      variables: [{ name: "tenant" }, { name: "password", secret: true }],
+    };
+
+    expect(undeclaredRows(document)).toEqual([]);
+  });
+
+  it("reads a {{name}} only where a value interpolates one", () => {
+    const document: WorkflowDocument = {
+      steps: [
+        {
+          id: "a",
+          label: "Choose it",
+          type: "select",
+          payload: { target: { candidates: [] }, value: "{{country}}" },
+        },
+      ],
+      variables: [],
+    };
+
+    expect(undeclaredRows(document)).toEqual([]);
+  });
+
+  it("lists each undeclared name once, in the order a value first reaches for it", () => {
+    const document: WorkflowDocument = {
+      steps: [going("a", "https://{{tenatn}}.example.test/{{year}}/{{tenatn}}")],
+      variables: [],
+    };
+
+    expect(undeclaredRows(document)).toEqual([
+      { name: "tenatn", usedBy: ["a"] },
+      { name: "year", usedBy: ["a"] },
+    ]);
+  });
+
+  it("names the undeclared references inside one value, for the field they were typed into", () => {
+    expect(undeclaredNames("https://{{tenatn}}.example.test/{{year}}", ["year"])).toEqual([
+      "tenatn",
+    ]);
+  });
+
+  it("names nothing extra under a value whose references are all declared", () => {
+    expect(undeclaredNames("https://{{tenant}}.example.test", ["tenant"])).toEqual([]);
   });
 });
