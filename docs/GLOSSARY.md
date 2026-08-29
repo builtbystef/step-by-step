@@ -21,11 +21,15 @@ One semantic action inside a Workflow. The v1 step types: navigate, click, type,
 _Avoid_: action, event, command
 
 **Run**:
-One execution of a Workflow, with its own status and artifacts.
+One execution of a Workflow, with its own status and artifacts. Status moves queued → running ⇄ waiting_for_human, then to one of succeeded, failed, or cancelled.
 _Avoid_: execution, job
 
+**Failure Reason**:
+The closed set of why a failed Run ended: `step_failed`, `auth_challenge`, `takeover_timeout`, `takeover_abandoned`, `run_timeout`, `worker_lost`, `missing_secret`, or `startup_failed`.
+_Avoid_: error code, exception, crash reason
+
 **Variable**:
-A named input that a Workflow declares, either plain or secret. Step values reference Variables by name; the values arrive per Run. A secret Variable is stored encrypted and never travels in a Batch's rows.
+A named input that a Workflow declares, either plain or secret. Step values reference Variables by name; a secret Variable binds to a Secret by id with the name cached for display, and its value never travels in a Batch's rows.
 _Avoid_: parameter, placeholder
 
 **Batch**:
@@ -57,7 +61,7 @@ A file that a Run produces: a screenshot, a download, or a trace.
 _Avoid_: attachment, output file
 
 **Secret**:
-A named, encrypted value in an Organization's vault, on which a member may keep a Personal Override. A Workflow's secret Variable binds to a Secret, and the value itself never appears in step payloads, logs, or Artifacts.
+A named, encrypted value in an Organization's vault, on which a member may keep a Personal Override. A Workflow's secret Variable binds to a Secret by id, and the value itself never appears in step payloads, logs, or Artifacts.
 _Avoid_: credential, vault entry
 
 **Auth State**:

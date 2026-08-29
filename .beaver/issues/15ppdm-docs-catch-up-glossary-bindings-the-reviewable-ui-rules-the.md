@@ -1,12 +1,13 @@
 ---
 id: 15ppdm
 title: 'Docs catch-up: glossary bindings, the reviewable UI rules, the execution shape'
-state: todo
+state: done
+assignee: agent
 priority: low
 labels:
     - maintenance
 created: 2026-08-17T04:04:36Z
-updated: 2026-08-17T04:04:36Z
+updated: 2026-08-29T06:17:28Z
 ---
 
 ## What to update
@@ -23,3 +24,15 @@ Three docs drifted behind the specs; reviews and fresh sessions read them as aut
 - [ ] Nothing in the updated docs contradicts an ADR or a spec issue.
 
 Best run after the shell and executor waves so the architecture section describes built reality, not plans.
+
+## Notes
+
+**agent** — 2026-08-29T06:17:27Z
+
+Updated the three drifted docs against 54i6da, 9gea5p, and pc0t8s.
+
+- GLOSSARY: a secret Variable binds to a Secret by id with the name cached for display (not by name, and not stored encrypted). Run status is queued → running ⇄ waiting_for_human → succeeded | failed | cancelled. Failure Reason is the closed set matching the Run store enum.
+- CODING_STANDARDS: added the third reviewable-against-a-diff rule — one file per shared list (Run rows, Schedule rows). The hex and StatusChip/labels.ts rules were already there.
+- ARCHITECTURE: added an Execution seam for the Worker model, the three transports (Redis, internal HTTP, VNC), and the ADR-0004 credentials boundary; named the lifecycle and Failure Reason set on the Run store. h9gene/f53mo0 and the executor/events slices had already landed, so this describes built reality.
+
+No ADR or spec contradiction found. ADR 0002 (no automatic retries) and ADR 0004 (Workers never hold the master key) are restated, not reversed.
