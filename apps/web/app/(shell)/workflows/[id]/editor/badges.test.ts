@@ -55,6 +55,10 @@ describe("how well a Step will find its element", () => {
 
     expect(targetHealth(waiting)).toEqual({ state: "ok" });
   });
+
+  it("is not well for a target that has no candidates at all", () => {
+    expect(targetHealth(clicking({ candidates: [] }))).toEqual({ state: "fragile" });
+  });
 });
 
 describe("the badge column", () => {
@@ -98,6 +102,19 @@ describe("the badge column", () => {
 
     expect(badges.map((badge) => ({ key: badge.key, tone: badge.tone }))).toEqual([
       { key: "fragile", tone: "wait" },
+    ]);
+  });
+
+  it("draws the same amber badge when there is no candidate at all, so the gap is not silent", () => {
+    const badges = stepBadges(clicking({ candidates: [] }), WORKFLOW_DEFAULT_MS);
+
+    expect(badges).toEqual([
+      {
+        key: "fragile",
+        label: "no selectors",
+        tone: "wait",
+        title: "no selectors — pick an element",
+      },
     ]);
   });
 });

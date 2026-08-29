@@ -1,6 +1,8 @@
 import type { Target } from "@step-by-step/api-client";
 import { describe, expect, it } from "vitest";
 
+import { targetHealth } from "./badges";
+import { selectorHealthCopy } from "./selectors";
 import {
   ADDABLE_STEP_TYPES,
   STEP_TYPE_LABELS,
@@ -8,6 +10,7 @@ import {
   interpolatedValue,
   targetsOf,
   withInterpolatedValue,
+  withWaitMode,
   type Step,
   type StepType,
 } from "./steps";
@@ -30,6 +33,8 @@ const EVERY_TYPE: StepType[] = [
   "wait",
   "pause-for-takeover",
 ];
+
+const TARGETING_TYPES = ["click", "type", "select", "download", "extract"] as const;
 
 describe("the eight step types", () => {
   it("each carry a name a person reads, and no two share one", () => {
@@ -96,17 +101,59 @@ describe("a Step added in the editor", () => {
   it("arrives with the type it was asked for and a label that says what it is", () => {
     expect(blankStep("pause-for-takeover").type).toBe("pause-for-takeover");
     expect(blankStep("navigate").label).not.toBe("");
+    expect(blankStep("click").label).toBe(STEP_TYPE_LABELS.click);
   });
 
-  it("is offered only for the types the editor can finish", () => {
-    for (const type of ADDABLE_STEP_TYPES) {
-      expect(targetsOf(blankStep(type))).toEqual([]);
+  it("offers all eight types, in the order a person reads them", () => {
+    expect(ADDABLE_STEP_TYPES).toEqual(EVERY_TYPE);
+  });
+
+  it("a targeting Step arrives with an empty candidate list, never a silent one", () => {
+    for (const type of TARGETING_TYPES) {
+      const step = blankStep(type);
+      const [target] = targetsOf(step);
+
+      expect(target?.candidates).toEqual([]);
+      expect(targetHealth(step).state).not.toBe("ok");
+      expect(selectorHealthCopy(targetHealth(step), 0)).toBe("no selectors — pick an element");
     }
   });
+});
 
-  it("offers the two types that are only ever added by hand", () => {
-    expect(ADDABLE_STEP_TYPES).toContain("wait");
-    expect(ADDABLE_STEP_TYPES).toContain("pause-for-takeover");
+describe("switching a wait", () => {
+  it("lands in element mode on an empty target the hand-edit panel can fill", () => {
+    const waiting = withWaitMode(blankStep("wait"), "element");
+
+    expect(waiting.type).toBe("wait");
+    expect(waiting.payload).toEqual({ mode: "element", target: { candidates: [] } });
+    expect(targetHealth(waiting).state).not.toBe("ok");
+    expect(selectorHealthCopy(targetHealth(waiting), 0)).toBe("no selectors — pick an element");
+  });
+
+  it("keeps the Step's id when the mode changes", () => {
+    const original = blankStep("wait");
+    const waiting = withWaitMode(original, "element");
+    const back = withWaitMode(waiting, "duration");
+
+    expect(waiting.id).toBe(original.id);
+    expect(back.id).toBe(original.id);
+    expect(back.payload).toEqual({ mode: "duration", durationMs: 1000 });
+    expect(targetsOf(back)).toEqual([]);
+  });
+
+  it("leaves a wait already in that mode alone, including its target", () => {
+    const aimed: Step = {
+      id: "1",
+      label: "Wait",
+      type: "wait",
+      payload: { mode: "element", target: A_TARGET },
+    };
+
+    expect(withWaitMode(aimed, "element")).toEqual(aimed);
+    expect(withWaitMode(blankStep("wait"), "duration").payload).toEqual({
+      mode: "duration",
+      durationMs: 1000,
+    });
   });
 });
 

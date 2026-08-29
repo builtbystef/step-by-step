@@ -4,7 +4,7 @@ import type { ExtractField, Variable } from "@step-by-step/api-client";
 import type { ReactNode } from "react";
 
 import { SelectorPanel } from "./selector-panel";
-import type { Step } from "./steps";
+import { withWaitMode, type Step } from "./steps";
 import { ValueField } from "./value-field";
 import type { Span } from "./variables";
 
@@ -376,9 +376,8 @@ function ExtractPayload({
 /**
  * A wait: a fixed length of time, or an element to wait for.
  *
- * Which of the two it is was decided when the Step was made, and it stays
- * decided: turning a duration into an element wait would need a candidate
- * list, which only a recording or a Re-pick can produce.
+ * Switching to an element lands on the same selector panel a hand-added click
+ * uses. Switching back drops the target and starts a one-second pause.
  */
 function WaitPayload({
   step,
@@ -392,28 +391,41 @@ function WaitPayload({
   onRepick?: () => void;
 }) {
   const payload = step.payload;
-  if (payload.mode === "element") {
-    return (
-      <SelectorPanel
-        target={payload.target}
-        label="Wait for this element"
-        open={selectorOpen}
-        onChange={(target) => {
-          onChange({ ...step, payload: { ...payload, target } });
-        }}
-        onRepick={onRepick}
-      />
-    );
-  }
   return (
-    <Field label="Wait for" hint="A pause of a fixed length, before the next Step.">
-      <Milliseconds
-        value={payload.durationMs}
-        onChange={(ms) => {
-          onChange({ ...step, payload: { ...payload, durationMs: ms ?? 1 } });
-        }}
-      />
-    </Field>
+    <>
+      <Field label="Wait for" hint="A pause of a fixed length, or until an element appears.">
+        <Choice
+          value={payload.mode}
+          options={[
+            { value: "duration", label: "A length of time" },
+            { value: "element", label: "An element to appear" },
+          ]}
+          onChange={(mode) => {
+            onChange(withWaitMode(step, mode));
+          }}
+        />
+      </Field>
+      {payload.mode === "element" ? (
+        <SelectorPanel
+          target={payload.target}
+          label="Wait for this element"
+          open={selectorOpen}
+          onChange={(target) => {
+            onChange({ ...step, payload: { ...payload, target } });
+          }}
+          onRepick={onRepick}
+        />
+      ) : (
+        <Field label="Duration" hint="A pause of a fixed length, before the next Step.">
+          <Milliseconds
+            value={payload.durationMs}
+            onChange={(ms) => {
+              onChange({ ...step, payload: { ...payload, durationMs: ms ?? 1 } });
+            }}
+          />
+        </Field>
+      )}
+    </>
   );
 }
 

@@ -47,17 +47,32 @@ export function targetsOf(step: Step): Target[] {
 }
 
 /**
- * The types a person adds in the editor: the ones that point at nothing.
+ * The types a person adds in the editor: all eight.
  *
- * Wait and pause-for-takeover enter a Workflow no other way — nobody records
- * waiting — and a navigate is a URL a person can type. The five that need an
- * element need a recorded candidate list to find it with, and minting one
- * here would be a Step the editor cannot finish: a candidate list comes from
- * a recording or a Re-pick.
+ * A targeting Step arrives with an empty candidate list. The selector panel
+ * is how that list gets filled — by hand, or by Re-pick — so minting one
+ * here is finishable. Wait still starts as a duration; switching it to wait
+ * for an element lands on the same empty target.
  */
-export const ADDABLE_STEP_TYPES = ["navigate", "wait", "pause-for-takeover"] as const;
+export const ADDABLE_STEP_TYPES = [
+  "navigate",
+  "click",
+  "type",
+  "select",
+  "download",
+  "extract",
+  "wait",
+  "pause-for-takeover",
+] as const satisfies readonly StepType[];
 
 export type AddableStepType = (typeof ADDABLE_STEP_TYPES)[number];
+
+const DEFAULT_WAIT_MS = 1000;
+
+/** A target nobody has pointed at yet — the selector panel is how it fills. */
+function emptyTarget(): Target {
+  return { candidates: [] };
+}
 
 /**
  * A new Step, under an id of its own.
@@ -67,19 +82,56 @@ export type AddableStepType = (typeof ADDABLE_STEP_TYPES)[number];
  * Version it goes on to appear in.
  */
 export function blankStep(type: AddableStepType): Step {
-  const envelope = { id: crypto.randomUUID(), optional: false, disabled: false };
-  if (type === "navigate") {
-    return { ...envelope, type, label: "Go to a page", payload: { url: "" } };
+  const envelope = {
+    id: crypto.randomUUID(),
+    optional: false,
+    disabled: false,
+    label: STEP_TYPE_LABELS[type],
+  };
+  switch (type) {
+    case "navigate":
+      return { ...envelope, type, payload: { url: "" } };
+    case "click":
+      return { ...envelope, type, payload: { target: emptyTarget() } };
+    case "type":
+      return { ...envelope, type, payload: { target: emptyTarget(), value: "" } };
+    case "select":
+      return { ...envelope, type, payload: { target: emptyTarget(), value: "" } };
+    case "download":
+      return { ...envelope, type, payload: { target: emptyTarget() } };
+    case "extract":
+      return {
+        ...envelope,
+        type,
+        payload: { target: emptyTarget(), outputName: "", mode: "scalar" },
+      };
+    case "wait":
+      return {
+        ...envelope,
+        type,
+        payload: { mode: "duration", durationMs: DEFAULT_WAIT_MS },
+      };
+    case "pause-for-takeover":
+      return { ...envelope, type, payload: {} };
   }
-  if (type === "wait") {
-    return {
-      ...envelope,
-      type,
-      label: "Wait",
-      payload: { mode: "duration", durationMs: 1000 },
-    };
+}
+
+/**
+ * The same wait, as the other of its two modes.
+ *
+ * Switching to an element lands on an empty candidate list — the same target
+ * a hand-added click arrives with, so the selector panel is how it is filled.
+ * Switching back to a duration drops the target and starts a one-second pause.
+ * A wait already in that mode is handed back as it is.
+ */
+export function withWaitMode(step: Step, mode: "duration" | "element"): Step {
+  if (step.type !== "wait" || step.payload.mode === mode) {
+    return step;
   }
-  return { ...envelope, type, label: "Pause for a person", payload: {} };
+  if (mode === "element") {
+    return { ...step, payload: { mode: "element", target: emptyTarget() } };
+  }
+  return { ...step, payload: { mode: "duration", durationMs: DEFAULT_WAIT_MS } };
 }
 
 /**

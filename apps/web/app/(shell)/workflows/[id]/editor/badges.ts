@@ -50,7 +50,10 @@ export function healthOf(target: Target): TargetHealth {
   if (target.unsupported) {
     return { state: "unsupported", warning: target.unsupported.warning };
   }
-  return target.candidates.every((candidate) => candidate.kind === "css")
+  // No candidates is not a healthy zero: nobody has pointed at the element
+  // yet, which is the same amber as a target only position can find.
+  return target.candidates.length === 0 ||
+    target.candidates.every((candidate) => candidate.kind === "css")
     ? { state: "fragile" }
     : { state: "ok" };
 }
@@ -73,6 +76,9 @@ export function targetHealth(step: Step): TargetHealth {
 const FRAGILE_WARNING =
   "Only where this element sat on the page was recorded. A layout change will lose it — " +
   "re-pick it to record a better way of finding it.";
+
+/** The wording an empty candidate list deserves — never a silent healthy zero. */
+export const EMPTY_WARNING = "no selectors — pick an element";
 
 /**
  * What this Step's badge column states, in the order it states it: the
@@ -117,7 +123,12 @@ export function stepBadges(step: Step, workflowDefaultMs: number, drifted = fals
       title: health.warning,
     });
   } else if (health.state === "fragile") {
-    badges.push({ key: "fragile", label: "fragile", tone: "wait", title: FRAGILE_WARNING });
+    const empty = targetsOf(step).some((target) => target.candidates.length === 0);
+    badges.push(
+      empty
+        ? { key: "fragile", label: "no selectors", tone: "wait", title: EMPTY_WARNING }
+        : { key: "fragile", label: "fragile", tone: "wait", title: FRAGILE_WARNING },
+    );
   }
   if (drifted) {
     badges.push({

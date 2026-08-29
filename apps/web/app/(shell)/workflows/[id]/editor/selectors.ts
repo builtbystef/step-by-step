@@ -1,6 +1,6 @@
 import type { CandidateKind, SelectorCandidate, Target } from "@step-by-step/api-client";
 
-import type { TargetHealth } from "./badges";
+import { EMPTY_WARNING, type TargetHealth } from "./badges";
 
 import type { AttributeTone } from "../../../../../components/primitives/attribute-badge";
 
@@ -38,7 +38,7 @@ export function selectorHealthCopy(health: TargetHealth, count: number): string 
     return health.warning;
   }
   if (count === 0) {
-    return "no selectors — pick an element";
+    return EMPTY_WARNING;
   }
   if (health.state === "fragile") {
     return "fragile — only position-based selectors";
