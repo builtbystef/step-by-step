@@ -14,7 +14,10 @@ import pytest
 from conftest import code_sent_to
 from fastapi.testclient import TestClient
 from httpx import Response
+from sqlalchemy import select
 from step_by_step_api import clock
+from step_by_step_api.accounts.models import CodeIssuance
+from step_by_step_core.db import session_scope
 
 pytestmark = pytest.mark.integration
 
@@ -169,3 +172,51 @@ def test_one_address_being_sprayed_does_not_silence_another(
     assert request_code(client, sprayed).status_code == 429
 
     assert request_code(client, untouched).status_code == 202
+
+
+def issuance_row(email: str) -> CodeIssuance | None:
+    """The issuance row for an address, if the store still holds one.
+
+    An absence no HTTP answer can carry: a closed window either way lets the
+    next request through, and only the table can show the row is gone rather
+    than kept forever.
+    """
+    with session_scope() as db:
+        return db.execute(
+            select(CodeIssuance).where(CodeIssuance.email == email.lower())
+        ).scalar_one_or_none()
+
+
+def test_an_issuance_row_is_gone_once_its_window_has_passed(
+    client: TestClient, travel: Travel
+) -> None:
+    """A closed window is dead weight: the next successful request-code, for
+    any address, deletes it rather than leaving a row per address anybody
+    ever asked about."""
+    abandoned, other = an_email(), an_email()
+    spend_the_issuance(client, abandoned)
+    assert issuance_row(abandoned) is not None
+
+    travel(ISSUANCE_WINDOW + timedelta(minutes=1))
+    assert request_code(client, other).status_code == 202
+
+    assert issuance_row(abandoned) is None
+
+
+def test_sweeping_a_closed_window_does_not_lift_an_open_one(
+    client: TestClient, travel: Travel
+) -> None:
+    """The limit still holds across the removal: an address at its cap stays
+    refused until the hour has actually passed, even while other traffic is
+    paying for the sweep."""
+    capped, other = an_email(), an_email()
+    spend_the_issuance(client, capped)
+
+    assert request_code(client, other).status_code == 202
+    assert request_code(client, capped).status_code == 429
+    assert issuance_row(capped) is not None
+
+    travel(ISSUANCE_WINDOW + timedelta(minutes=1))
+    assert request_code(client, other).status_code == 202
+    assert issuance_row(capped) is None
+    assert request_code(client, capped).status_code == 202

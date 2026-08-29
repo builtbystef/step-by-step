@@ -136,7 +136,9 @@ def request_code(db: DbSession, email: str) -> None:
     an address being sprayed with codes is a mailbox being used as a weapon,
     and there is no way to stop sending without saying so. It reveals nothing
     an attacker did not already know, because they are the one making the
-    requests being counted.
+    requests being counted. A successful request also sweeps issuance rows
+    whose window has closed, so the table does not keep a row per address
+    anybody ever asked about.
     """
     address = normalized(email)
     if codes.count_issuance(db, address) > codes.ISSUANCE_LIMIT:
@@ -145,6 +147,7 @@ def request_code(db: DbSession, email: str) -> None:
             RATE_LIMITED,
             "too many codes have been requested for this address",
         )
+    codes.sweep_closed_windows(db)
     code = codes.issue(db, address)
     signing_up = find_user(db, address) is None and may_sign_up(db, address)
     mail.send(

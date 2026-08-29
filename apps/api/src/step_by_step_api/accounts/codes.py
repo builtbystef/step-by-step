@@ -98,6 +98,23 @@ def count_issuance(db: DbSession, email: str) -> int:
     return db.execute(counted).scalar_one()
 
 
+def sweep_closed_windows(db: DbSession) -> None:
+    """Remove issuance rows that can no longer refuse anyone.
+
+    A row only matters while its window is open: once the hour has passed, the
+    next request would reset it anyway, and leaving it is how the table grew
+    with every address anybody ever asked about. Deleted here, on the request
+    that already writes this table, so ordinary traffic pays for the sweeping
+    and nothing scheduled does. An open window is never touched, which is how
+    an address at its limit stays refused until the hour has actually passed.
+    """
+    db.execute(
+        delete(CodeIssuance).where(
+            CodeIssuance.window_started_at <= clock.now() - ISSUANCE_WINDOW
+        )
+    )
+
+
 def issue(db: DbSession, email: str) -> str:
     """Replace whatever code that address had, and return the new one to send.
 
@@ -139,14 +156,21 @@ def claim(db: DbSession, email: str, code: str) -> Attempt:
     wrong one. A wrong guess is counted instead, and once the count reaches the
     cap the row stops answering — to the right code as much as to a wrong one,
     because a guesser who has spent five tries must not be handed the sixth by
-    finally getting it right. The row stays where it is, refusing, until it
-    expires or the next request replaces it: that request is the recovery, and
-    it is the one the person who owns the address can ask for.
+    finally getting it right. An exhausted row stays where it is, refusing,
+    until it expires or the next request replaces it: that request is the
+    recovery, and it is the one the person who owns the address can ask for.
+    An expired row is deleted where it is found rather than merely refused.
     """
     outstanding = db.execute(
         select(SigninCode).where(SigninCode.email == email)
     ).scalar_one_or_none()
-    if outstanding is None or outstanding.expires_at <= clock.now():
+    if outstanding is None:
+        return Attempt.WRONG
+    if outstanding.expires_at <= clock.now():
+        # Deleted rather than merely refused: the row is dead weight from here
+        # on, and reaping it where it is found is the whole of the cleanup this
+        # table gets — the same sweep sessions get, paid for by this attempt.
+        db.delete(outstanding)
         return Attempt.WRONG
     if outstanding.attempts >= ATTEMPT_CAP:
         return Attempt.EXHAUSTED

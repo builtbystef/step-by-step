@@ -1,7 +1,8 @@
 ---
 id: ytd6pw
 title: Sweep the rows the sign-in flow leaves behind
-state: todo
+state: done
+assignee: agent
 priority: low
 labels:
     - maintenance
@@ -9,7 +10,7 @@ depends_on:
     - t7jki2
 parent: ufnuvx
 created: 2026-08-19T10:44:58Z
-updated: 2026-08-19T10:44:58Z
+updated: 2026-08-29T07:40:29Z
 ---
 
 ## What to build
@@ -29,3 +30,25 @@ Requesting a code is unauthenticated and answers 202 for any address, so anybody
 - [ ] A `signin_code_issuance` row whose window has long passed is removed rather than kept forever, with a rule that says when — and the issuance limit still holds across the removal (an address at its limit stays refused until the window has actually passed).
 - [ ] Whatever sweeping is chosen needs no scheduler and no new process: this instance has Workers and a backend, and nothing else.
 - [ ] The seam tests are the existing HTTP ones, plus the table assertions that show an absence no answer can carry.
+
+## Notes
+
+**agent** — 2026-08-29T07:36:37Z
+
+Seams: HTTP against the FastAPI app with real Postgres, as the spec already named, plus table lookups that assert an absence no answer can carry (the same extra look test_sessions.py takes for an expired session).
+
+Rule for issuance: a row is removed once its window has closed, paid for by the next successful request-code (any address). An open window is never removed, so an address at its limit stays refused until the hour has actually passed. No scheduler.
+
+extension_connect_codes already sweeps every expired row on issue; nothing to add there.
+
+**agent** — 2026-08-29T07:40:29Z
+
+Swept the leftover sign-in rows on ordinary traffic, no scheduler.
+
+signin_codes — claim deletes an expired row where it is found rather than only refusing it (the sessions pattern). Exhausted-but-unexpired rows still stay until they expire or the next request replaces them; that remains the recovery. Covered by test_a_code_expires_after_ten_minutes asserting the table is empty after the 401.
+
+signin_code_issuance — a row whose window has closed is deleted on the next successful request-code (any address). An open window is never removed, so an address at its limit stays 429 until the hour has actually passed. The sweep sits after the limit check so a 429 does not depend on it. Covered by test_an_issuance_row_is_gone_once_its_window_has_passed and test_sweeping_a_closed_window_does_not_lift_an_open_one.
+
+extension_connect_codes already sweeps every expired row on issue; left alone.
+
+Seams: HTTP plus the table assertions that show an absence no answer can carry.

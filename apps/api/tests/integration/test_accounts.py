@@ -223,9 +223,23 @@ def test_a_code_works_once(client: TestClient) -> None:
     assert spent.json()["code"] == "bad_code"
 
 
+def outstanding_code(email: str) -> SigninCode | None:
+    """The Sign-in Code row for an address, if the store still holds one.
+
+    An absence no HTTP answer can carry: expired is refused as `bad_code`
+    either way, and only the table can show the row is gone rather than kept.
+    """
+    with session_scope() as db:
+        return db.execute(
+            select(SigninCode).where(SigninCode.email == email.lower())
+        ).scalar_one_or_none()
+
+
 def test_a_code_expires_after_ten_minutes(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """Expired is refused as `bad_code`, and the row is deleted where it is
+    found — the same sweep sessions get, paid for by the next attempt."""
     email = an_email()
     client.post("/api/auth/request-code", json={"email": email})
     code = code_sent_to(email)
@@ -236,6 +250,7 @@ def test_a_code_expires_after_ten_minutes(
 
     assert stale.status_code == 401
     assert stale.json()["code"] == "bad_code"
+    assert outstanding_code(email) is None
 
 
 def test_a_wrong_code_is_refused_the_same_way(client: TestClient) -> None:
