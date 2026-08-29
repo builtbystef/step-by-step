@@ -58,7 +58,15 @@ services:
       # The unix socket, published into the repository for the sandboxed
       # coding agents: their sandbox isolates the network namespace, so the
       # host port above is unreachable from inside it — the socket is not.
-      - ./.dev/run/pg:/var/run/postgresql
+      #
+      # Mount a sibling of /var/run/postgresql, never that directory itself.
+      # The official image chowns /var/run/postgresql as root on boot, and
+      # Docker Desktop's host bind (/host_mnt/...) refuses the chown, so the
+      # container exits. The image keeps its own socket dir; we ask Postgres
+      # to listen on this one too.
+      - ./.dev/run/pg:/var/run/postgresql-sandbox
+    command:
+      ["postgres", "-c", "unix_socket_directories=/var/run/postgresql,/var/run/postgresql-sandbox"]
     healthcheck:
       test:
         ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-stepbystep} -d ${POSTGRES_DB:-stepbystep}"]
