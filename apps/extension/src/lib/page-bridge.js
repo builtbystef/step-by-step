@@ -118,7 +118,8 @@ export function pageBridge(protocol) {
   chrome.runtime.onMessage?.addListener((message) => {
     if (
       message?.type === protocol.recordingTokenExpired ||
-      message?.type === protocol.recordingFinished
+      message?.type === protocol.recordingFinished ||
+      message?.type === protocol.repickCandidates
     ) {
       window.postMessage(
         {
@@ -126,6 +127,8 @@ export function pageBridge(protocol) {
           type: message.type,
           version: protocol.version,
           sessionId: message.sessionId,
+          ...(typeof message.stepId === "string" ? { stepId: message.stepId } : {}),
+          ...(Array.isArray(message.candidates) ? { candidates: message.candidates } : {}),
         },
         own,
       );

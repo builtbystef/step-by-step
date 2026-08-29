@@ -14,10 +14,12 @@ import {
   RECORDING_PENDING_ACCEPTED,
   RECORDING_TOKEN,
   RECORDING_TOKEN_EXPIRED,
+  REPICK_CANDIDATES,
   handshakeMessage,
   readExtensionMessage,
   recordingPendingMessage,
   recordingTokenMessage,
+  repickPendingMessage,
 } from "./extension-protocol";
 
 /**
@@ -43,6 +45,7 @@ describe("the protocol's names", () => {
     ["RECORDING_TOKEN_EXPIRED", RECORDING_TOKEN_EXPIRED],
     ["RECORDING_TOKEN", RECORDING_TOKEN],
     ["RECORDING_FINISHED", RECORDING_FINISHED],
+    ["REPICK_CANDIDATES", REPICK_CANDIDATES],
   ])("is the extension's own %s", (name, value) => {
     expect(EXTENSION_SOURCE).toContain(`export const ${name} = "${value}";`);
   });
@@ -72,6 +75,24 @@ describe("reading what the extension says", () => {
     ).toEqual({ type: RECORDING_FINISHED, version: "", sessionId: "session-1" });
   });
 
+  it("reads a Re-pick candidate list, and nothing else", () => {
+    expect(
+      readExtensionMessage({
+        channel: EXTENSION_CHANNEL,
+        type: REPICK_CANDIDATES,
+        sessionId: "session-1",
+        stepId: "step-9",
+        candidates: [{ kind: "testid", value: "save" }],
+      }),
+    ).toEqual({
+      type: REPICK_CANDIDATES,
+      version: "",
+      sessionId: "session-1",
+      stepId: "step-9",
+      candidates: [{ kind: "testid", value: "save" }],
+    });
+  });
+
   it("reads an accepted connection", () => {
     expect(
       readExtensionMessage({
@@ -88,6 +109,10 @@ describe("reading what the extension says", () => {
     ["another channel", { channel: "other", type: CONNECT_ACCEPTED }],
     ["another type", { channel: EXTENSION_CHANNEL, type: "recording-started" }],
     ["a malformed recording event", { channel: EXTENSION_CHANNEL, type: RECORDING_FINISHED }],
+    [
+      "a malformed Re-pick",
+      { channel: EXTENSION_CHANNEL, type: REPICK_CANDIDATES, sessionId: "s" },
+    ],
     ["the handshake this page itself posted", { channel: EXTENSION_CHANNEL, type: HANDSHAKE }],
   ])("ignores %s", (_what, data) => {
     expect(readExtensionMessage(data)).toBeNull();
@@ -124,6 +149,29 @@ describe("recording messages the app hands over", () => {
       mode: "record",
       variables: [{ name: "password", secret: true }],
       secrets: [{ id: "secret-1", name: "Portal password" }],
+    });
+  });
+
+  it("hands a Re-pick as the same pending message, scoped to one Step", () => {
+    expect(
+      repickPendingMessage({
+        sessionId: "session-1",
+        token: "token-1",
+        backendOrigin: "https://steps.example.com",
+        workflowId: "workflow-1",
+        workflowName: "Invoices",
+        stepId: "step-9",
+      }),
+    ).toEqual({
+      channel: EXTENSION_CHANNEL,
+      type: RECORDING_PENDING,
+      sessionId: "session-1",
+      token: "token-1",
+      backendOrigin: "https://steps.example.com",
+      workflowId: "workflow-1",
+      workflowName: "Invoices",
+      mode: "repick",
+      stepId: "step-9",
     });
   });
 

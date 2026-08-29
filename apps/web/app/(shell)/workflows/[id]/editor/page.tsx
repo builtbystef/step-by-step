@@ -2,8 +2,10 @@
 
 import {
   createRecordingSession,
+  finalizeRecordingSession,
   restoreWorkflowVersion,
   saveWorkflowDraft,
+  type SelectorCandidate,
   type Variable,
   type WorkflowDocument,
 } from "@step-by-step/api-client";
@@ -16,9 +18,11 @@ import { useEffect, useState } from "react";
 import { withStepAdded, withStepDeleted, withStepMoved, withStepReplaced } from "./edits";
 import { readRefusal, saveRefusal } from "./messages";
 import { draftKey, draftQuery, versionDocumentQuery } from "./queries";
+import { RepickDialog } from "./repick-dialog";
 import { RestoreDialog } from "./restore-dialog";
+import { repickRefusal } from "./selectors";
 import { StepCard } from "./step-card";
-import { ADDABLE_STEP_TYPES, STEP_TYPE_LABELS, blankStep, type Step } from "./steps";
+import { ADDABLE_STEP_TYPES, STEP_TYPE_LABELS, blankStep, targetsOf, type Step } from "./steps";
 import { VariablesDrawer } from "./variables-drawer";
 import { secretNames, variableRows, withLiteralMadeVariable, type Span } from "./variables";
 
@@ -41,9 +45,11 @@ import { useExtensionConnection } from "@/lib/extension-connection-context";
 import {
   RECORDING_FINISHED,
   RECORDING_TOKEN_EXPIRED,
+  REPICK_CANDIDATES,
   readExtensionMessage,
   recordingPendingMessage,
   recordingTokenMessage,
+  repickPendingMessage,
 } from "@/lib/extension-protocol";
 import {
   DropdownMenu,
@@ -73,9 +79,9 @@ import {
  * same thing as a Draft with the changing stopped, so reading one is not a
  * second screen about it.
  *
- * Two things on this tab belong to later slices and are deliberately not
- * here: the selector panel behind a target's badge (`m6s5me`), and recording
- * and test runs (`7vuup5`, `2ggmhx`).
+ * Test runs belong to a later slice (`2ggmhx`). Re-pick confirm is the
+ * existing recording finalize, not a second write: the extension messages
+ * the new candidate list here and does not finalize; confirming does.
  */
 export default function EditorTab() {
   const { active } = useActiveOrganization();
@@ -103,6 +109,13 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
   const [highlighted, setHighlighted] = useState<string | null>(null);
   const [restoring, setRestoring] = useState<number | null>(null);
   const [recordingNote, setRecordingNote] = useState<string | null>(null);
+  const [repick, setRepick] = useState<{
+    sessionId: string;
+    token: string;
+    stepId: string;
+    old: SelectorCandidate[];
+    next: SelectorCandidate[] | null;
+  } | null>(null);
 
   const recording = useMutation({
     mutationFn: async (document: WorkflowDocument) => {
@@ -135,10 +148,80 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
     },
   });
 
+  const startRepick = useMutation({
+    mutationFn: async (step: Step) => {
+      if (connection.version === null || workflow.data === undefined) {
+        throw new Error("The connected extension is not ready.");
+      }
+      const { data, error } = await createRecordingSession({
+        path: { workflow_id: workflowId },
+        headers: { "X-Extension-Version": connection.version },
+        body: { mode: "repick", step_id: step.id },
+      });
+      if (error) throw error;
+      window.postMessage(
+        repickPendingMessage({
+          sessionId: data.session_id,
+          token: data.token,
+          backendOrigin: window.location.origin,
+          workflowId,
+          workflowName: workflow.data.name,
+          stepId: step.id,
+        }),
+        window.location.origin,
+      );
+      return {
+        sessionId: data.session_id,
+        token: data.token,
+        stepId: step.id,
+        old: targetsOf(step)[0]?.candidates ?? [],
+        next: null,
+      };
+    },
+    onSuccess: (session) => {
+      setRepick(session);
+      setRecordingNote(
+        "Ready in the extension. Open the page that has the element, then confirm from its popup and click it.",
+      );
+    },
+  });
+
+  const confirmRepick = useMutation({
+    mutationFn: async () => {
+      if (repick === null || repick.next === null) {
+        throw new Error("Nothing to confirm.");
+      }
+      const { error } = await finalizeRecordingSession({
+        path: { session_id: repick.sessionId },
+        headers: { authorization: repick.token },
+        body: { candidates: repick.next },
+      });
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      setRepick(null);
+      setEdited(null);
+      setRecordingNote("The Step's selectors were replaced.");
+      await Promise.all([
+        cache.invalidateQueries({ queryKey: draftKey(orgId, workflowId) }),
+        cache.invalidateQueries({ queryKey: workflowKey(orgId, workflowId) }),
+        cache.invalidateQueries({ queryKey: workflowsKey(orgId) }),
+      ]);
+    },
+  });
+
   useEffect(() => {
     const receive = (event: MessageEvent) => {
       if (event.source !== window || event.origin !== window.location.origin) return;
       const message = readExtensionMessage(event.data);
+      if (message?.type === REPICK_CANDIDATES && message.candidates !== undefined) {
+        const candidates = message.candidates;
+        setRepick((current) =>
+          current !== null && current.sessionId === message.sessionId
+            ? { ...current, next: candidates }
+            : current,
+        );
+      }
       if (message?.type === RECORDING_FINISHED) {
         setRecordingNote("Recording saved to the Draft.");
         void Promise.all([
@@ -308,6 +391,7 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
     <>
       {save.error ? <Callout tone="bad">{saveRefusal(save.error)}</Callout> : null}
       {recording.error ? <Callout tone="bad">{readRefusal(recording.error)}</Callout> : null}
+      {startRepick.error ? <Callout tone="bad">{readRefusal(startRepick.error)}</Callout> : null}
       {recordingNote ? <Callout tone="info">{recordingNote}</Callout> : null}
 
       {viewing === null ? null : (
@@ -436,6 +520,18 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
                   onDelete={() => {
                     setEdited(withStepDeleted(document, step.id));
                   }}
+                  onRepick={
+                    readOnly || connection.state !== "connected"
+                      ? undefined
+                      : () => {
+                          const blocked = repickRefusal(unsaved);
+                          if (blocked !== null) {
+                            setRecordingNote(blocked);
+                            return;
+                          }
+                          startRepick.mutate(step);
+                        }
+                  }
                 />
               ))}
             </ul>
@@ -468,6 +564,22 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
           </Button>
         </StickyActionFooter>
       ) : null}
+
+      <RepickDialog
+        open={repick !== null && repick.next !== null}
+        oldCandidates={repick?.old ?? []}
+        newCandidates={repick?.next ?? []}
+        pending={confirmRepick.isPending}
+        refusal={confirmRepick.error ? readRefusal(confirmRepick.error) : null}
+        onConfirm={() => {
+          confirmRepick.mutate();
+        }}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRepick(null);
+          }
+        }}
+      />
 
       <RestoreDialog
         version={restoring}

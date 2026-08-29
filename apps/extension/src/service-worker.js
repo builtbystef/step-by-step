@@ -36,13 +36,14 @@ import {
   RECORDING_STATUS,
   RECORDING_TOKEN,
   RECORDING_TOKEN_EXPIRED,
+  REPICK_CANDIDATES,
   isProtocolMessage,
   judgeHandshake,
   mintNonce,
 } from "./lib/handshake.js";
 import { originPattern, readInstanceUrl } from "./lib/instance.js";
 import { pageBridge } from "./lib/page-bridge.js";
-import { bindSecretSteps, captureChoices } from "./lib/recording.js";
+import { bindSecretSteps, captureChoices, readPendingRecording } from "./lib/recording.js";
 
 /** The connected instance, in `storage.local`: it outlives the browser. */
 const CONNECTION_KEY = "connection";
@@ -104,6 +105,7 @@ const BRIDGE_PROTOCOL = {
   recordingTokenExpired: RECORDING_TOKEN_EXPIRED,
   recordingToken: RECORDING_TOKEN,
   recordingFinished: RECORDING_FINISHED,
+  repickCandidates: REPICK_CANDIDATES,
   version: VERSION,
 };
 
@@ -231,36 +233,43 @@ async function acceptRecordingPageMessage(message, sender) {
     if (current !== null && current.state !== "pending") {
       return { accepted: false, reason: "recording-in-progress" };
     }
-    if (
-      message.backendOrigin !== held.origin ||
-      typeof message.sessionId !== "string" ||
-      typeof message.token !== "string" ||
-      typeof message.workflowName !== "string" ||
-      typeof message.workflowId !== "string" ||
-      message.mode !== "record" ||
-      !Array.isArray(message.variables) ||
-      !Array.isArray(message.secrets)
-    ) {
+    const pending = readPendingRecording(message);
+    if (pending === null || pending.backendOrigin !== held.origin) {
       return { accepted: false };
     }
     await chrome.storage.local.set({
-      [RECORDING_KEY]: {
-        state: "pending",
-        sessionId: message.sessionId,
-        token: message.token,
-        backendOrigin: message.backendOrigin,
-        workflowId: message.workflowId,
-        workflowName: message.workflowName,
-        variables: message.variables,
-        secrets: message.secrets,
-        steps: [],
-        visitedHosts: [],
-        storageByOrigin: {},
-        authChoices: [],
-        checkpointSeq: 0,
-      },
+      [RECORDING_KEY]:
+        pending.mode === "repick"
+          ? {
+              state: "pending",
+              mode: "repick",
+              sessionId: pending.sessionId,
+              token: pending.token,
+              backendOrigin: pending.backendOrigin,
+              workflowId: pending.workflowId,
+              workflowName: pending.workflowName,
+              stepId: pending.stepId,
+              steps: [],
+              checkpointSeq: 0,
+            }
+          : {
+              state: "pending",
+              mode: "record",
+              sessionId: pending.sessionId,
+              token: pending.token,
+              backendOrigin: pending.backendOrigin,
+              workflowId: pending.workflowId,
+              workflowName: pending.workflowName,
+              variables: pending.variables,
+              secrets: pending.secrets,
+              steps: [],
+              visitedHosts: [],
+              storageByOrigin: {},
+              authChoices: [],
+              checkpointSeq: 0,
+            },
     });
-    return { accepted: true, type: RECORDING_PENDING_ACCEPTED, sessionId: message.sessionId };
+    return { accepted: true, type: RECORDING_PENDING_ACCEPTED, sessionId: pending.sessionId };
   }
   if (message.type === RECORDING_TOKEN) {
     const active = await activeRecording();
@@ -762,6 +771,18 @@ async function armExtract(message) {
 
 async function stopRecording() {
   const active = await activeRecording();
+  if (active?.mode === "repick") {
+    if (active.state === "recording") {
+      try {
+        await debuggerDetach(active.tabId);
+      } catch {
+        // A tab that closed already detached itself.
+      }
+    }
+    accessibilityQueries.clear();
+    await chrome.storage.local.remove(RECORDING_KEY);
+    return { stopped: true };
+  }
   if (active?.state === "recording") {
     await captureOpenFrameStorage();
     const fresh = await activeRecording();
@@ -888,6 +909,11 @@ async function resolveRecordingSecrets(active, bindings) {
 async function endRecordingAfterDetach(tabId) {
   const active = await activeRecording();
   if (active?.tabId !== tabId || active.state !== "recording") return;
+  if (active.mode === "repick") {
+    accessibilityQueries.clear();
+    await chrome.storage.local.remove(RECORDING_KEY);
+    return;
+  }
   active.authChoices = await loadAuthChoices(active);
   active.state = "ended";
   active.endedReason = "debugger-detached";
@@ -1008,6 +1034,10 @@ async function assembleInteraction(tabId, key, message) {
   if (prefetched?.role) {
     candidates.splice(candidates[0]?.kind === "testid" ? 1 : 0, 0, prefetched.role);
   }
+  if (active.mode === "repick") {
+    await completeRepick(active, candidates);
+    return;
+  }
 
   const description =
     typeof message.description === "string" && message.description
@@ -1044,6 +1074,20 @@ async function assembleInteraction(tabId, key, message) {
     active.recentClick = { stepId: step.id, at: Date.now() };
   }
   await checkpoint(active);
+}
+
+async function completeRepick(active, candidates) {
+  await broadcastRecording(REPICK_CANDIDATES, active.sessionId, {
+    stepId: active.stepId,
+    candidates,
+  });
+  try {
+    await debuggerDetach(active.tabId);
+  } catch {
+    // A tab that closed already detached itself.
+  }
+  accessibilityQueries.clear();
+  await chrome.storage.local.remove(RECORDING_KEY);
 }
 
 async function recordRecentClickAsDownload() {
@@ -1196,6 +1240,10 @@ async function uploadAuthStates(active, selected) {
 async function recordNavigation(details) {
   const active = await activeRecording();
   if (active === null || active.tabId !== details.tabId) return;
+  if (active.mode === "repick") {
+    await injectRecorder(active.tabId);
+    return;
+  }
   const previous = active.steps.at(-1);
   if (previous?.type === "click" && ["link", "form_submit"].includes(details.transitionType)) {
     previous.payload.assertedNavigation = true;
@@ -1245,14 +1293,14 @@ async function markTokenExpired(active) {
   await broadcastRecording(RECORDING_TOKEN_EXPIRED, active.sessionId);
 }
 
-async function broadcastRecording(type, sessionId) {
+async function broadcastRecording(type, sessionId, extra = {}) {
   const held = await connection();
   if (held === null) return;
   const tabs = await chrome.tabs.query({ url: originPattern(held.origin) });
   await Promise.all(
     tabs.map((tab) =>
       typeof tab.id === "number"
-        ? chrome.tabs.sendMessage(tab.id, { type, sessionId }).catch(() => {})
+        ? chrome.tabs.sendMessage(tab.id, { type, sessionId, ...extra }).catch(() => {})
         : Promise.resolve(),
     ),
   );

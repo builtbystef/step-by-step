@@ -53,6 +53,7 @@ export function StepCard({
   onConvert,
   onMove,
   onDelete,
+  onRepick,
 }: {
   step: Step;
   position: number;
@@ -68,6 +69,7 @@ export function StepCard({
   onConvert: (variable: Variable, span: Span) => void;
   onMove: (direction: "up" | "down") => void;
   onDelete: () => void;
+  onRepick?: () => void;
 }) {
   const badges = stepBadges(step, workflowDefaultMs);
   const off = step.disabled === true;
@@ -122,6 +124,7 @@ export function StepCard({
             readOnly={readOnly}
             onChange={onChange}
             onConvert={onConvert}
+            onRepick={onRepick}
           />
         ) : null}
       </div>

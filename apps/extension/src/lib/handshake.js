@@ -47,6 +47,9 @@ export const RECORDING_TOKEN = "recording-token";
 /** The extension telling open app tabs that finalization changed the Draft. */
 export const RECORDING_FINISHED = "recording-finished";
 
+/** The extension handing a Re-pick's new candidate list to the editor, without finalizing. */
+export const REPICK_CANDIDATES = "repick-candidates";
+
 const NONCE_BYTES = 32;
 
 /**

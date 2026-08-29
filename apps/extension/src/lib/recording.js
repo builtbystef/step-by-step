@@ -71,3 +71,48 @@ export function bindSecretSteps(steps, bindings, variables) {
     ],
   };
 }
+
+/**
+ * The pending recording the app handed over, or null when the shape is wrong.
+ *
+ * Record and Re-pick share the handshake. Re-pick is scoped to one Step and
+ * carries no Variables: the editor already has the Draft, and this session
+ * will only replace that Step's candidates.
+ */
+export function readPendingRecording(message) {
+  if (
+    typeof message?.sessionId !== "string" ||
+    typeof message?.token !== "string" ||
+    typeof message?.backendOrigin !== "string" ||
+    typeof message?.workflowId !== "string" ||
+    typeof message?.workflowName !== "string"
+  ) {
+    return null;
+  }
+  if (message.mode === "record") {
+    if (!Array.isArray(message.variables) || !Array.isArray(message.secrets)) return null;
+    return {
+      mode: "record",
+      sessionId: message.sessionId,
+      token: message.token,
+      backendOrigin: message.backendOrigin,
+      workflowId: message.workflowId,
+      workflowName: message.workflowName,
+      variables: message.variables,
+      secrets: message.secrets,
+    };
+  }
+  if (message.mode === "repick") {
+    if (typeof message.stepId !== "string" || message.stepId === "") return null;
+    return {
+      mode: "repick",
+      sessionId: message.sessionId,
+      token: message.token,
+      backendOrigin: message.backendOrigin,
+      workflowId: message.workflowId,
+      workflowName: message.workflowName,
+      stepId: message.stepId,
+    };
+  }
+  return null;
+}

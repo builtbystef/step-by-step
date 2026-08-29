@@ -578,3 +578,120 @@ def test_browser_navigation_emits_a_standalone_navigate_step(
 
     surface.close()
     page.close()
+
+
+def hand_repick(page: Page, fixture_site: str) -> None:
+    """Store a Re-pick pending session, retrying if a previous test overwrites it."""
+    worker = worker_of(page.context)
+    pending = {
+        "channel": "step-by-step",
+        "type": "recording-pending",
+        "sessionId": "repick-session",
+        "token": "repick-token",
+        "backendOrigin": fixture_site,
+        "workflowId": "fixture-workflow",
+        "workflowName": "Fixture Workflow",
+        "mode": "repick",
+        "stepId": "step-9",
+    }
+    for _ in range(20):
+        worker.evaluate(
+            """(origin) => chrome.storage.local.set({connection: {origin}})
+              .then(() => chrome.storage.local.remove('active-recording'))""",
+            fixture_site,
+        )
+        page.evaluate(
+            "([message, origin]) => window.postMessage(message, origin)",
+            [pending, fixture_site],
+        )
+        page.wait_for_timeout(50)
+        stored = worker.evaluate("() => chrome.storage.local.get('active-recording')")[
+            "active-recording"
+        ]
+        if (
+            stored is not None
+            and stored.get("sessionId") == "repick-session"
+            and stored.get("mode") == "repick"
+            and stored.get("state") == "pending"
+        ):
+            return
+    raise AssertionError("the extension did not keep the Re-pick session")
+
+
+def start_repick(browser: BrowserContext, fixture_site: str, page: Page) -> Page:
+    """Hand a Re-pick session to the extension and confirm the target tab."""
+    hand_repick(page, fixture_site)
+    worker = worker_of(browser)
+    surface = browser.new_page()
+    surface.goto(f"chrome-extension://{worker.url.split('/')[2]}/popup.html")
+    answer = surface.evaluate(
+        """async (targetUrl) => {
+          const [tab] = await chrome.tabs.query({url: targetUrl});
+          await chrome.runtime.sendMessage({
+            type: "about-to-start-recording",
+            targetTabId: tab.id,
+            targetUrl,
+          });
+          return chrome.runtime.sendMessage({type: "finish-recording-start"});
+        }""",
+        page.url,
+    )
+    assert answer == {"started": True}
+    return surface
+
+
+def test_repick_pending_is_stored_scoped_to_one_step(
+    connected_browser: BrowserContext, fixture_site: str
+) -> None:
+    page = connected_browser.new_page()
+    page.goto(f"{fixture_site}/recording.html?repick-pending=1")
+    page.wait_for_timeout(250)
+    hand_repick(page, fixture_site)
+    stored = worker_of(connected_browser).evaluate(
+        "() => chrome.storage.local.get('active-recording')"
+    )["active-recording"]
+
+    assert stored["state"] == "pending"
+    assert stored["mode"] == "repick"
+    assert stored["stepId"] == "step-9"
+    assert stored["sessionId"] == "repick-session"
+    page.close()
+
+
+def test_repick_click_messages_candidates_and_does_not_finalize(
+    connected_browser: BrowserContext,
+    fixture_site: str,
+    recording_sink: RecordingSink,
+) -> None:
+    page = connected_browser.new_page()
+    page.goto(f"{fixture_site}/recording.html?repick=1")
+    page.evaluate(
+        """() => {
+          window.__repick = null;
+          window.addEventListener("message", (event) => {
+            if (event.data && event.data.type === "repick-candidates") {
+              window.__repick = event.data;
+            }
+          });
+        }"""
+    )
+    surface = start_repick(connected_browser, fixture_site, page)
+
+    page.click('[data-testid="save"]')
+    page.wait_for_function("() => window.__repick !== null")
+    message = page.evaluate("() => window.__repick")
+
+    assert message["sessionId"] == "repick-session"
+    assert message["stepId"] == "step-9"
+    assert message["candidates"][0] == {"kind": "testid", "value": "save"}
+    assert {"kind": "role", "value": 'button[name="Save"]'} in message["candidates"]
+    assert recording_sink.finalizations == []
+    assert recording_sink.checkpoints == []
+
+    stored = worker_of(connected_browser).evaluate(
+        "() => chrome.storage.local.get('active-recording')"
+    )
+    assert stored.get("active-recording") in (None, {})
+
+    surface.close()
+    page.close()

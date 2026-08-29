@@ -1,3 +1,5 @@
+import type { Target } from "@step-by-step/api-client";
+
 import { targetsOf, type Step } from "./steps";
 
 import type { AttributeTone } from "../../../../../components/primitives/attribute-badge";
@@ -42,16 +44,29 @@ export type TargetHealth =
  * a target that offered none of them is one the page can rearrange out from
  * under.
  */
+/** How well one target will find its element again. */
+export function healthOf(target: Target): TargetHealth {
+  if (target.unsupported) {
+    return { state: "unsupported", warning: target.unsupported.warning };
+  }
+  return target.candidates.every((candidate) => candidate.kind === "css")
+    ? { state: "fragile" }
+    : { state: "ok" };
+}
+
 export function targetHealth(step: Step): TargetHealth {
   const targets = targetsOf(step);
-  const sealed = targets.find((target) => target.unsupported);
-  if (sealed?.unsupported) {
-    return { state: "unsupported", warning: sealed.unsupported.warning };
+  if (targets.length === 0) {
+    return { state: "ok" };
   }
-  const positional = targets.some((target) =>
-    target.candidates.every((candidate) => candidate.kind === "css"),
-  );
-  return positional ? { state: "fragile" } : { state: "ok" };
+  const healths = targets.map(healthOf);
+  const sealed = healths.find((health) => health.state === "unsupported");
+  if (sealed?.state === "unsupported") {
+    return sealed;
+  }
+  return healths.some((health) => health.state === "fragile")
+    ? { state: "fragile" }
+    : { state: "ok" };
 }
 
 const FRAGILE_WARNING =

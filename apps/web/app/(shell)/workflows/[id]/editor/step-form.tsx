@@ -1,19 +1,16 @@
 "use client";
 
-import type { ExtractField, Target, Variable } from "@step-by-step/api-client";
+import type { ExtractField, Variable } from "@step-by-step/api-client";
 import type { ReactNode } from "react";
 
-import { targetHealth } from "./badges";
+import { SelectorPanel } from "./selector-panel";
 import type { Step } from "./steps";
-import { targetToken } from "./summary";
 import { ValueField } from "./value-field";
 import type { Span } from "./variables";
 
-import { Callout } from "@/components/primitives/callout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { duration } from "@/lib/duration";
-import { cn } from "@/lib/utils";
 
 /**
  * A card, expanded: everything this Step holds, editable in place.
@@ -24,11 +21,9 @@ import { cn } from "@/lib/utils";
  * to keep a screenshot — and it reads the same on all eight, so that a person
  * learns it once.
  *
- * What is shown but not edited here is the target's candidate list. It is
- * plain stored data and it is repairable, but both repair paths — re-picking
- * the element on the live page and hand-editing the candidates — are the
- * selector panel's, which arrives with `m6s5me`. Until then this form says
- * what a Step finds its element by, and never pretends the list is empty.
+ * Each targeting Step carries a selector panel: the ranked candidate list,
+ * hand-edits that save with the Draft, and Re-pick for a target the API can
+ * patch (`payload.target`). A pause's success check is hand-editable only.
  *
  * The whole form is one `fieldset`, which is how a published Version opens
  * read-only: a disabled fieldset disables every control inside it, so a
@@ -42,6 +37,7 @@ export function StepForm({
   readOnly,
   onChange,
   onConvert,
+  onRepick,
 }: {
   step: Step;
   workflowDefaultMs: number;
@@ -49,13 +45,20 @@ export function StepForm({
   readOnly: boolean;
   onChange: (step: Step) => void;
   onConvert: (variable: Variable, span: Span) => void;
+  onRepick?: () => void;
 }) {
   return (
     <fieldset
       disabled={readOnly}
       className="mt-3 flex min-w-0 flex-col gap-4 rounded-md border border-line bg-bg/60 p-3"
     >
-      <Payload step={step} variables={variables} onChange={onChange} onConvert={onConvert} />
+      <Payload
+        step={step}
+        variables={variables}
+        onChange={onChange}
+        onConvert={onConvert}
+        onRepick={onRepick}
+      />
       <Envelope step={step} workflowDefaultMs={workflowDefaultMs} onChange={onChange} />
     </fieldset>
   );
@@ -67,11 +70,13 @@ function Payload({
   variables,
   onChange,
   onConvert,
+  onRepick,
 }: {
   step: Step;
   variables: Variable[];
   onChange: (step: Step) => void;
   onConvert: (variable: Variable, span: Span) => void;
+  onRepick?: () => void;
 }) {
   switch (step.type) {
     case "navigate":
@@ -91,7 +96,13 @@ function Payload({
     case "click":
       return (
         <>
-          <TargetField target={step.payload.target} step={step} />
+          <SelectorPanel
+            target={step.payload.target}
+            onChange={(target) => {
+              onChange({ ...step, payload: { ...step.payload, target } });
+            }}
+            onRepick={onRepick}
+          />
           <Check
             label="Expect this click to load a new page"
             checked={step.payload.assertedNavigation === true}
@@ -104,7 +115,13 @@ function Payload({
     case "type":
       return (
         <>
-          <TargetField target={step.payload.target} step={step} />
+          <SelectorPanel
+            target={step.payload.target}
+            onChange={(target) => {
+              onChange({ ...step, payload: { ...step.payload, target } });
+            }}
+            onRepick={onRepick}
+          />
           <ValueField
             label="Value"
             hint="A secret Variable never lands here — {{name}} is all the Step keeps."
@@ -120,7 +137,13 @@ function Payload({
     case "select":
       return (
         <>
-          <TargetField target={step.payload.target} step={step} />
+          <SelectorPanel
+            target={step.payload.target}
+            onChange={(target) => {
+              onChange({ ...step, payload: { ...step.payload, target } });
+            }}
+            onRepick={onRepick}
+          />
           <Field label="Option" hint="The option to choose, as the list writes it.">
             <Input
               value={step.payload.value}
@@ -132,11 +155,19 @@ function Payload({
         </>
       );
     case "download":
-      return <TargetField target={step.payload.target} step={step} />;
+      return (
+        <SelectorPanel
+          target={step.payload.target}
+          onChange={(target) => {
+            onChange({ ...step, payload: { ...step.payload, target } });
+          }}
+          onRepick={onRepick}
+        />
+      );
     case "extract":
-      return <ExtractPayload step={step} onChange={onChange} />;
+      return <ExtractPayload step={step} onChange={onChange} onRepick={onRepick} />;
     case "wait":
-      return <WaitPayload step={step} onChange={onChange} />;
+      return <WaitPayload step={step} onChange={onChange} onRepick={onRepick} />;
     case "pause-for-takeover":
       return <TakeoverPayload step={step} onChange={onChange} />;
   }
@@ -146,14 +177,22 @@ function Payload({
 function ExtractPayload({
   step,
   onChange,
+  onRepick,
 }: {
   step: Extract<Step, { type: "extract" }>;
   onChange: (step: Step) => void;
+  onRepick?: () => void;
 }) {
   const payload = step.payload;
   return (
     <>
-      <TargetField target={payload.target} step={step} />
+      <SelectorPanel
+        target={payload.target}
+        onChange={(target) => {
+          onChange({ ...step, payload: { ...payload, target } });
+        }}
+        onRepick={onRepick}
+      />
       <Field label="Save it as" hint="The name a Run reports this value under.">
         <Input
           value={payload.outputName}
@@ -318,13 +357,24 @@ function ExtractPayload({
 function WaitPayload({
   step,
   onChange,
+  onRepick,
 }: {
   step: Extract<Step, { type: "wait" }>;
   onChange: (step: Step) => void;
+  onRepick?: () => void;
 }) {
   const payload = step.payload;
   if (payload.mode === "element") {
-    return <TargetField target={payload.target} step={step} label="Wait for this element" />;
+    return (
+      <SelectorPanel
+        target={payload.target}
+        label="Wait for this element"
+        onChange={(target) => {
+          onChange({ ...step, payload: { ...payload, target } });
+        }}
+        onRepick={onRepick}
+      />
+    );
   }
   return (
     <Field label="Wait for" hint="A pause of a fixed length, before the next Step.">
@@ -374,12 +424,17 @@ function TakeoverPayload({
         hint="The element whose appearance means the person has finished. Without one, the hand-back stays manual."
       >
         {payload.successCheck ? (
-          <div className="flex items-center gap-2">
-            <TargetSummary target={payload.successCheck} />
+          <div className="flex flex-col gap-2">
+            <SelectorPanel
+              target={payload.successCheck}
+              onChange={(successCheck) => {
+                onChange({ ...step, payload: { ...payload, successCheck } });
+              }}
+            />
             <Button
               variant="ghost"
               size="sm"
-              className="text-small"
+              className="self-start text-small"
               onClick={() => {
                 onChange({ ...step, payload: { ...payload, successCheck: null } });
               }}
@@ -436,54 +491,6 @@ function Envelope({
         />
       </div>
     </div>
-  );
-}
-
-/** What this Step finds its element by, and how well that is expected to go. */
-function TargetField({
-  target,
-  step,
-  label = "Element",
-}: {
-  target: Target;
-  step: Step;
-  label?: string;
-}) {
-  const health = targetHealth(step);
-  return (
-    <Group
-      label={label}
-      hint="Repairing how a Step finds its element arrives with the selector panel."
-    >
-      <div className="flex flex-col gap-2">
-        <TargetSummary target={target} />
-        {health.state === "unsupported" ? (
-          <Callout tone="bad">{health.warning}</Callout>
-        ) : health.state === "fragile" ? (
-          <Callout tone="warn">
-            Only where this element sat on the page was recorded, so a layout change will lose it.
-          </Callout>
-        ) : null}
-      </div>
-    </Group>
-  );
-}
-
-/** One line about a target: what it is called, and how many ways there are to it. */
-function TargetSummary({ target }: { target: Target }) {
-  const token = targetToken(target);
-  const ways = target.candidates.length;
-  return (
-    <p className="text-half text-ink">
-      <span className={cn("rounded bg-muted px-1", token.machine && "font-mono text-small")}>
-        {token.text}
-      </span>
-      <span className="ml-2 text-small text-mut">
-        {ways === 0
-          ? "no recorded way of finding it"
-          : `${String(ways)} way${ways === 1 ? "" : "s"} to find it, verified when recorded`}
-      </span>
-    </p>
   );
 }
 

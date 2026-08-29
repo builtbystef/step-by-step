@@ -1,6 +1,6 @@
 /** The postMessage protocol shared by the app and its connected extension. */
 
-import type { Variable } from "@step-by-step/api-client";
+import type { SelectorCandidate, Variable } from "@step-by-step/api-client";
 
 export const EXTENSION_CHANNEL = "step-by-step";
 export const HANDSHAKE = "connect-handshake";
@@ -12,6 +12,7 @@ export const RECORDING_PENDING_ACCEPTED = "recording-pending-accepted";
 export const RECORDING_TOKEN_EXPIRED = "recording-token-expired";
 export const RECORDING_TOKEN = "recording-token";
 export const RECORDING_FINISHED = "recording-finished";
+export const REPICK_CANDIDATES = "repick-candidates";
 
 export type ExtensionMessage = {
   type:
@@ -19,9 +20,12 @@ export type ExtensionMessage = {
     | typeof CONNECT_ACCEPTED
     | typeof RECORDING_PENDING_ACCEPTED
     | typeof RECORDING_TOKEN_EXPIRED
-    | typeof RECORDING_FINISHED;
+    | typeof RECORDING_FINISHED
+    | typeof REPICK_CANDIDATES;
   version: string;
   sessionId?: string;
+  stepId?: string;
+  candidates?: SelectorCandidate[];
 };
 
 export function readExtensionMessage(data: unknown): ExtensionMessage | null {
@@ -42,6 +46,20 @@ export function readExtensionMessage(data: unknown): ExtensionMessage | null {
       type,
       version: typeof message.version === "string" ? message.version : "",
       sessionId: message.sessionId,
+    };
+  }
+  if (
+    type === REPICK_CANDIDATES &&
+    typeof message.sessionId === "string" &&
+    typeof message.stepId === "string" &&
+    Array.isArray(message.candidates)
+  ) {
+    return {
+      type,
+      version: typeof message.version === "string" ? message.version : "",
+      sessionId: message.sessionId,
+      stepId: message.stepId,
+      candidates: message.candidates as SelectorCandidate[],
     };
   }
   return null;
@@ -72,4 +90,22 @@ export function recordingPendingMessage(recording: PendingRecording) {
 
 export function recordingTokenMessage(sessionId: string, token: string) {
   return { channel: EXTENSION_CHANNEL, type: RECORDING_TOKEN, sessionId, token } as const;
+}
+
+export type PendingRepick = {
+  sessionId: string;
+  token: string;
+  backendOrigin: string;
+  workflowId: string;
+  workflowName: string;
+  stepId: string;
+};
+
+export function repickPendingMessage(repick: PendingRepick) {
+  return {
+    channel: EXTENSION_CHANNEL,
+    type: RECORDING_PENDING,
+    ...repick,
+    mode: "repick" as const,
+  };
 }

@@ -52,8 +52,8 @@ export function targetsOf(step: Step): Target[] {
  * Wait and pause-for-takeover enter a Workflow no other way — nobody records
  * waiting — and a navigate is a URL a person can type. The five that need an
  * element need a recorded candidate list to find it with, and minting one
- * here would be a Step the editor cannot finish: the repair paths that give a
- * target its candidates are `m6s5me`'s.
+ * here would be a Step the editor cannot finish: a candidate list comes from
+ * a recording or a Re-pick.
  */
 export const ADDABLE_STEP_TYPES = ["navigate", "wait", "pause-for-takeover"] as const;
 

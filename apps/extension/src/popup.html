@@ -18,14 +18,20 @@
       </section>
 
       <section id="recording-pending" hidden>
-        <p><strong id="pending-workflow"></strong> is ready to record.</p>
-        <p class="quiet">Open the first page of the task in this window, then confirm here.</p>
+        <p>
+          <strong id="pending-workflow"></strong> <span id="pending-verb">is ready to record</span>.
+        </p>
+        <p class="quiet" id="pending-hint">
+          Open the first page of the task in this window, then confirm here.
+        </p>
         <button id="record-button" type="button">Start recording this tab</button>
       </section>
 
       <section id="recording-active" hidden>
-        <p>Recording <strong id="active-workflow"></strong>.</p>
-        <p class="quiet">Complete the task in this tab, then stop to review every Step.</p>
+        <p id="active-copy">Recording <strong id="active-workflow"></strong>.</p>
+        <p class="quiet" id="active-hint">
+          Complete the task in this tab, then stop to review every Step.
+        </p>
         <button id="stop-button" type="button">Stop and review</button>
       </section>
 

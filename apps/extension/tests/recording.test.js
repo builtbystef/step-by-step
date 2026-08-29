@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { bindSecretSteps, captureChoices, replacementHint } from "../src/lib/recording.js";
+import {
+  bindSecretSteps,
+  captureChoices,
+  readPendingRecording,
+  replacementHint,
+} from "../src/lib/recording.js";
 
 const password = (id) => ({
   id,
@@ -164,5 +169,59 @@ describe("binding password Steps before finalizing", () => {
         secretName: "Portal password",
       },
     ]);
+  });
+});
+
+describe("the pending recording the app hands over", () => {
+  const record = {
+    sessionId: "session-1",
+    token: "token-1",
+    backendOrigin: "https://steps.example.com",
+    workflowId: "workflow-1",
+    workflowName: "Invoices",
+    mode: "record",
+    variables: [{ name: "password", secret: true }],
+    secrets: [{ id: "secret-1", name: "Portal password" }],
+  };
+
+  it("accepts a record session with its Variables and Secrets", () => {
+    expect(readPendingRecording(record)).toEqual({
+      mode: "record",
+      sessionId: "session-1",
+      token: "token-1",
+      backendOrigin: "https://steps.example.com",
+      workflowId: "workflow-1",
+      workflowName: "Invoices",
+      variables: [{ name: "password", secret: true }],
+      secrets: [{ id: "secret-1", name: "Portal password" }],
+    });
+  });
+
+  it("accepts a Re-pick session scoped to one Step, without Variables", () => {
+    expect(
+      readPendingRecording({
+        sessionId: "session-1",
+        token: "token-1",
+        backendOrigin: "https://steps.example.com",
+        workflowId: "workflow-1",
+        workflowName: "Invoices",
+        mode: "repick",
+        stepId: "step-9",
+      }),
+    ).toEqual({
+      mode: "repick",
+      sessionId: "session-1",
+      token: "token-1",
+      backendOrigin: "https://steps.example.com",
+      workflowId: "workflow-1",
+      workflowName: "Invoices",
+      stepId: "step-9",
+    });
+  });
+
+  it("refuses a Re-pick without a Step, and a record without its lists", () => {
+    expect(readPendingRecording({ ...record, mode: "repick" })).toBeNull();
+    expect(readPendingRecording({ ...record, variables: undefined })).toBeNull();
+    expect(readPendingRecording({ ...record, mode: "replay" })).toBeNull();
   });
 });

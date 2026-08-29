@@ -56,8 +56,13 @@ const view = {
   version: document.querySelector("#version"),
   pending: document.querySelector("#recording-pending"),
   pendingWorkflow: document.querySelector("#pending-workflow"),
+  pendingVerb: document.querySelector("#pending-verb"),
+  pendingHint: document.querySelector("#pending-hint"),
+  recordButton: document.querySelector("#record-button"),
   active: document.querySelector("#recording-active"),
-  activeWorkflow: document.querySelector("#active-workflow"),
+  activeCopy: document.querySelector("#active-copy"),
+  activeHint: document.querySelector("#active-hint"),
+  stopButton: document.querySelector("#stop-button"),
   save: document.querySelector("#recording-save"),
   saveWorkflow: document.querySelector("#save-workflow"),
   saveSummary: document.querySelector("#save-summary"),
@@ -232,8 +237,28 @@ function show(state) {
   view.pending.hidden = recording?.state !== "pending";
   view.active.hidden = recording?.state !== "recording";
   view.save.hidden = recording?.state !== "ended";
-  if (recording?.state === "pending") view.pendingWorkflow.textContent = recording.workflowName;
-  if (recording?.state === "recording") view.activeWorkflow.textContent = recording.workflowName;
+  const repick = recording?.mode === "repick";
+  if (recording?.state === "pending") {
+    view.pendingWorkflow.textContent = recording.workflowName;
+    view.pendingVerb.textContent = repick ? "is ready to re-pick" : "is ready to record";
+    view.pendingHint.textContent = repick
+      ? "Open the page that has the element in this window, then confirm here."
+      : "Open the first page of the task in this window, then confirm here.";
+    view.recordButton.textContent = repick
+      ? "Pick an element in this tab"
+      : "Start recording this tab";
+  }
+  if (recording?.state === "recording") {
+    const name = document.createElement("strong");
+    name.textContent = recording.workflowName;
+    view.activeCopy.replaceChildren(
+      ...(repick ? ["Click the intended element on ", name, "."] : ["Recording ", name, "."]),
+    );
+    view.activeHint.textContent = repick
+      ? "The editor will show the new selectors beside the old ones."
+      : "Complete the task in this tab, then stop to review every Step.";
+    view.stopButton.textContent = repick ? "Cancel" : "Stop and review";
+  }
   if (recording?.state === "ended") renderSave(recording);
   view.version.textContent = state.version ?? "";
   if (connected) {
