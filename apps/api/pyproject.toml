@@ -19,6 +19,9 @@ dependencies = [
   "uvicorn[standard]>=0.52.1",
 ]
 
+[project.scripts]
+rotate-master-key = "step_by_step_api.cli:main"
+
 [tool.uv.sources]
 step-by-step-core = { workspace = true }
 

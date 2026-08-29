@@ -7,9 +7,9 @@ Postgres never sees plaintext or an unwrapped data key. A fresh data key per
 record is what keeps the master key rotatable without touching a plaintext:
 re-wrapping re-seals the data key alone.
 
-Every function here takes the master key it works with. The one that reads it
-from the environment is `master_key()`, and the backend calls it at startup —
-this module never reaches for the environment on its own.
+Every function here takes the master key it works with. The one that reads a
+key from the environment is `read_master_key()`; `master_key()` is that
+function on `STEPBYSTEP_MASTER_KEY`, and the backend calls it at startup.
 
 The module is the backend's alone. It never ships in the Worker image, because
 Workers never hold the master key (ADR 0004).
@@ -31,24 +31,26 @@ KEY_BYTES = SecretBox.KEY_SIZE
 MASTER_KEY_VARIABLE = "STEPBYSTEP_MASTER_KEY"
 """Where the master key arrives: base64 of 32 bytes, in the environment."""
 
+NEW_MASTER_KEY_VARIABLE = "STEPBYSTEP_NEW_MASTER_KEY"
+"""The replacement key `rotate-master-key` re-wraps every sealed row onto."""
+
 
 class MasterKeyError(RuntimeError):
     """The master key is missing or unusable, and the backend must not start."""
 
 
-@lru_cache(maxsize=1)
-def master_key() -> bytes:
-    """The instance's master key, decoded from the environment.
+def read_master_key(variable: str) -> bytes:
+    """Decode a 32-byte master key from the named environment variable.
 
-    The backend calls this at startup so that a key it cannot use stops the
-    process rather than the first vault write. Every failure is the same
-    kind — the operator has one variable to fix — and the message says which
-    of the three ways it is wrong.
+    Every failure is the same kind — the operator has one variable to fix —
+    and the message says which of the three ways it is wrong. The current key
+    and the rotation's replacement both come through here, so they refuse for
+    the same reasons.
     """
     try:
-        supplied = environ[MASTER_KEY_VARIABLE]
+        supplied = environ[variable]
     except KeyError:
-        raise MasterKeyError(f"{MASTER_KEY_VARIABLE} is not set") from None
+        raise MasterKeyError(f"{variable} is not set") from None
 
     try:
         # Stripped, because a key handed over as a compose secret arrives
@@ -56,15 +58,24 @@ def master_key() -> bytes:
         key = b64decode(supplied.strip(), validate=True)
     except NotBase64 as malformed:
         raise MasterKeyError(
-            f"{MASTER_KEY_VARIABLE} is not valid base64: {malformed}"
+            f"{variable} is not valid base64: {malformed}"
         ) from malformed
 
     if len(key) != KEY_BYTES:
         raise MasterKeyError(
-            f"{MASTER_KEY_VARIABLE} decodes to {len(key)} bytes; "
-            f"a master key is {KEY_BYTES}"
+            f"{variable} decodes to {len(key)} bytes; a master key is {KEY_BYTES}"
         )
     return key
+
+
+@lru_cache(maxsize=1)
+def master_key() -> bytes:
+    """The instance's master key, decoded from the environment.
+
+    The backend calls this at startup so that a key it cannot use stops the
+    process rather than the first vault write.
+    """
+    return read_master_key(MASTER_KEY_VARIABLE)
 
 
 @dataclass(frozen=True, slots=True)
