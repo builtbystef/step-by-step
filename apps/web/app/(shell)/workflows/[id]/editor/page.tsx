@@ -12,10 +12,11 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Braces, History, Play, Plus } from "lucide-react";
 import Link from "next/link";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { withStepAdded, withStepDeleted, withStepMoved, withStepReplaced } from "./edits";
+import { LEAVE_PROMPT, shouldAskBeforeLeave } from "./leave";
 import { readRefusal, saveRefusal } from "./messages";
 import { repairFromDrift } from "./drift";
 import { draftKey, draftQuery, selectorDriftQuery, versionDocumentQuery } from "./queries";
@@ -70,7 +71,9 @@ import {
  * thing. So the screen holds one edited copy, every tool hands back the next
  * one, and the footer sends it. Nothing is saved as you type — a Draft that
  * saved on every keystroke would be a hundred rejected documents on the way
- * to one good one.
+ * to one good one. Leaving with that copy still in hand asks first — switching
+ * tab, the sidebar, or closing the browser — and staying keeps every edit.
+ * Saving and discarding both leave nothing to warn about.
  *
  * Variables live in the same document and are edited from the drawer, so a
  * declaration, a rename, and the Steps that use it all travel in the one save
@@ -107,13 +110,18 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
   const connection = useExtensionConnection();
   const cache = useQueryClient();
   const router = useRouter();
-  const viewing = viewedVersion(useSearchParams().get("version"));
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const viewing = viewedVersion(searchParams.get("version"));
   const draft = useQuery(draftQuery(orgId, workflowId));
   const version = useQuery(versionDocumentQuery(orgId, workflowId, viewing));
   const workflow = useQuery(workflowQuery(orgId, workflowId));
   const drift = useQuery(selectorDriftQuery(orgId, workflowId));
   const vault = useQuery({ queryKey: SECRETS_KEY, queryFn: loadSecrets });
   const [edited, setEdited] = useState<WorkflowDocument | null>(null);
+  const unsaved = edited !== null;
+  const query = searchParams.toString();
+  const here = query === "" ? pathname : `${pathname}?${query}`;
   const [expanded, setExpanded] = useState<string | null>(null);
   const [repairing, setRepairing] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
@@ -271,6 +279,68 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
     };
   }, [cache, connection.version, orgId, workflowId]);
 
+  // Capture-phase so a Next.js Link cannot navigate before the ask. Staying
+  // is preventDefault; the edited copy never unmounts. Close/reload is the
+  // browser's own warning, which is the only one a tab close will show.
+  useEffect(() => {
+    if (!unsaved) {
+      return;
+    }
+
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!shouldAskBeforeLeave(true, here, null)) {
+        return;
+      }
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    const onClick = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0) {
+        return;
+      }
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        return;
+      }
+      const anchor = target.closest("a");
+      if (anchor === null || anchor.target === "_blank" || anchor.hasAttribute("download")) {
+        return;
+      }
+      const href = anchor.getAttribute("href");
+      if (href === null || href === "" || href.startsWith("#")) {
+        return;
+      }
+      let to: string;
+      try {
+        const url = new URL(href, window.location.origin);
+        if (url.origin !== window.location.origin) {
+          return;
+        }
+        to = `${url.pathname}${url.search}`;
+      } catch {
+        return;
+      }
+      if (!shouldAskBeforeLeave(true, here, to)) {
+        return;
+      }
+      if (!window.confirm(LEAVE_PROMPT)) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+
+    window.addEventListener("beforeunload", onBeforeUnload);
+    window.document.addEventListener("click", onClick, true);
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      window.document.removeEventListener("click", onClick, true);
+    };
+  }, [here, unsaved]);
+
   const save = useMutation({
     mutationFn: async (document: WorkflowDocument) => {
       const { data, error } = await saveWorkflowDraft({
@@ -325,7 +395,6 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
   // Version too: reading one is not a reason to lose an hour of editing.
   const document = readOnly ? (version.data ?? null) : (edited ?? draft.data ?? null);
   const steps = document?.steps ?? [];
-  const unsaved = edited !== null;
   const workflowDefaultMs = workflow.data?.default_step_timeout_ms ?? 30_000;
 
   if (document === null) {
