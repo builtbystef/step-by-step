@@ -2,12 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { restoreConsequence, versionChoices, versionPath, viewedVersion } from "./versions";
 
-/**
- * The version surface, read back without a screen: what the header's dropdown
- * offers, which entry an address is showing, and what restoring one costs.
- */
-
-/** Three Versions, as the backend lists them: oldest first. */
 const PUBLISHED = [
   { number: 1, created_at: "2026-08-01T10:00:00Z" },
   { number: 2, created_at: "2026-08-05T10:00:00Z" },

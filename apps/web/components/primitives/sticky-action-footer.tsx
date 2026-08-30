@@ -2,10 +2,6 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-/**
- * The bottom-anchored action bar on the creation pages. It stays with the
- * viewport so that a long form never hides the button that finishes it.
- */
 export function StickyActionFooter({
   children,
   className,

@@ -34,37 +34,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 
-/**
- * The Variables drawer: what this Workflow takes as input, and which Steps
- * stand on each of them.
- *
- * A Variable is declared inside the Draft document, so everything here is an
- * edit of that document and travels with the same save as the Steps do — a
- * rename is not a separate operation on a separate row, it is the document
- * again with one name changed and every value that reached for it rewritten.
- *
- * Two things a person can do here are refused rather than silently repaired.
- * Deleting a Variable a Step still uses would leave that value reaching for a
- * declaration that is gone, which is the document the store refuses; the
- * drawer says so, and says how many Steps are in the way, which a refusal
- * about a whole document cannot. A name the Workflow already declares is
- * refused for the same reason: a repeated name does not say what it declares.
- *
- * The other half of that rule is listed here too: a `{{name}}` a value
- * reaches for that nothing declares. Those rows sit in the amber that already
- * means look at this, name the Steps that use them, and offer a one-click
- * Declare it. A Draft with none of them shows no such section — absent, not
- * empty.
- *
- * Activating a row's usage count closes the drawer, because what it does is
- * highlight the cards behind it — a modal panel over the thing it is pointing
- * at would be pointing at nothing.
- *
- * A published Version's Variables are read: the rows sit in a disabled
- * fieldset, so nothing inside them can be renamed, unmasked, or deleted by a
- * control somebody forgets, and the form that declares a new one is gone —
- * declaring into a Version is not a thing to offer and refuse.
- */
 export function VariablesDrawer({
   open,
   document,
@@ -151,7 +120,6 @@ export function VariablesDrawer({
   );
 }
 
-/** One declared Variable: its name, whether it is secret, and who stands on it. */
 function VariableRowItem({
   row,
   document,
@@ -258,7 +226,6 @@ function VariableRowItem({
   );
 }
 
-/** A `{{name}}` nothing declares: flagged amber, with the Steps that use it. */
 function UndeclaredRowItem({
   row,
   document,
@@ -317,7 +284,6 @@ function UndeclaredRowItem({
   );
 }
 
-/** Bind this secret Variable to a vault Secret, picked from the list. */
 function VaultPicker({
   row,
   document,
@@ -370,7 +336,6 @@ function VaultPicker({
   );
 }
 
-/** Declaring one by hand — the other way in is converting a value on a card. */
 function DeclareForm({
   document,
   onChange,
@@ -434,7 +399,6 @@ function DeclareForm({
   );
 }
 
-/** "used by 1 step", counted in Steps rather than in references. */
 function usage(steps: number): string {
   return `used by ${String(steps)} step${steps === 1 ? "" : "s"}`;
 }

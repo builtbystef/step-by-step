@@ -3,19 +3,12 @@ import { extname, join, relative } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-/**
- * The two rules the visual language is reviewed against, asserted over the
- * frontend's own source so that a later slice cannot quietly break them.
- */
-
 const WEB_ROOT = import.meta.dirname;
 const SKIPPED_DIRECTORIES = new Set(["node_modules", ".next", "dist"]);
 const SCANNED_EXTENSIONS = new Set([".ts", ".tsx", ".css"]);
 
-/** The one file allowed to name a colour, because it is where colours are defined. */
 const TOKEN_FILE = "app/globals.css";
 
-/** The one component allowed to render a lifecycle state. */
 const STATUS_CHIP = "components/primitives/status-chip.tsx";
 
 function sourceFiles(directory: string): string[] {
@@ -34,8 +27,6 @@ function sourceFiles(directory: string): string[] {
   return found;
 }
 
-// The tests themselves are excluded: this file names both rules in order to
-// check them, and `lib/labels.test.ts` exercises the wording directly.
 const SOURCES = sourceFiles(WEB_ROOT)
   .map((path) => ({
     path: relative(WEB_ROOT, path).replaceAll("\\", "/"),

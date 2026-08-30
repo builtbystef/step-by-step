@@ -1,5 +1,3 @@
-"""The Worker executor drives fixture pages and records the Run at its seam."""
-
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta

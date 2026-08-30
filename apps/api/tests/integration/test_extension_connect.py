@@ -1,12 +1,3 @@
-"""The connect code: the second way an extension reaches an instance.
-
-The first way is the handshake on the app's connect page, which needs the
-extension to be allowed to inject there. When that does not happen, the app
-shows a code and the extension spends it here. A spent code proves what the
-handshake proves and nothing more: the origin is a live instance, and somebody
-signed into it authorized this pairing.
-"""
-
 from collections.abc import Callable
 from datetime import timedelta
 
@@ -32,7 +23,6 @@ def test_a_signed_in_user_takes_a_code_and_the_extension_spends_it(
     assert minted.status_code == 201
     code = minted.json()["code"]
 
-    # The extension has no session: the code is the whole of what it presents.
     assert client.post("/api/extension/connect", json={"code": code}).status_code == 200
 
 
@@ -73,8 +63,6 @@ def test_a_code_that_was_never_issued_is_refused_the_same_way(
 def test_a_code_is_read_as_it_was_copied(
     client: TestClient, new_account: NewAccount
 ) -> None:
-    """Whatever the paste carried: the case it was shown in, its dashes, and
-    the spaces a selection drags along."""
     account = new_account()
     code = account.client.post("/api/extension/connect-codes").json()["code"]
     pasted = f"  {code.lower().replace('-', ' ')}  "
@@ -91,7 +79,6 @@ def test_taking_a_code_needs_a_session(client: TestClient) -> None:
 def test_the_code_is_never_held_in_the_clear(
     client: TestClient, new_account: NewAccount
 ) -> None:
-    """An absence no HTTP answer can carry, so this one test reads the table."""
     account = new_account()
     code = account.client.post("/api/extension/connect-codes").json()["code"]
 

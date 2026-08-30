@@ -16,14 +16,6 @@ import { needsValueGrid, startBody } from "./start-run";
 import { columnsOf, type GridRow } from "@/components/value-grid/grid";
 import { invalidateRunState } from "@/lib/attention";
 
-/**
- * The Run action on the list row and the Workflow header.
- *
- * Immediate when the published Version declares no Variables; the one-row
- * value grid when it declares some. Starting invalidates the Runs list and
- * the attention query together, then navigates to the new Run.
- */
-
 export function useStartRun(): {
   begin: (workflow: Pick<WorkflowSummary, "id" | "published_version">) => void;
   dialog: { workflowId: string; variables: Variable[] } | null;

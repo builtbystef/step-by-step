@@ -1,12 +1,3 @@
-"""The backend's minute loop.
-
-One directly-invokable `tick` is the whole surface: it fires due Schedules,
-reaps stale-heartbeat Runs, times out over-deadline takeovers, re-enqueues
-queued Runs the dispatch list dropped, and advances stalled Batches. Tests
-call `tick()` themselves. The process starts the minute waiter from the app
-lifespan.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -27,7 +18,6 @@ TICK_INTERVAL_SECONDS = 60
 
 
 def tick() -> None:
-    """One pass of the loop. Safe to call from a test without waiting a minute."""
     with session_scope() as db:
         now = clock.now()
         run_ids = fire_due_schedules(db, now)
@@ -44,7 +34,6 @@ def tick() -> None:
 
 
 async def run_forever() -> None:
-    """Sleep a minute, tick, repeat. Failures are logged; the loop stays up."""
     while True:
         await asyncio.sleep(TICK_INTERVAL_SECONDS)
         try:
@@ -54,7 +43,6 @@ async def run_forever() -> None:
 
 
 def start_in_lifespan() -> asyncio.Task[None] | None:
-    """Begin the waiter unless a test run is driving the app itself."""
     if os.environ.get("PYTEST_VERSION") is not None:
         return None
     return asyncio.create_task(run_forever())

@@ -1,8 +1,3 @@
-"""Dump the OpenAPI schema to disk so packages/api-client can generate from it.
-
-Usage: python -m step_by_step_api.export [output-path]
-"""
-
 import json
 import sys
 from pathlib import Path

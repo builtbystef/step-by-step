@@ -1,9 +1,5 @@
 import { COPY } from "../../../../../../lib/copy";
 
-/**
- * What the Batch creation page says when create or copy comes back refused.
- */
-
 const REFUSALS: Record<string, string> = {
   no_published_version: COPY.noPublishedVersion,
   unknown_variable: "A row names a Variable this Workflow does not declare.",

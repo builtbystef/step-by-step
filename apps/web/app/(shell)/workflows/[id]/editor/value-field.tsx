@@ -16,25 +16,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 
-/**
- * A value that interpolates Variables: a navigate URL, or what a type Step
- * types.
- *
- * The field itself is a text box holding text, because that is what the value
- * is — literal text and `{{name}}` mixed freely, and the card's sentence is
- * where they are drawn as pills. What the field adds is the two ways a
- * Variable gets into it: a dropdown that writes `{{name}}` at the caret, and
- * making one out of what is already there.
- *
- * That second one is how a recording becomes reusable. The recorder writes
- * the account name a person typed as a literal; converting it declares the
- * Variable and leaves a reference in its place, in one edit, so the document
- * is never in the state the store refuses.
- *
- * A `{{name}}` nothing declares is said here too, under the input it was
- * typed into, in the same amber the drawer uses. Declaring it happens in the
- * drawer, on the row that lists it.
- */
 export function ValueField({
   label,
   hint,
@@ -52,8 +33,6 @@ export function ValueField({
   onChange: (value: string) => void;
   onConvert: (variable: Variable, span: Span) => void;
 }) {
-  // Where the caret was when the field last had it. A menu item takes the
-  // focus away before it is clicked, so the field cannot be asked afterwards.
   const caret = useRef<Span>({ from: value.length, to: value.length });
   const [converting, setConverting] = useState(false);
 
@@ -146,13 +125,11 @@ export function ValueField({
   );
 }
 
-/** What the field says when a value reaches for a name nothing declares. */
 function undeclaredHint(names: string[]): string {
   const listed = names.map((name) => `{{${name}}}`).join(", ");
   return names.length === 1 ? `${listed} is not declared.` : `${listed} are not declared.`;
 }
 
-/** Naming the Variable a literal becomes, and saying whether it is secret. */
 function ConvertForm({
   literal,
   variables,

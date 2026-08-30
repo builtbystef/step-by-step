@@ -1,17 +1,9 @@
-"""The database seam's configuration contract.
-
-The URL comes from the environment and nowhere else, so that a misconfigured
-process fails loudly instead of connecting to the wrong database. Building an
-engine opens no connection, so this belongs in the fast tier.
-"""
-
 import pytest
 from step_by_step_core.db import get_engine
 
 
 @pytest.fixture(autouse=True)
 def unconfigured_engine() -> None:
-    """No test here may inherit — or leave behind — a cached engine."""
     get_engine.cache_clear()
 
 

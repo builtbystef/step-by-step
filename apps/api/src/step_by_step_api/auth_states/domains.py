@@ -1,5 +1,3 @@
-"""Public-suffix-aware site identities for Auth State."""
-
 import ctypes
 import ctypes.util
 from functools import cache
@@ -7,7 +5,6 @@ from functools import cache
 
 @cache
 def _libpsl() -> ctypes.CDLL:
-    """The platform public-suffix implementation and its built-in current list."""
     library = ctypes.util.find_library("psl")
     if library is None:
         raise RuntimeError("libpsl is required to compute registrable domains")
@@ -19,7 +16,6 @@ def _libpsl() -> ctypes.CDLL:
 
 
 def registrable_domain(hostname: str) -> str:
-    """Return a hostname's eTLD+1 according to the public suffix list."""
     normalized = hostname.rstrip(".").lower().encode("idna")
     psl = _libpsl()
     found = psl.psl_registrable_domain(psl.psl_builtin(), normalized)

@@ -17,7 +17,6 @@ function useInstanceAddress(): string {
   return address;
 }
 
-/** The manual unpacked-install path, shared by Settings and first run. */
 export function InstallAndConnect({ compact = false }: { compact?: boolean }) {
   const connection = useExtensionConnection();
   const address = useInstanceAddress();

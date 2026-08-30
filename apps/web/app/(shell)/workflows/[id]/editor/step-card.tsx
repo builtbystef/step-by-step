@@ -14,30 +14,6 @@ import type { Span } from "./variables";
 import { AttributeBadge } from "@/components/primitives/attribute-badge";
 import { cn } from "@/lib/utils";
 
-/**
- * One Step, as a card that reads as a sentence.
- *
- * The label is bold and editable where it is; under it the Step in words;
- * down the right the badges; and the tools that reorder, switch off, and
- * delete appear on hover, so that a list of forty cards is a list rather than
- * a wall of buttons. Clicking the sentence expands the full form in place —
- * the card never becomes a second screen.
- *
- * A Step that is off stays exactly where it is, dimmed: it is part of the
- * Workflow, and hiding it would make a person wonder where it went.
- *
- * One thing in the badge column is a control rather than a statement: the
- * screenshot toggle, which the spec puts here beside optional and off. It is
- * lit when it is on and appears with the hover tools when it is not, because
- * a column of eight dormant cameras states nothing.
- *
- * A card showing a published Version is read-only: the tools that reorder,
- * switch off, and delete are gone rather than disabled — a Version has no
- * tools, and a row of dead buttons would suggest it does — the label is fixed,
- * the camera states what was recorded instead of offering to change it, and
- * the form behind the sentence is a disabled fieldset. Expanding still works,
- * because reading a Version is the whole reason to open one.
- */
 export function StepCard({
   step,
   position,
@@ -81,8 +57,6 @@ export function StepCard({
   const off = step.disabled === true;
   const card = useRef<HTMLLIElement>(null);
 
-  // A drawer row that says "used by 3 steps" has to be able to show them, and
-  // three cards among ninety are off the screen more often than not.
   useEffect(() => {
     if (highlighted) {
       card.current?.scrollIntoView({ behavior: "smooth", block: "center" });

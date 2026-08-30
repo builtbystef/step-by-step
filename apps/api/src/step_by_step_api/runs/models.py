@@ -1,5 +1,3 @@
-"""The Run record and the rows a Worker writes while executing it."""
-
 from datetime import datetime
 from enum import StrEnum
 from typing import Any
@@ -83,7 +81,6 @@ class AuthStateConsentScope(StrEnum):
 
 
 def enum_column(kind: type[StrEnum], name: str, length: int) -> Enum:
-    """A closed set stored as readable words with a named check constraint."""
     return Enum(
         kind,
         native_enum=False,
@@ -104,8 +101,6 @@ DEFAULT_RUN_TIMEOUT_MS = 30 * 60 * 1000
 
 
 class Run(Base):
-    """One execution. Postgres is authoritative; Redis carries only its id."""
-
     __tablename__ = "runs"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -183,8 +178,6 @@ class Run(Base):
 
 
 class StepResult(Base):
-    """The result of one Step the Run reached."""
-
     __tablename__ = "step_results"
     __table_args__ = (
         UniqueConstraint("run_id", "position", name="step_results_run_position_key"),
@@ -211,8 +204,6 @@ class StepResult(Base):
 
 
 class RunControlInterval(Base):
-    """One contiguous holder of control; these rows are the timeline."""
-
     __tablename__ = "run_control_intervals"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -227,8 +218,6 @@ class RunControlInterval(Base):
 
 
 class RunTakeoverTicket(Base):
-    """A single-use, short-TTL ticket that admits one VNC connection."""
-
     __tablename__ = "run_takeover_tickets"
 
     token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -241,8 +230,6 @@ class RunTakeoverTicket(Base):
 
 
 class RunLogLine(Base):
-    """One persisted line of a Run's log."""
-
     __tablename__ = "run_log_lines"
     __table_args__ = (
         UniqueConstraint("run_id", "seq", name="run_log_lines_run_seq_key"),
@@ -260,8 +247,6 @@ class RunLogLine(Base):
 
 
 class Artifact(Base):
-    """A file a Run produced: a screenshot, a trace chunk, or a download."""
-
     __tablename__ = "artifacts"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -282,8 +267,6 @@ class Artifact(Base):
 
 
 class RunAuthStateCandidate(Base):
-    """A takeover domain that may become a saved login if the user consents."""
-
     __tablename__ = "run_auth_state_candidates"
     __table_args__ = (
         UniqueConstraint(

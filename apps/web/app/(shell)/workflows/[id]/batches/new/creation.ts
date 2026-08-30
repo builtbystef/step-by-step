@@ -7,12 +7,6 @@ import {
 } from "../../../../../../components/value-grid/grid";
 import { duration } from "../../../../../../lib/duration";
 
-/**
- * The Batch creation page's decisions: the default name, the copy-from name,
- * the incomplete-row flag on the payload, the sequential ETA, the new-Variable
- * banner, and where submit navigates.
- */
-
 const MONTHS = [
   "Jan",
   "Feb",
@@ -64,7 +58,6 @@ function calendarDate(now: Date): string {
   return `${String(now.getDate())} ${MONTHS[now.getMonth()] ?? ""} ${String(now.getFullYear())}`;
 }
 
-/** Non-secret Variables the latest Version declares that the page did not load. */
 export function addedVariables(
   baselineNames: readonly string[],
   latest: readonly Variable[],

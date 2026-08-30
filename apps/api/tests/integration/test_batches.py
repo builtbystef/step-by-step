@@ -1,5 +1,3 @@
-"""Batches: sequential rows, skip, re-run, cancel, output, and events."""
-
 import csv
 import io
 import json
@@ -46,7 +44,6 @@ def empty_dispatch_list() -> None:
 
 @pytest.fixture(scope="module")
 def live_origin() -> Iterator[str]:
-    """A real HTTP server: TestClient buffers the body and cannot observe SSE."""
     os.environ.setdefault("STEPBYSTEP_MASTER_KEY", DEV_MASTER_KEY)
     os.environ.setdefault("MAILER", "console")
     server = uvicorn.Server(
@@ -290,7 +287,6 @@ def test_a_failed_row_does_not_strand_the_batch(new_account: NewAccount) -> None
 
     finish_run(current_run_id(account, batch_id))
     on_terminal_run(UUID(current_run_id(account, batch_id)))
-    # After the first finish the current id changes; fetch again after advance.
     first = get_batch(account, batch_id).json()
     assert first["rows"][0]["status"] == "succeeded"
     failed_id = first["rows"][1]["latest_run_id"]

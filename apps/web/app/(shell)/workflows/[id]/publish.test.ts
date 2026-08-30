@@ -3,14 +3,6 @@ import { describe, expect, it } from "vitest";
 
 import { publishPlan } from "./publish";
 
-/**
- * What the publish modal states, read back without a screen.
- *
- * The comparisons here are the ones the backend's own worked example mints:
- * with v1 published, editing Step A, adding D, and removing C is exactly
- * changed [A], added [D], removed [C].
- */
-
 function comparison(over: Partial<DraftComparison> = {}): DraftComparison {
   return {
     added: [],

@@ -8,14 +8,6 @@ import {
   readHandshake,
 } from "../src/lib/handshake.js";
 
-/**
- * The rule every message the extension accepts is held to. A page can say
- * anything to a content script, and any tab can talk to the service worker, so
- * the connect handshake is accepted only from the tab this attempt opened, at
- * the origin this attempt asked permission for, carrying the nonce this
- * attempt minted.
- */
-
 const ORIGIN = "https://steps.example.com";
 const NONCE = "b8f0f0f8d9e64a1a9c2d3e4f50617283b8f0f0f8d9e64a1a9c2d3e4f50617283";
 const EXTENSION_ID = "abcdefghijklmnopabcdefghijklmnop";

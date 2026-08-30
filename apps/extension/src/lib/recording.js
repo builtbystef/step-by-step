@@ -1,6 +1,5 @@
 const VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_-]*$/;
 
-/** The explicit choices shown at save; no browser-state guess preselects one. */
 export function captureChoices(options) {
   return options.map((option) => ({
     domain: option.domain,
@@ -11,7 +10,6 @@ export function captureChoices(options) {
   }));
 }
 
-/** The destination-specific replacement sentence beneath a checked row. */
 export function replacementHint(choice, scope, locale) {
   const personal = scope === "personal";
   const timestamp = personal ? choice.personalSavedAt : choice.organizationSavedAt;
@@ -22,7 +20,6 @@ export function replacementHint(choice, scope, locale) {
   return personal ? `replaces your login saved on ${date}` : `replaces the login saved on ${date}`;
 }
 
-/** Turn password markers into ordinary type Steps before they reach finalize. */
 export function bindSecretSteps(steps, bindings, variables) {
   const byStep = new Map(bindings.map((binding) => [binding.stepId, binding]));
   const declared = new Map(variables.map((variable) => [variable.name, variable]));
@@ -72,13 +69,6 @@ export function bindSecretSteps(steps, bindings, variables) {
   };
 }
 
-/**
- * The pending recording the app handed over, or null when the shape is wrong.
- *
- * Record and Re-pick share the handshake. Re-pick is scoped to one Step and
- * carries no Variables: the editor already has the Draft, and this session
- * will only replace that Step's candidates.
- */
 export function readPendingRecording(message) {
   if (
     typeof message?.sessionId !== "string" ||

@@ -5,7 +5,6 @@ import { Callout } from "@/components/primitives/callout";
 import { Card } from "@/components/ui/card";
 import { useExtensionConnection } from "@/lib/extension-connection-context";
 
-/** `/settings/extension` — installation, connection, and compatibility in one place. */
 export default function BrowserExtensionPage() {
   const connection = useExtensionConnection();
 

@@ -1,5 +1,3 @@
-"""The Batch and its rows. Counts are always derived from rows."""
-
 from datetime import datetime
 from enum import StrEnum
 from typing import Any
@@ -33,8 +31,6 @@ class BatchRowStatus(StrEnum):
 
 
 class Batch(Base):
-    """One Workflow plus a list of input rows. Rows execute one at a time."""
-
     __tablename__ = "batches"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -52,8 +48,6 @@ class Batch(Base):
 
 
 class BatchRow(Base):
-    """One input row. Status and output follow the latest attempt."""
-
     __tablename__ = "batch_rows"
     __table_args__ = (
         UniqueConstraint("batch_id", "index", name="batch_rows_batch_id_index_key"),

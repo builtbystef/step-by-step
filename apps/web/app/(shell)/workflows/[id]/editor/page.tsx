@@ -68,39 +68,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-/**
- * Workflow ▸ Editor — the Draft as a vertical card list that reads as
- * sentences, and everything a person does to it short of publishing.
- *
- * The document is edited whole and saved whole, because that is what the
- * Draft API is: a save replaces the document, and validation reads it as one
- * thing. So the screen holds one edited copy, every tool hands back the next
- * one, and the footer sends it. Nothing is saved as you type — a Draft that
- * saved on every keystroke would be a hundred rejected documents on the way
- * to one good one. Leaving with that copy still in hand asks first — switching
- * tab, the sidebar, or closing the browser — and staying keeps every edit.
- * Saving and discarding both leave nothing to warn about.
- *
- * Variables live in the same document and are edited from the drawer, so a
- * declaration, a rename, and the Steps that use it all travel in the one save
- * — which is also why a rename can rewrite every value that reaches for it.
- *
- * The same screen shows a published Version, when the address names one: the
- * card list again, over an immutable document, with everything that edits it
- * either gone or disabled and one way back into the Draft. A Version is the
- * same thing as a Draft with the changing stopped, so reading one is not a
- * second screen about it.
- *
- * A test run verifies the Draft without publishing: the modal collects
- * Variable values (secrets masked), the Run snapshots the Draft as it
- * stands, and no Version is minted. Selector Drift is an aggregate badge
- * on the card, computed from recent Step Results, and leads into the
- * selector panel that repairs it.
- *
- * Re-pick confirm is the existing recording finalize, not a second write:
- * the extension messages the new candidate list here and does not finalize;
- * confirming does.
- */
 export default function EditorTab() {
   const { active } = useActiveOrganization();
   const params = useParams<{ id: string }>();
@@ -285,9 +252,6 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
     };
   }, [cache, connection.version, orgId, workflowId]);
 
-  // Capture-phase so a Next.js Link cannot navigate before the ask. Staying
-  // is preventDefault; the edited copy never unmounts. Close/reload is the
-  // browser's own warning, which is the only one a tab close will show.
   useEffect(() => {
     if (!unsaved) {
       return;
@@ -360,22 +324,12 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
       setEdited(null);
       await Promise.all([
         cache.invalidateQueries({ queryKey: draftKey(orgId, workflowId) }),
-        // The Draft chip in the header and the row in the list both read where
-        // the Draft stands against the published Version, and a save is what
-        // moves it.
         cache.invalidateQueries({ queryKey: workflowKey(orgId, workflowId) }),
         cache.invalidateQueries({ queryKey: workflowsKey(orgId) }),
       ]);
     },
   });
 
-  /**
-   * Restoring writes the Draft and leaves the Version alone, so what has to
-   * be refetched afterwards is everything that reads the Draft: the document
-   * itself, and the two places the chip is drawn from the comparison against
-   * the latest Version. Then back to the Draft — restoring is done in order to
-   * carry on editing.
-   */
   const restore = useMutation({
     mutationFn: async (number: number) => {
       const { error } = await restoreWorkflowVersion({
@@ -396,9 +350,6 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
   });
 
   const readOnly = viewing !== null;
-  // The edited copy wins while there is one, so a background refetch cannot
-  // take somebody's unsaved work away from under them. It survives a look at a
-  // Version too: reading one is not a reason to lose an hour of editing.
   const document = readOnly ? (version.data ?? null) : (edited ?? draft.data ?? null);
   const steps = document?.steps ?? [];
   const workflowDefaultMs = workflow.data?.default_step_timeout_ms ?? 30_000;
@@ -410,8 +361,6 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
 
   const variables: Variable[] = document.variables ?? [];
   const secrets = secretNames(document);
-  // Which cards a drawer row lit up. The names are the document's, so a
-  // highlight of a Variable that a later edit deletes simply lights nothing.
   const usages = new Set(
     (
       variableRows(document).find((row) => row.name === highlighted) ??

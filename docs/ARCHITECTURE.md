@@ -1,352 +1,216 @@
 # Architecture
 
-The modules of this system, and the seams between them. Update this file when the shape changes. Audits compare it with reality.
+This file describes the current system and the main boundaries between its parts. Update it when those boundaries change.
 
-## Layout
+## Repository layout
 
-A two-language monorepo, scaffolded from the user's `alloy` template (issue `ymz3md` records the interview that chose it). pnpm + Vite+ (`vp`) run the TypeScript side; uv + ruff + ty + pytest run the Python side. Node and Python versions are pinned in `.node-version` and `.python-version`.
+Step by Step is a TypeScript and Python monorepo.
 
 ```text
-├── apps/
-│   ├── api/            # FastAPI backend (Python package: step_by_step_api)
-│   │   ├── alembic/    # migrations
-│   │   └── Dockerfile  # the backend's compose image
-│   ├── extension/      # the MV3 recording extension (plain JavaScript)
-│   │   └── src/        # the package Chrome loads unpacked, and the zip's contents
-│   ├── worker/         # the Worker (Python package: step_by_step_worker)
-│   │   ├── Dockerfile  # Playwright + Chromium + Xvfb + x11vnc + openbox
-│   │   └── entrypoint.sh
-│   └── web/            # Next.js frontend
-├── packages/
-│   ├── core/           # step-by-step-core — the shared internal library
-│   └── api-client/     # @step-by-step/api-client — generated from the OpenAPI schema
-├── compose/            # configuration the stack's services mount (garage.toml)
-├── tsconfig/           # shared TypeScript presets (base/node/browser/library)
-├── pnpm-workspace.yaml # TS workspace + supply-chain policy
-└── pyproject.toml      # uv workspace + ruff/ty/pytest config
+apps/
+  api/          FastAPI backend and Alembic migrations
+  extension/    Chrome MV3 recorder (plain JavaScript)
+  web/          Next.js application
+  worker/       Playwright Worker
+packages/
+  api-client/   TypeScript client generated from OpenAPI
+  core/         Python code shared by the API and Worker
+compose/        Garage configuration
+docs/           Architecture, glossary, standards, and ADRs
 ```
 
-The Python packages register in the root `pyproject.toml`'s `[tool.uv.workspace]` and each carries a `package.json` with the four check scripts, which is how `vp` fans the one command vocabulary out over both languages.
+The root pnpm scripts use Vite+ (`vp`) to run commands in every workspace. Python commands run through uv. Tool versions are pinned in `.node-version`, `.python-version`, `package.json`, and `pyproject.toml`.
 
-`apps/extension` has no build step and no Python of its own: it is the files Chrome loads. The pnpm workspace globs give it `vp check` and `vp test`, and its `package.json` carries the one script the fan-out cannot infer — `test:browser`, which is pytest.
+## Runtime services
 
-The deployment shape (settled in `px25yw`): one docker compose stack — backend, Workers, Postgres, Redis, Garage. `compose.yaml` at the root holds all five; `docker compose up -d` starts them. `pnpm dev` still runs FastAPI and Next.js on the host for day-to-day frontend work, reaching the stack over its published host ports; the containerised backend is what a Worker and the VNC path talk to.
+`compose.yaml` defines five services:
 
-**Host ports are shifted, deliberately.** Postgres publishes on **5433**, Redis on **6380**, and Garage's S3 API on **3910** — not 5432, 6379, and 3900 — because another project on the same machine already holds all three. `POSTGRES_PORT`, `REDIS_PORT`, and `GARAGE_S3_PORT` override them; the backend container takes **8001** (`API_PORT`) so that it and `pnpm dev`'s host backend on 8000 coexist. `.env.example` carries the matching URLs. Inside the network the services answer to their own names on their native ports, and `compose.yaml`'s `x-stack-environment` anchor is the single place that says so.
+- **PostgreSQL** is the source of truth.
+- **Redis** carries dispatch hints, live events, and control hints.
+- **Garage** stores Run Artifacts through its S3 API.
+- **API** serves the HTTP API, the extension package, and the VNC proxy.
+- **Worker** runs one browser and at most one Run at a time.
 
-The Workers publish **nothing**. Their VNC servers must be reachable from the backend over the compose network and from nowhere else, which is also what makes `docker compose up --scale worker=N` work: with no published port there is nothing for a replica to collide with, and each container's `:99` display is its own.
+The Next.js app normally runs on the host with `pnpm dev`. It proxies `/api`, `/extension`, and `/extension.zip` to FastAPI, so the browser uses one origin and the API needs no CORS setup.
 
-The stack is long-lived shared state: dev and the tests all reach the same containers, so nothing may assume it starts fresh.
+The default host ports are 5433 for PostgreSQL, 6380 for Redis, 3910 for Garage, and 8001 for the containerized API. Host development uses ports 3000 for Next.js and 8000 for FastAPI. Workers publish no ports. Their VNC servers are available only inside the Compose network.
 
-Garage is the Artifact store, chosen over MinIO on 2026-08-16 after MinIO archived its community edition; `px25yw` carries the reasoning and `ymz3md` the stack fact. What binds code rather than compose: artifacts are read and written through the **S3 API only**, via boto3 against a configurable endpoint URL, so the store stays swappable. Garage has no object versioning, bucket policies, object lock, or server-side encryption — none are used here, since retention is app-driven and ADR 0003 puts encryption in the application layer.
+The service data is long-lived. Tests must not assume that PostgreSQL, Redis, or Garage starts empty.
 
-It runs as a single self-bootstrapping node: `garage server --single-node --default-bucket` writes the one-node layout, the access key, and the bucket on first boot from the `GARAGE_DEFAULT_*` variables, so the stack needs no init sidecar and a cold `docker compose up` needs no manual step. `compose/garage.toml` is the mounted config; the `rpc_secret` and `admin_token` it would otherwise carry arrive as `GARAGE_RPC_SECRET` and `GARAGE_ADMIN_TOKEN` so that no credential sits in a committed file. Two named volumes hold its metadata and its data — without them the store is wiped whenever the container is replaced.
+## Main data flow
 
-## Seams
+1. The Chrome extension records semantic Steps and saves them to a Workflow Draft through the API.
+2. Publishing copies the Draft into an immutable Version.
+3. Starting a Run writes a queued row to PostgreSQL, then pushes its id to Redis.
+4. A Worker claims the row with one conditional database update.
+5. The Worker runs the Version in a fresh headed Chromium profile.
+6. The Worker writes status, Step Results, logs, control intervals, and Artifact rows to PostgreSQL. It writes Artifact files to Garage and publishes live events to Redis.
+7. The web app reads durable state through the API and receives new Run or Batch events over server-sent events.
 
-### The typed API boundary
+Redis is never the source of truth. A minute loop requeues old queued Runs, fails Workers that stop sending heartbeats, enforces takeover deadlines, fires Schedules, and advances stalled Batches.
 
-`apps/api`'s `build` dumps the FastAPI OpenAPI schema to `apps/api/openapi.json`; `packages/api-client`'s `build` regenerates a typed fetch client from it. Both the schema and the generated client are committed, so a fresh clone typechecks without running Python — and CI's `contract` job regenerates both and fails on any diff. The frontend imports only `@step-by-step/api-client`, never raw fetch paths. New FastAPI routes need an `operation_id`; it becomes the generated function name.
+## API boundary
 
-### The dev proxy
+FastAPI writes `apps/api/openapi.json`. The `@step-by-step/api-client` build generates the TypeScript client in `packages/api-client`. Both outputs are committed.
 
-In dev the browser only talks to Next.js: `apps/web/next.config.ts` rewrites `/api/*` to `http://localhost:8000` (override with `API_URL`), and `/extension` and `/extension.zip` with it — the install page and the build are the backend's, and a download that only worked in the container would be found by the first person to follow the link. No CORS setup exists, deliberately: the extension reaches the backend from a granted origin, where an extension's fetch is not a cross-origin request at all.
+The web app imports the generated client instead of writing API paths by hand. Every public route needs an `operation_id`; it becomes the generated function name. CI regenerates the schema and client and fails if the committed files change.
 
-### The shared internal library
+Worker-only routes live under `/internal`. They use `INTERNAL_TOKEN` and are not included in the generated browser client.
 
-`packages/core` (`step-by-step-core`) is what the backend and the Workers both import. It exists because Workers do **not** route their writes through the backend (`px25yw`): a Worker writes Step Results, log lines, control intervals, artifact rows, and Run status straight to Postgres, and publishes its events straight to Redis. Those seams have to live somewhere both sides can reach.
+API errors use one shape:
 
-Five modules hold the shared seams; the first three each own one connection and nothing else:
+```json
+{ "code": "machine_readable_code", "message": "Plain-language explanation" }
+```
 
-- `step_by_step_core.db` — the database, below.
-- `step_by_step_core.bus` — `get_redis()`, the process-wide client built from `REDIS_URL`. Redis is the dispatch pipe, the event bus, and the Run control channel (`run:{id}:control`); Postgres, never Redis, holds the truth.
-- `step_by_step_core.objects` — the Artifact store, below.
-- `step_by_step_core.document` — the Pydantic contract for a Workflow document: Variables, Targets, and the eight Step payloads. Both the backend that validates and stores it and the Worker that executes it parse the same models.
-- `step_by_step_core.events` — the Run and Batch event vocabulary. `publish` writes one message to `run:{id}:events` and, for a terminal `run.status`, a copy to `runs:terminal` so the backend can advance a Batch; `publish_batch` writes `batch.row` to `batch:{id}:events`; `publish_log` is the dual-write helper that inserts a `run_log_lines` row and publishes the matching `log` event, capping a Run at 10 000 lines plus one final `log truncated` line. An `artifact` event carries ids only.
+Clients branch on `code`, not on `message`.
 
-What deliberately stays out: the envelope-encryption and vault module is the backend's alone and never ships in the Worker image (ADR 0004 — Workers never hold the master key).
+## Shared Python boundary
 
-### Execution
+`packages/core` is the small library imported by both the API and Worker:
 
-A Worker is a long-lived process that executes at most one Run at a time, with an exclusive browser for that Run; the number of Workers is the instance's total Run concurrency. A Run moves `queued → running ⇄ waiting_for_human`, then to one of `succeeded`, `failed`, or `cancelled`. Nothing retries a Run automatically (ADR 0002): a death becomes `failed` with a Failure Reason from the closed set, and only a person re-runs it.
+- `step_by_step_core.db` owns the SQLAlchemy engine and session helpers.
+- `step_by_step_core.bus` owns the Redis client and dispatch list name.
+- `step_by_step_core.objects` owns the S3 clients and bucket setting.
+- `step_by_step_core.document` defines the Workflow document.
+- `step_by_step_core.events` defines Run and Batch events and the durable-log helper.
 
-Three transports carry a live Run, and Postgres is the record of whether it exists:
+Database models stay in the API package. The Worker does not import them; it uses the shared database session and explicit SQL for its writes.
 
-- **Redis** — `LPUSH`/`BRPOP` on the dispatch list as a hint; `run:{id}:events` (and a terminal copy on `runs:terminal`) as the event bus; `run:{id}:control` as a latency hint. A lost hint is recovered by the minute loop, not by Redis reliability.
-- **Internal HTTP** — credentials, heartbeat, control flags, and Auth State write-back, authenticated with `INTERNAL_TOKEN`. This is the ADR 0004 boundary: the Worker never holds the master key and never decrypts; it fetches already-resolved plaintext for the one Run it claimed.
-- **VNC** — the Worker's display, piped through the backend after a single-use ticket. Workers publish nothing.
+The encryption module stays in the API package. It must never enter the Worker image.
 
-### The database
+## Database
 
-SQLAlchemy 2 + Alembic, on psycopg 3 (`postgresql+psycopg://`). The connection URL comes only from the `DATABASE_URL` environment variable — `apps/api/alembic/env.py` sets it and `alembic.ini` carries no URL. Nothing defaults it in code, so a missing variable is a loud failure rather than a silent connection to the wrong database.
+SQLAlchemy 2 uses psycopg 3. Alembic owns schema changes. `DATABASE_URL` is required; there is no connection URL in code or `alembic.ini`.
 
-`step_by_step_core.db` is the seam:
+The main model groups are:
 
-- `Base` — the declarative base every table inherits; `alembic/env.py` autogenerates from its metadata.
-- `get_engine()` — the process-wide engine, built on first use rather than at import, so the no-services tier and anything that merely imports the app need no database.
-- `session_scope()` — one session for one unit of work, as a context manager. This is the form a Worker uses.
-- `get_session()` — the same session as a generator, which is what FastAPI resolves as a dependency.
+- `accounts`: users, sessions, Organizations, Memberships, Invitations, and Sign-in Codes
+- `workflows`: Workflows, Drafts, Versions, and recording sessions
+- `secrets`: Secrets and Personal Overrides
+- `auth_states`: saved browser state and Personal Overrides
+- `runs`: Runs, Step Results, logs, control intervals, takeover tickets, Auth State candidates, and Artifacts
+- `schedules`: Schedules and skipped Occurrences
+- `batches`: Batches and their rows
 
-`step_by_step_api.db` adds only what is FastAPI's: `SessionDep`, the annotated dependency a route handler declares to receive its request's session. The session opens when the request starts and closes when it ends, rolling back whatever the handler did not commit. Handlers commit for themselves.
+Every tenant-owned domain object belongs to an Organization, either directly or through its parent. API lookups include that scope. A resource id from another Organization normally returns 404 rather than revealing that it exists.
 
-Tables are declared in the backend, not in core: `step_by_step_api.accounts.models` holds the accounts tables, `step_by_step_api.workflows.models` the Workflow document, Version, and recording-session tables, `step_by_step_api.extension.models` the connect codes, `step_by_step_api.secrets.models` the Secret vault, `step_by_step_api.auth_states.models` Auth State, `step_by_step_api.runs.models` the Run store, `step_by_step_api.schedules.models` the Schedule table, and `step_by_step_api.batches.models` the Batch and Batch-row tables; `alembic/env.py` imports every one so that `Base.metadata` knows them before autogenerate compares. Core owns the connection, never the schema.
+Migrations form one linear history. Run them with `pnpm --filter api run migrate`.
 
-Migrations run with `pnpm --filter api run migrate` (`alembic upgrade head`). Revisions form one linear history from the empty baseline; each schema slice adds its own revision.
+## Workflow documents
 
-`env.py`'s `include_object` hides one thing from autogenerate: the check constraint a non-native `Enum` column writes, which alembic reflects but does not compare, and would otherwise propose dropping in every revision. The names come from the metadata each run, so a column a model really drops takes its constraint out of the filter and the drop is proposed as it should be; `tests/integration/test_migrations.py` holds both halves.
+A Workflow has one mutable Draft. A Draft and a Version store one JSONB document containing Variables, Targets, and Steps. Saving replaces the whole Draft. Publishing copies it to the next immutable Version.
 
-### The vault's encryption
+The shared Pydantic model defines eight Step types:
 
-`step_by_step_api.envelope` is the backend's alone — the one module deliberately kept out of `packages/core`, because the Workers that import core must never hold the master key (ADR 0004). It is envelope encryption per ADR 0003, PyNaCl `SecretBox` on both levels: `seal()` mints a fresh 32-byte data key per record, seals the plaintext under it and the data key under the master key, and returns the two blobs a vault row stores; `open_sealed()` reverses it; `rewrap()` re-seals a data key from one master key to another and leaves the plaintext untouched, reporting a record an earlier pass already moved so a half-finished rotation can be re-run rather than corrupted.
+- navigate
+- click
+- type
+- select
+- download
+- extract
+- wait
+- pause-for-takeover
 
-`read_master_key(variable)` is the one place a master key is decoded from the environment — base64 of 32 bytes; missing, malformed, or wrong-length all raise `MasterKeyError`. `master_key()` is that function on `STEPBYSTEP_MASTER_KEY`, cached, and the backend's **lifespan calls it at startup**, so a key it cannot use stops the process while an operator is watching rather than failing on the first vault write. Every other function takes the key it works with, which is what makes rotation a two-key call rather than a global swap. In `compose.yaml` the variable sits on the `api` service alone, outside the `x-stack-environment` anchor the Workers share.
+Workflow documents use camelCase because the extension and editor write them. Other API bodies use snake_case. Optional document fields are omitted instead of being written as `null`.
 
-`rotate-master-key` is the backend container's operator command, a console script on the image's PATH. It reads the current key through `master_key()` and the replacement from `STEPBYSTEP_NEW_MASTER_KEY` through the same `read_master_key()` validation the boot gate uses, then `rewrap()`s every sealed row — Secrets, Auth States, and the Personal Overrides of both — committing per record so a half-finished pass is safe to re-run. It prints re-wrapped and already-rotated counts; the operator then swaps the environment variables and restarts the backend. Record plaintexts are never decrypted.
+Step ids remain stable across edits and Versions. They connect a Step to its diff, Step Results, and Selector Drift history. A Draft may not contain duplicate Step ids, duplicate Variable names, or a Variable reference that it does not declare.
 
-### Secrets
+A secret Variable stores a Secret id and a cached display name. It never stores the Secret value.
 
-`step_by_step_api.secrets` owns the Organization's Secret vault. `models.py` stores only each value's envelope-encrypted value and data key, with names unique inside one Organization; `secret_overrides` adds one identically sealed Personal Override per member and cascades with either the Secret or the user. `routes.py` is the signed-in, active-Organization HTTP surface: every id lookup includes the active Organization, reveals decrypt only the selected row, and list joins the caller's own override marker plus `used_by` — Workflows in this Organization whose Draft or a Version binds a secret Variable to that Secret's id. A Workflow counts once even if both documents bind. There is no foreign key from the document to the vault: deleting a Secret does not rewrite Drafts or Versions, and a document that still carries the cached name stays valid. Deleting an Organization cascades through Secrets, and deleting a Secret cascades through all of its overrides.
+## Runs and Workers
 
-The Settings Secrets client consumes only the generated API client. A revealed org value or Personal Override lives in that row component's memory and is discarded after thirty seconds; create, edit, delete confirmation, and the caller's override controls all invalidate the one vault query. The list shows "used by N workflows" with the names; the delete confirmation names them too and then proceeds. The editor hands the extension the current vault identities when it mints a recording session, so the recording save screen can bind an existing Secret without another credential; creating one instead uses only `POST /api/recording-sessions/{id}/secrets`, whose recording capability determines the Workflow's Organization. The plaintext is that request's body alone, and only the returned id and name enter the finalized Draft. Run-time resolution lives in `step_by_step_api.runs.credentials`: a member-started Run opens the starter's Personal Override first, then the org Secret, and returns the value under the Variable name; Scheduled and Batch Runs open the org value only. Workers never see which layer it was.
+A Run follows this lifecycle:
 
-### Auth State
+```text
+queued → running ⇄ waiting_for_human → succeeded | failed | cancelled
+```
 
-`step_by_step_api.auth_states` owns saved browser Auth State. `domains.py` computes the registrable domain through libpsl's maintained public-suffix list, so private suffixes such as `github.io` and multi-label suffixes such as `co.uk` become correct vault keys rather than guesses. `blob.py` is the document capture, injection, and write-back share; `store.py` envelope-seals that whole document and upserts it without changing the row identity or creation time.
+The closed Failure Reason set is defined in `docs/GLOSSARY.md`. Runs are never retried automatically (ADR 0002).
 
-One `auth_states` table carries both destinations: a NULL `user_id` is the Organization record and a set `user_id` is that member's Personal Override. The Organization destination has a partial unique index because SQL NULLs are not equal; the personal destination has the ordinary three-column unique constraint. Its composite Membership foreign key removes only that member's records when a Membership ends, while its Organization foreign key removes both layers with the Organization.
+A Worker is a long-lived process with Xvfb, openbox, x11vnc, and headed Chromium. It checks PostgreSQL, Redis, Garage, its display, and VNC before accepting work. Each claimed Run gets a fresh browser profile, which is removed at the end.
 
-The signed-in routes list Organization records plus only the caller's own Personal Overrides and expose metadata only. Settings Saved logins consumes that generated contract and forgets a row immediately; no route or UI response can carry the sealed blob. A recording capability has two Auth State routes of its own: `auth-state-options` applies the backend's public-suffix rules to the visited hosts and returns destination-specific saved dates, and `auth-states` upserts only explicitly checked captures into the recording member's Organization or Personal Override layer. Both use the recording session's Workflow and member scope, and finalized or foreign capabilities cannot write. Injection and write-back are the Run credentials path: credentials returns the per-domain union (personal winning, personal-only domains included) rather than a subset of the Version's URLs, and write-back re-applies the same rule so a personal row refreshes when the starter holds one and an org row otherwise. A domain with neither a record nor takeover consent is refused `400 unconsented_domain`.
+The Worker commits each Step Result before starting the next Step. It checks cancellation, pause requests, and the Run timeout at safe points. Waiting for a human does not count toward the automation timeout.
 
-### The mailer
+Three channels connect a live Run:
 
-`step_by_step_api.mail` is the one place email leaves the system. Callers say
-`send(to, subject, text)` and never learn which adapter carried it; `MAILER`
-picks that, `console` by default, and `MAIL_FROM` is the sender.
+- **PostgreSQL** stores durable state.
+- **Redis** carries dispatch, events, and low-latency control hints.
+- **Internal HTTP** gives an assigned Worker heartbeats, control state, resolved credentials, and Auth State write-back.
 
-- **console** — logs the message and keeps it in an in-process outbox. It is
-  what makes a dev instance work with no mail service, and it is the **test
-  capture point**: the accounts seam tests read the Sign-in Code out of
-  `outbox()` rather than out of the table that holds its hash.
-- **smtp** — `smtplib` against `SMTP_HOST`/`SMTP_PORT` (587 by default),
-  authenticating with `SMTP_USERNAME`/`SMTP_PASSWORD` when both are set and
-  upgrading with STARTTLS when the server offers it. Offered-not-required, so
-  that a relay on the instance's own host still works. It keeps self-hosting
-  provider-free.
-- **resend** — an HTTP POST to Resend with `RESEND_API_KEY`; the recommended
-  hosted path.
+The backend also proxies **VNC** from the Worker to the web app. Single-use tickets decide whether a connection is view-only or may control the browser.
 
-The console adapter's message is a log record, and it reaches an operator only
-because **`step_by_step_api.logs` configures application logging** — one
-handler on the root logger, on stdout — from the lifespan, ahead of the gates.
-That is the single place: uvicorn gives its own `uvicorn*` loggers a handler
-and the root none, so before this the Sign-in Code was written to a logger with
-nothing attached and dropped (`95v5fm`). uvicorn's loggers do not propagate to
-the root, so its access and error records are neither silenced nor doubled, and
-every other module does nothing but take its logger and write to it. The Worker
-configures its own, in `step_by_step_worker.main`, since it is another process.
+The Worker gets only the plaintext credentials resolved for its assigned Run. The backend keeps `STEPBYSTEP_MASTER_KEY` and performs all decryption (ADR 0004).
 
-The adapter is built once and **at startup**, from the lifespan beside the
-master key: a mailer whose configuration is missing stops the boot with the
-variable's name, rather than surfacing on the first person's sign-in — and the
-Sign-in Code is the only way into an instance. The variables sit on the `api`
-service alone in `compose.yaml`, outside the anchor the Workers share, because
-the backend sends every email and a Worker sends none.
+Secret values are replaced with `••••` before logs, errors, or trace text are stored or published. Trace capture pauses around secret-using Steps and during takeover. Screenshots are not taken while a person controls the browser.
 
-A failed send raises whatever the adapter's own library raises. v1 has no
-caller that catches one, so nothing is wrapped to make them look alike.
+## Secrets and Auth State
 
-### Accounts
+The API uses envelope encryption with PyNaCl `SecretBox` (ADR 0003). Each record has its own data key, and the environment supplies one 32-byte master key. The API validates the key at startup. `rotate-master-key` rewraps data keys without rewriting plaintext values.
 
-`step_by_step_api.accounts` is who a person is and how they prove it. Email is the sole identity, there are no passwords, and the tenant is the Organization (ADR 0005). Eight modules, and `orgs.py` below is the ninth:
+A Secret belongs to an Organization. A member may add a Personal Override. A member-started Run uses that member's override first; Scheduled and Batch Runs use only the Organization value.
 
-- `models.py` — seven tables. `users` (unique on `lower(email)`, stored as entered), `sessions`, `signin_codes`, `organizations`, `memberships`, `invitations` — six in one migration, including the columns later slices animate, because a column added now costs nothing and a migration written later costs a deployment — and `signin_code_issuance`, which came with the throttling because a count of what one address has been sent is state no column of an outstanding code could hold: the code row is deleted the moment the code is spent, and a limit a successful sign-in reset would be no limit.
-- `codes.py` — the Sign-in Code: six digits from the CSPRNG, ten minutes, single-use, one outstanding per address. The table holds a SHA-256 and never the code. That digest is not a defence against guessing a six-digit number offline and is not meant to be: the protections are the lifetime, the single use, and the two caps below. What it buys is that a leaked backup hands nobody a working code.
+Auth State stores cookies and web storage by registrable domain. `libpsl` supplies public-suffix rules. The API never returns saved browser-state contents to the settings UI. Recording and successful Runs can write Auth State only with the user's consent.
 
-  The caps are one defence in two halves, because five guesses at a code only means something while codes are scarce. A code dies after **5 wrong guesses** — and dies to the right code as well, or a guesser who spent five tries would be handed the sixth by finally getting it right; the dead row keeps refusing until it expires or the next request replaces it, which is the recovery and is the one thing only the mailbox's owner can ask for. An expired row is deleted where it is found rather than merely refused, the same sweep `sessions` get, paid for by the next verification. And one address is sent at most **5 codes an hour**, counted in `signin_code_issuance` as a fixed window — a counter and the moment it opened, not a row per request, which would be a table that grew with the spraying it exists to stop. The counting is one `INSERT … ON CONFLICT DO UPDATE`, so two requests at once cannot both read four and both write five. A row whose window has closed is deleted on the next successful request-code (any address), so ordinary traffic pays for that sweep too and nothing scheduled does; an open window is never removed, which is how an address at its limit stays refused until the hour has actually passed.
+The Worker never receives the master key and never chooses between Organization and personal values. The API resolves that choice before returning credentials.
 
-- `sessions.py` — a 256-bit opaque token in an httpOnly, `SameSite=Lax` cookie (`Secure` following the request's scheme), against a row holding only its SHA-256. Server-side rather than a JWT because signing out, removing a member, and deleting an account all have to end access now, and a token the server does not store cannot be taken back. `CurrentUser` is the dependency that makes a route signed-in-only, and expiry is its work as well: a session dies after 30 **idle** days, so being used is what buys the next thirty, and `last_seen_at` is written at most once an hour — the column measures silence in days, and writing a row per read of every screen would buy no resolution anybody uses. An expired row is deleted where it is found rather than merely refused, which is the whole of the sweeping this table gets. Revocation everywhere is `end_all`, the row deletion behind `POST /api/auth/logout-all`, and it takes the asking session with the rest: the action exists for a browser its owner no longer has.
+## Schedules and Batches
 
-  The cookie slides with the row: it carries a 30-day lifetime of its own, so a browser told nothing more would drop it 30 days after signing in and leave a live session nobody could reach. It is re-stamped on the same schedule as the touch, through the `Response` FastAPI hands the dependency — which reaches a handler's answer for every handler that answers with a model, and is replaced wholesale by a handler that returns a `Response` of its own. The two that do are `logout` and `logout-all`, and they are taking the cookie away rather than renewing it.
+A Schedule stores a cron expression, IANA timezone, enabled flag, optional name, and non-secret Variable values. It always starts the latest published Version. Its state is derived:
 
-  `signed_in_user` is also the one dependency that commits. Both writes it can make — the slide and the reaping — are the session layer's own bookkeeping rather than the handler's work, and both have to survive an answer the handler then refuses to give.
+- `paused` when disabled
+- `needs_values` when required non-secret values are missing
+- `active` otherwise
 
-- `service.py` — signing up and signing in, which are one flow, plus `SIGNUP_MODE`. Verifying returns a verdict rather than raising, so that the route commits what happened — a spent code, a counted wrong guess, a created account — before answering with it.
-- `invitations.py` — the offer that makes a team: an address (not an account) is invited into an Organization with a role, the offer stands for 14 days, and accepting it while signed in with that address is what creates the Membership. Two refusals guard it, and both are about the address rather than the string: 409 `already_member` and 409 `already_invited`. Revoked, expired, taken, and never made all answer 404 `invitation_not_found` — an id somebody else holds is not a fact they may confirm by guessing at it.
-- `members.py` — the Membership lifecycle after joining: who is in an Organization, the role changes between member and admin, removal, leaving (the same route as removal, asked by the person it is about), and the transfer that is the only way an Organization's one owner changes. Every refusal that protects that owner is one code, `is_owner` — from a caller's side it is one fact, that the Membership is not theirs to end or to rewrite — and the transfer locks both rows before writing either, so two of them cannot leave two owners. A Membership ending ends access at once and deletes that member's Personal Overrides in this Organization; nothing else stops. The gate reads the row on every request, so there is no session to revoke, and Schedules, Batches, and Runs belong to the Organization rather than to whoever left.
-- `deletion.py` — leaving, at both levels, and it is complete: an owner ends an Organization behind typing its name, a user ends their own account behind typing its address, and neither has a grace period. Organization deletion locks and marks every live Run cancelled, commits that state before the first irreversible Garage deletion, signals running Workers, purges every Artifact object, and then deletes the Organization; the ownership cascades remove its complete Postgres domain. Account deletion uses those same Membership cascades to remove the user's Personal Overrides from every Organization without touching the Organizations' work. `signin_codes` is the one row belonging to a user that no cascade reaches, because a Sign-in Code is keyed by an address rather than by an account, and it is deleted by hand; the issuance count is deliberately left, since clearing it would make ending an account a way to ask for another five codes. Two refusals, and a screen can act on both: 400 `confirmation_mismatch` for a name or an address that does not match, and 403 `sole_owner` for an account that still owns an Organization — an Organization has exactly one owner, so an owner leaving would leave a team nobody can rename, hand on, or end. The confirmation is read before the Organizations are, so the second refusal only ever reaches somebody who meant it.
-- `routes.py` — the HTTP surface, including the unauthenticated `/api/instance`.
+An Occurrence row is written only when no Run was created. The reasons are `overlap`, `missed`, and `missing_values`.
 
-Requesting a code answers 202 whether or not the address is anybody: an answer that varied would be a way to ask which addresses are on this instance. The wording of the email varies instead, by what entering the code will do. The issuance limit is the one refusal that route has — 429 `rate_limited` — and it says nothing about the address: it is about how often the caller has asked, and the caller is the one who made the requests being counted. Entering a code refuses in three ways instead, and a client tells them apart by the code alone: 401 `bad_code` for wrong, expired, spent, and never issued together, 429 `code_exhausted` for a code that has taken its guesses, 403 `signup_closed` for a right code on an instance that takes nobody new.
+A Batch stores up to 1,000 input rows and runs them in order. Only one Run in a Batch may be active at a time. Row status follows the latest attempt. Missing required values may skip a row. A failed row does not stop later rows. Users may edit eligible rows, skip a waiting row, re-run a failed or skipped row, or cancel the Batch.
 
-`SIGNUP_MODE` (`open` by default, `invite_only` the other) decides whether verifying a code for an unknown address creates the account. There is no instance settings table and no instance administrator. It is read per request and proven at boot, beside the master key and the mailer. `GET /api/instance` also reports `default_timezone` (`DEFAULT_TIMEZONE`, UTC when unset): a new Schedule's picker uses the browser's IANA zone when the instance knows it, and this value otherwise.
+## Artifacts and object storage
 
-`orgs.py` is the module every domain route uses, and the one place a role becomes a permission: `ActiveMembership` reads the `X-Organization` header, finds the caller's Membership in what it names, and refuses without one — 400 `organization_required` when the header is absent, 403 `not_a_member` when the caller is not in that Organization or when the id is not a UUID at all (which of those two it was is not a client's business). The header is optional in the OpenAPI schema and required at runtime, deliberately: the frontend's fetch wrapper sets it on every request, so a required parameter would make each generated call site pass what one interceptor already carries — and a missing one has to arrive as this application's error shape rather than as FastAPI's 422.
+Garage is accessed only through the S3 API, using boto3. This keeps the storage provider replaceable.
 
-An Organization's own routes name it in the path instead, and there the gate comes in three widths: `PathMembership` is every member's (reading who else is here, and leaving), `ManagingMembership` adds 403 `not_an_admin` for the controls that manage a team, and `OwningMembership` adds 403 `not_the_owner` for the acts an Organization has exactly one person for. A member is told they are not an admin rather than that they are not a member: they are in this Organization, and hiding that from them would hide a fact they already hold. `orgs.create` is the one way an Organization comes into being — the signup's auto-created one and every later one both go through it, so an Organization without an owner is not expressible.
+Two endpoints are required:
 
-An Invitation is also the signup permit. `SIGNUP_MODE=invite_only` turns `may_sign_up` from "anyone" into "anyone invited", one rule that both the sign-in email's wording and the verification read: the mail reaches the mailbox and nobody else, so it can say the code will create an account where the 202 must not. An account created that way starts with no Organization of its own — it came to join one that already exists, and an empty Organization named after the address is one nobody asked for.
+- `S3_ENDPOINT_URL` is used by application processes to read and write objects.
+- `S3_PUBLIC_ENDPOINT` is used to sign download URLs that a user's browser can open.
 
-### Workflows
+These values are often the same on a development host and different inside a deployment. S3 path-style addressing is used in both cases.
 
-`step_by_step_api.workflows` is the document store the recorder writes and the editor edits, and the immutable Versions publishing mints from it. A Workflow belongs to exactly one Organization (ADR 0005), carries its default step timeout and its takeover timeout as explicit columns, and holds its Steps nowhere near a table:
+Artifact retention is controlled by the application. Deleting a Run, Workflow, or Organization also removes its Artifact objects. Artifact files are not covered by the Secret and Auth State encryption described in ADR 0003; production storage must be protected separately.
 
-- `models.py` — `workflows`, `workflow_drafts`, `workflow_versions`, and `recording_sessions`. The Draft is a row of its own rather than a column on the Workflow, because a Version stores the same document shape and a list screen must read a name without dragging a two-hundred-Step document behind it. The document is one JSONB value, so a per-type payload change is a code change and never a migration. A Version is keyed by the pair `(workflow_id, number)` — the number is what a user says about their own Workflow, not a global sequence — and nothing writes to the table after the insert. A recording session holds only a token hash, its one-user/one-Draft scope, expiry, and the newest full checkpoint buffer.
-- `document.py` — the backend's whole-document rules and derivations around the shared `step_by_step_core.document` contract. The eight Step types are a Pydantic union discriminated by `type`, so the generated TypeScript client hands the editor a tagged union rather than an untyped blob. Two rules read the document as a whole and live in `validated()`: no repeated Step id, and no `{{name}}` that `variables` does not declare — which is how deleting a Variable a Step still uses is refused at the seam rather than in a screen. `{{name}}` is interpolated in a navigate URL and a type value and nowhere else; a `{{` in any other value is text. It also holds the two derivations publishing needs: `diff()` keys on Step ids, so a Step that only moved is neither added, changed, nor removed, and `draft_state()` compares the two stored documents whole — never-published, unpublished-changes, in-sync. `standing()` is that last rule with the comparison taken out of it, so the list can make the comparison in the database and still read the three words from here.
-- `catalog.py` — everything around the document: the list a user lands on, and reading, renaming, duplicating, and deleting one Workflow. Its query joins the Draft and the newest Version for two facts and no documents — when the document was last touched, and whether it still matches what is published — so a page of rows travels as a page of names. Each row is then hydrated with the newest Run, the Schedule count and single-Schedule label, the recent-run median, and the Run count the delete dialog names. The three sorts are a closed set because each is a keyset the cursor is built on, and the cursor is a base64 `(sort, key, id)` that is refused in any order but its own. `GET /api/workflows/{id}` answers the same row the list would have drawn, which is how the Workflow page's header survives a reload. `DELETE` refuses `409 run_active` while a Run of the Workflow is non-terminal, and otherwise cascades through Schedules, Batches, Runs, Step Results, and Artifact rows, purging the Runs' Garage objects first.
-- `routes.py` — create a Workflow (name only; the rest of the CRUD contract is the app shell's), read the Draft, replace the Draft, publish, list and read Versions, restore one into the Draft, and compare the Draft against the latest Version. Its `DocumentRoute` turns FastAPI's own 422 into this application's `{code, message}`, so that a client of the Draft routes reads one dialect for every refusal: `unknown_step_type`, `malformed_payload`, `duplicate_variable_name`, `duplicate_step_id`, `undeclared_variable`.
-- `recording.py` — mint and re-mint one-hour recording capabilities, retain the newest full-buffer checkpoint by sequence, and finalize either by replacing the Draft or by patching the one target a Re-pick session names. Session traffic carries the opaque token alone; the database stores its digest, user and Draft scope, and checkpoint so neither a closed app tab nor an expired token loses recorded Steps.
+## Accounts and tenancy
 
-**This document is the one part of the API that is camelCase.** `timeoutMs`, `outputName`, `subSelector`, `successCheck` — the names the spec pinned, because the recorder and the editor both write this document in JavaScript. Everything else on the wire stays snake_case. A field nobody set is left out rather than serialized as `null`: absence is what optional means here, and a Draft must read back as the document that was saved.
+Email is the only identity. Sign-in uses a short-lived, single-use code. Sessions are opaque server-side tokens stored as hashes in PostgreSQL, with a sliding 30-day idle expiry.
 
-**Activity is the latest Run's creation time**, falling back to the later of the Workflow's `updated_at` (a rename) and its Draft's (an edit). A never-run Workflow still orders by that pair.
+The Organization is the tenant (ADR 0005). Roles are owner, admin, and member. An Organization has exactly one owner. Ending a Membership removes that member's Personal Overrides in the Organization but does not remove shared work.
 
-**A draft state is derived and never stored.** A stored flag would be a second truth, set by each of the three paths that write a Draft — the editor's save, the recorder's finalize, a restore — and the one that forgot would leave a Workflow claiming to be in sync with a Version it no longer matches. One route answers both readers of that derivation: the publish modal reads the three lists, and the Draft chip in the editor header and the Workflows list reads the state. The same read names the enabled Schedules whose value set misses a non-secret Variable the candidate Version declares, so the confirmation can warn before a publish would stop them firing.
+`SIGNUP_MODE` is either `open` or `invite_only`. There is no instance administrator. Invitations both add existing users and allow invited addresses to create an account on an invite-only instance.
 
-Publishing copies the Draft's stored JSONB across as it is rather than re-serializing it through the models, so what a Run reads weeks later is byte-for-byte what the editor was looking at. It takes the Draft row's lock first: two publishes that read the same count would otherwise mint the same number, and the composite key would turn the loser's work into a database error. A restore is an edit of the Draft and mints nothing, and the document it brings back is not revalidated — a Version is executable forever, which refusing one against a rule that has since grown stricter would make it exactly not.
+The mail seam supports `console`, `smtp`, and `resend`. The API validates the chosen adapter at startup. The console adapter writes Sign-in Codes to the API log for local development.
 
-Another Organization's Workflow answers 404 and never 403. A refusal that admitted the id exists would let anyone map another tenant's Workflows one guess at a time.
+## Extension
 
-### Runs and dispatch
+`apps/extension/src` is plain MV3 JavaScript. There is no build step: the same files are loaded unpacked and packaged by the API as `/extension.zip`. `/extension` serves install instructions. The manifest requires Chrome 118 or newer.
 
-`step_by_step_api.runs` owns the persisted execution record and the user-facing Run routes. `models.py` holds `runs`, `step_results`, `run_control_intervals`, `run_log_lines`, `run_takeover_tickets`, and `artifacts`, including the closed lifecycle (`queued → running ⇄ waiting_for_human → succeeded | failed | cancelled`) and Failure Reason set (`step_failed`, `auth_challenge`, `takeover_timeout`, `takeover_abandoned`, `run_timeout`, `worker_lost`, `missing_secret`, `startup_failed`). Runs belong to an Organization, point to an immutable Workflow Version except for test Runs, and carry only non-secret Variable values; a test Run instead carries the Draft snapshot it will execute. The partial `(org_id, takeover_deadline_at)` index over non-terminal Runs is the attention query's ground.
+The extension asks for site access per origin. It does not request access to every site during installation. Connection details and active recording state are kept in Chrome storage so service-worker restarts do not lose them.
 
-`routes.py` starts manual and test Runs, answers `GET /api/workflows/{id}/selector-drift` with the Step ids whose last ten Runs resolved through a lower-ranked candidate (rank above 0) so the editor can badge them, lists Runs by a newest-first `(queued_at, id)` keyset — each summary carries the Workflow name the Runs list renders and the Run's non-secret `variables`, which a Schedule's fill-from-last-Run reads, and the list filters by Workflow, status, and trigger — reconstructs detail from the Run, ordered Step Results, control intervals, Artifacts, and takeover Auth State candidates, streams live events over SSE, returns persisted log lines, assembles extract output on read as JSON or CSV, redirects Artifact download to a short-lived presigned URL, deletes a terminal Run (purging its Garage objects), and drives cancellation and takeover. Starting a Run whose Version (or test Draft) binds a deleted Secret is refused `409 missing_secret` with the Variable names and creates no row — a best-effort pre-check; the credentials fetch is authoritative if the Secret disappears between start and claim. A `queued` Run becomes `cancelled` at once; a `running` Run is stamped `cancel_requested_at` and a message is published on `run:{id}:control` while status stays `running`; a `waiting_for_human` Run is cancelled immediately (nothing is in flight) with unreached Steps skipped; a terminal Run is refused `409 run_terminal`. `POST /api/runs/{id}/pause` stamps `pause_requested_at` for the Worker to honor between resolve walks. `POST /api/runs/{id}/stream-ticket` mints a view-only ticket for any non-terminal Run; `GET /api/runs/{id}/vnc?ticket=…` spends it (or a takeover ticket) and pipes RFB, authenticating to the Worker view-only unless the connecting session holds takeover. `POST /api/runs/{id}/takeover` on a waiting Run mints a single-use short-TTL ticket and records the holding session (`409 not_waiting` / `already_held`); `POST /api/runs/{id}/takeover/hold` sets `auto_handback_disabled` for the rest of that takeover (`409 not_waiting` / `not_held`); `POST /api/runs/{id}/handback` stamps `handback_requested_at` so the Worker consults the success check or retries the paused Step; `POST /api/runs/{id}/takeover/abandon` ends the Run `failed` / `takeover_abandoned`. `GET /api/runs/{id}/events` checks Organization membership before it subscribes — another Organization's id is 404 and never opens a Redis subscription — then fans out `run:{id}:events` with no replay and no `Last-Event-ID`. `GET /api/runs/{id}/logs` is the same gate over `run_log_lines`, filterable by `after_seq` and `step_id`. `GET /api/attention` uses one scan of that partial index: windowed filtered counts retain the true queued, running, and waiting totals while a waiting-first limit returns no more than the five soonest takeover deadlines and their Workflow names. Every lookup passes through the active-Organization Membership gate, so an id from another Organization is 404. Starting commits the queued row to Postgres first, then performs one `LPUSH` of its id to `step_by_step_core.bus.DISPATCH_LIST`; Redis is a dispatch hint, never the record of whether the Run exists. `internal.py` is the Worker-facing half: `POST /internal/runs/{id}/heartbeat` authenticates with `INTERNAL_TOKEN` (54i6da's shared compose token) and stamps `heartbeat_at` on a live assigned Run, or answers 409 `run_terminal`; `GET /internal/runs/{id}/control` is the same token over the row's request flags, with `takeover_phase` taken from the open control interval. `GET /internal/runs/{id}/credentials` returns the already-resolved plaintext Secrets and Auth States for that Run (Personal Overrides folded in for a member-started Run, org values only for Scheduled and Batch), or 409 `missing_secret`; `GET /internal/runs/{id}/auth-state-consents` lists domains the user has consented to keep; `POST /internal/runs/{id}/auth-states` writes blobs back to the layer the same resolution rule names and records new-candidate domains. Every credentials-path route additionally requires a currently assigned, non-terminal Run (else 409 `run_terminal`). The credentials body is never logged. These stay out of the generated client. `POST /api/runs/{id}/auth-state-consents` is the public half: a member chooses organization or personal scope for a reported candidate (`404 not_a_candidate`, `422 no_starter` when personal on a Scheduled or Batch Run). Candidates and consents live on `run_auth_state_candidates` and cascade with the Run. Worker claims write Artifact rows through the shared store. A Run that belongs to a Batch row carries that row on detail (`batch_id`, index, status, variables). `GET /api/runs/{id}/artifacts/{artifactId}/download` is 307 to a presigned URL after the Membership gate — another Organization's id is 404 and no URL is minted. `DELETE /api/runs/{id}` is 204 for a terminal Run after purging Garage objects, or 409 `run_active` while the Run is still live.
+A recording session is a short-lived capability for one user and Workflow. The extension checkpoints the full Step buffer after changes. A password value never crosses the content-script boundary; it becomes a secret binding during save. Re-pick uses the same recording channel but replaces the Target for one Step only.
 
-### Schedules and the minute loop
+## Web app
 
-`step_by_step_api.schedules` owns cron triggers. A Schedule belongs to one Workflow and its Organization, stores an IANA timezone, an optional name, and the non-secret Variable values a fired Run will carry, and computes `next_due_at` with croniter (timezones stay on the standard library's `zoneinfo`). Creating one requires a published Version and a value for every non-secret Variable that Version declares; a secret Variable is stripped, never stored. State is derived on read, never stored: `paused` when disabled, `needs_values` when a declared non-secret Variable is absent from the value set, otherwise `active`. The CRUD routes scope every id through the active-Organization Membership gate; another Organization's Schedule is 404. Creating or turning a Schedule back on sets `next_due_at` to the next future occurrence; disabling sets it to null, so a pause never accrues holes and a disable/enable never catches up missed ones.
+`apps/web` uses Next.js, Tailwind CSS 4, shadcn/ui, Base UI, and TanStack Query.
 
-`schedule_occurrences` records only Occurrences that produced no Run — `overlap`, `missed`, or `missing_values` — unique on `(schedule_id, occurrence_at)`, cascade-deleted with the Schedule. A fired Occurrence is already the Run that carries that `schedule_id`. The list/create/patch response replaces `last_skip_reason` with `latest_occurrence`.
+The route gate and active Organization selection live in reusable modules. The generated API client adds `X-Organization` to requests. A 401 clears cached identity and returns the visitor to sign-in. A `not_a_member` response clears the old Organization choice.
 
-`step_by_step_api.loop.tick` is the one directly-invokable pass of the backend's minute loop. Firing: each enabled Schedule whose current occurrence has passed is walked from `next_due_at` up to now. Missing values write `missing_values` holes and advance; each Occurrence more than `GRACE_WINDOW_SECONDS` (120) late is recorded `missed` and never run; a still-non-terminal Run of that Schedule records `overlap` with `blocking_run_id`. Only an Occurrence inside the grace window becomes a Run of the Workflow's latest published Version (`trigger` = `schedule`, no starter, variables copied from the Schedule) and is `LPUSH`ed after the Postgres commit. At most `OCCURRENCE_PRUNE_DEPTH` (500) rows are written per Schedule per tick, and the table is then pruned to that Schedule's most recent 500. Reaping: a `running` or `waiting_for_human` Run whose `heartbeat_at` is older than 90 seconds becomes `failed` / `worker_lost`, with `skipped` Step Results written for every Step the Run never reached; a `waiting_for_human` Run whose `takeover_deadline_at` has passed becomes `failed` / `takeover_timeout`, the parked Step `failed` and later Steps `skipped`; a `queued` Run older than 60 seconds with no worker assigned is `LPUSH`ed again; a Batch whose current row is terminal but whose next row is still queued is advanced (the backstop for a missed terminal event). Tests call `tick()` themselves; the process starts the minute waiter from the app lifespan.
+The signed-in shell contains Workflows, Runs, Schedules, and Settings. A Workflow has Editor, Runs, Schedules, and Batches tabs. Settings contains account, Organization, members, Invitations, Secrets, saved logins, and extension screens.
 
-### Batches
-
-`step_by_step_api.batches` owns sequential multi-row execution. A Batch belongs to one Workflow and its Organization, stores a name, and holds one `batch_rows` row per input: index, non-secret Variable values, and a status (`queued` | `running` | `succeeded` | `failed` | `skipped` | `cancelled`) that follows the latest attempt. Counts and ETA are derived from rows, never stored. Secret values never enter a row — a secret Variable stays a binding on the Version. Creating a Batch requires a published Version, strips secret values, and refuses unknown Variable names, more than `MAX_BATCH_ROWS` (1000) rows, and a Workflow with nothing published. A row missing a value for a declared non-secret Variable is created `skipped` unless `run_incomplete_rows` is true; the first queued row then starts as a Run (`trigger` = `batch`, no starter) and is `LPUSH`ed. Exactly one Run of a Batch is non-terminal at a time.
-
-Advance is `on_terminal_run`: fold the latest attempt onto the row and start the next queued row. The backend's lifespan subscriber consumes `runs:terminal` (a copy of each terminal `run.status`) so the next Run exists without waiting for a tick; `tick` calls `advance_stalled_batches` as the backstop for a missed event. A failed row never strands the Batch. Skip is offered while the current Run is `waiting_for_human`: that Run is cancelled, the row becomes `skipped`, and the next row starts at once. Re-run attaches a new attempt to a failed or skipped row without touching the others or un-cancelling a finished Batch, and is refused while another Run of the Batch is still live. Cancel stamps `cancelled_at`, cancels the current Run, and marks every remaining queued row `cancelled`. `GET /api/batches?workflow_id=` lists that Workflow's Batches newest-first as summaries with stats derived from rows. `PATCH /api/batches/{id}/rows/{n}` edits values on a queued, skipped, or failed row and never its status; `POST /api/batches/{id}/rows/fill` sets one Variable on every queued row that has no value for it. `GET /api/batches/{id}` returns the Batch, its rows with every attempt listed, derived stats, and `eta_seconds` once at least three succeeded or failed rows have finished — median completed-row duration times rows remaining. Output is one table whose columns are the union of the rows' Variables and extract `outputName`s, as JSON or CSV. `GET /api/batches/{id}/events` fans out `batch:{id}:events` after the Membership gate; another Organization's id is 404 and never opens a subscription. Reconnection replays nothing.
-
-### The extension, and how it reaches an instance
-
-`apps/extension` is the recorder: plain MV3 JavaScript, no framework and no build step, so the directory Chrome loads unpacked is also the artifact the backend serves. The manifest pins a `key` — the extension id then follows the package rather than the directory it was installed from, which is what an enterprise-policy install and any later Web Store continuity need — declares `minimum_chrome_version: "118"` (from 118 an attached `chrome.debugger` session resets the service worker's idle timer), and asks for broad host access as an **optional** permission only. An install grants `activeTab`, `storage`, and `scripting` and reaches no site until somebody names one. `activeTab` lets the popup identify the tab whose origin it is about to request; the temporary grant never replaces the explicit per-origin permission.
-
-**Distribution is unpacked (n52g83).** There is no Web Store listing and no self-hosted `.crx` with an update feed, because an off-store `.crx` installs on Linux alone. `step_by_step_api.extension.package` serves the paired build instead: `GET /extension.zip` zips the directory with the manifest at its root, and `GET /extension` is the install page beside it — unzip, `chrome://extensions`, Developer mode, Load unpacked. Both are unauthenticated, because somebody who cannot sign in yet still has to be able to install the thing that records, and both are outside `/api` and outside the generated client: they are documents a browser is pointed at. A Windows or macOS fleet can force-install the same package through enterprise policy; nothing is built for that, and the install page says so in one sentence. The image carries the package at `EXTENSION_DIR`, and an instance without one answers 503 `extension_unavailable` on those three routes rather than failing at boot — what is missing is the download, not the instance.
-
-`GET /api/extension/version` reports `{current, minimum_supported}`, unauthenticated. `current` is the served build's own manifest version, so an instance cannot claim a build it does not have; `minimum_supported` lives beside it in `package.py` because two readers need the same number — the app's out-of-date banner, and the refusal a recording session gives an extension that is too old.
-
-**The extension opens the channel, never the app.** `externally_connectable.matches` cannot express an arbitrary self-hosted origin — wildcards over effective TLDs are rejected — so one shared build cannot be messaged by an app whose origin is unknown at build time. Connecting is therefore the extension's move, once per instance:
-
-- The popup is the only place a permission can be asked for, because Chrome grants an optional host permission from a user gesture alone. `chrome.permissions.request` is called from the click itself, before anything is awaited.
-- **The grant is what finishes the connect, not the popup.** Chrome's permission dialog is a window that takes focus, and a popup that loses focus is closed — so on most desktops the popup is gone before the answer arrives, and code waiting on that promise never runs. The click therefore tells the worker what it is about to do _before_ it asks, and `chrome.permissions.onAdded` finishes it. When the popup does survive it asks too; whichever arrives first takes the announcement and the other joins the same promise, so one grant opens one tab and spends one code.
-- On the grant, `service-worker.js` mints a 256-bit nonce, opens `<origin>/connect?nonce=…`, and injects `pageBridge` into that tab. The bridge is a function rather than a file: a content script cannot import a module, and the protocol's names would otherwise be written twice with nothing to keep them the same.
-- The page posts the nonce back into its own window; the bridge forwards it only if it came from that window at that origin; and the worker acts on it only if the sender is this extension, in the top frame of the tab the attempt opened, at the attempt's origin, carrying the attempt's nonce. A refusal names its reason to the worker's log and never to the tab.
-- The fallback, when that handshake does not happen: the app's connect screen shows a one-time code (`POST /api/extension/connect-codes`, authenticated, single-use, ten minutes), and the popup spends it (`POST /api/extension/connect`, unauthenticated, 401 `bad_code`). A spent code proves exactly what the handshake proves — a live instance whose signed-in user authorized this pairing — and nothing else, which is why the answer is an empty body. The code path asks for the same origin from its own click, because a fetch to an origin Chrome has not granted is a cross-origin request the backend deliberately does not answer.
-
-The service worker is a restartable coordinator: the connection lives in `storage.local`, the attempt in `storage.session`, every listener is registered at the top level, and nothing is held in a variable that has to survive Chrome's 30-second idle kill.
-
-Recording uses the same restartable shape and a two-gesture, least-privilege start. **Start recording** in the editor hands the session to the extension as pending; the user then opens the intended target tab and confirms in the extension popup. That popup click requests the target origin when it has not already been granted, and only a grant lets the worker attach `chrome.debugger` and inject `recorder-content.js` into every permitted frame. A remembered per-origin grant removes Chrome's permission dialog, not the popup confirmation; a decline leaves the session pending and injects nothing. The extension never requires all-sites access at install time. The content side captures `pointerdown`/`focusin` before the action, gives each element a page-load-scoped correlation id, and emits only candidates it proved unique against the live DOM. The worker resolves that marked element through a CDP object id, verifies implicit role and accessible name against the non-ignored accessibility tree, and inserts the role candidate in the fixed ranking. Interaction, `webNavigation`, and download events enter one promise queue; assembly waits at most 750 ms for the prefetched accessibility result, correlates link/form navigation onto its click, turns a recent causing click into a download Step, and writes the full Step buffer to the recording session checkpoint after every change. Select changes produce select Steps. Password changes cross the content-script boundary only as an empty value with `needsSecret`; even selector generation cannot read the literal. An armed scalar or flat-list extract consumes the next click, prevents its page action, and records the extraction binding.
-
-Closed shadow roots are identified through CDP's pierced node description, while focus entering a frame whose document the parent cannot reach records the frame as the best available target. Both paths show an inline plain-language warning and persist it on the unsupported Target. A debugger detach marks the locally buffered recording ended rather than deleting it, leaving all checkpointed Steps available to save or discard. Active configuration and buffered Steps live in `storage.local`; no network domain is enabled and no response or request data enters a recorder message. The same persisted recording tracks every visited host and snapshots localStorage and sessionStorage from each injected frame before navigation and at stop. The save screen asks the backend to collapse those hosts to registrable domains, renders every row unchecked with the Organization destination as its checked default, and shows the destination's existing saved date. Only checked rows are assembled: `chrome.cookies` supplies httpOnly and partitioned cookies, the frame snapshots supply both storage kinds per origin, and the recording capability uploads the chosen Organization or Personal Override captures before finalizing the Draft. The extension's required `cookies` permission exposes no site by itself; the per-origin host grants from recording still bound what it can read.
-
-A Re-pick is the same two-gesture start scoped to one Step. The user navigates to the page themselves and clicks the intended element; the extension computes a fresh verified candidate list and messages it to the editor tab. It does not call finalize. Confirming in the editor is `POST /api/recording-sessions/{id}/finalize` with that list; cancelling never calls it.
-
-On the app's side, `apps/web/app/connect/` is the page the extension opens and `apps/web/lib/extension-protocol.ts` is the app's half of the message names. The extension has no build step and nothing importable from a Next app, so `extension-protocol.test.ts` reads `apps/extension/src/lib/handshake.js` and asserts the names are the same in both — a rename on one side that missed the other would break connecting with nothing to show for it.
-
-### Errors
-
-`step_by_step_api.errors` is the one refusal shape: `{code, message}`, raised as `ApiError` from anywhere in a request. A client decides what to do from `code` and never from prose — the sign-in screen tells a wrong code from a closed instance by that field alone. `errors(401, 403)` on a route is what puts the model in the OpenAPI schema, so the generated client types what the frontend reads.
-
-### The clock
-
-`step_by_step_api.clock` is the one place the current time enters. Sign-in Codes expire, sessions slide, and Invitations run out — three behaviours whose tests would otherwise wait real minutes. Every one of them asks `clock.now()`, so a test moves time by replacing one function.
-
-### The Artifact store, and its two endpoints
-
-`step_by_step_core.objects` is boto3 against a configurable endpoint, and it exposes **two** clients on purpose:
-
-- `object_store()` reads and writes at `S3_ENDPOINT_URL` — the address a process inside the stack resolves (`http://garage:3900`).
-- `signing_store()` mints presigned URLs against `S3_PUBLIC_ENDPOINT` — the address the _user's browser_ resolves, which is never a compose hostname.
-
-They are the same value on a developer's host and different in a real deployment. Signing with the internal endpoint passes every in-network test and breaks every real download, which is why the rule lives in one module rather than in each caller. Addressing is path-style in both: virtual-host style would put the bucket in the hostname, which no browser can resolve for a compose service.
-
-`artifact_bucket()` reads `S3_BUCKET`. Credentials and region come from `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, and `S3_REGION`.
-
-### The Worker
-
-`apps/worker` (`step_by_step_worker`) is a long-lived process with a desktop. Its image carries Playwright with headed Chromium, `Xvfb` for the display, `x11vnc` for the stream the takeover pane consumes, `openbox` so the browser's own dialogs, popups, and file pickers behave, and `libpsl` so write-back can group cookies by registrable domain. `entrypoint.sh` starts the three, waits for the display rather than racing it, and execs the Worker.
-
-Openbox rather than fluxbox: it manages windows and nothing else. Fluxbox insists on setting a root wallpaper and, finding no wallpaper setter installed, parks an error dialog on the display — a window that would sit in every VNC frame and every screenshot Artifact.
-
-`selectors.py` is the replay half of the selector contract — `resolve(page, target, deadline)`, the module the executor will call for every targeting Step. It walks a Target's candidates in recorded order and takes the first that matches **exactly one** element: zero matches and several matches are the same answer, so nothing here uses `.first()`, `.nth()`, or `or_()`, and a page that grew a second Save button fails rather than guesses. A failed walk is repeated until the deadline — the Step's timeout _is_ the retry budget, and there is no separate retry counter — and each walk is announced through `on_walk`, which is where a Run checks whether it has been cancelled or paused, the one moment in a resolution when nothing has been clicked yet. What comes back carries the matching candidate's rank, which is the Selector Drift signal a Step Result records. The Target it takes is parsed from the stored Step document by the shared `step_by_step_core.document.Target`, the same contract that validated the save.
-
-At startup the Worker proves it can reach everything a Run needs — Redis, Postgres, its display, its VNC server, and the Artifact store, the last by a real write-read-delete round trip — logs what each check found, and refuses to start if any failed. Every check runs even after one fails, so one boot shows an operator every problem rather than one problem per boot. It then `BRPOP`s the dispatch list and executes at most one claimed Run at a time. The claim is one conditional Postgres update from `queued` to `running`; stale, cancelled, and duplicate ids update no row and are dropped before the next pop.
-
-Each claimed Run gets a fresh headed persistent Chromium context under a temporary profile directory. The executor parses either the immutable Version document or a test Run's stored Draft snapshot through `step_by_step_core.document`, walks Steps in order through the selector-resolution seam, and commits each Step Result before touching the next Step. It emits `step.started` / `step.finished` as it walks and a terminal `run.status` when it finishes, and each walked Step also produces a log line through the dual-write helper. Control intervals switch as the Run does: one `automation` interval while the Worker acts, `waiting` when a `pause-for-takeover` Step or a pause request parks the Run, `human` once a session holds control, `verifying` on hand-back, then `automation` again. Disabled and optional-missing Steps are skipped, required failure skips every unreached Step, and the accumulated automation clock — waiting/human/verifying time never counts — and the Run's control flags are checked at Step boundaries and between resolve-loop walks. A cancel written to the row is enough — the control channel is a latency hint. An in-flight action always finishes; unreached Steps are then `skipped` and the Run ends `cancelled`. A pause-for-takeover Step parks _before_ it acts; a pause request parks between resolve walks with no action fired. While parked the Worker polls an optional `successCheck` with a read-only resolve and publishes `predicate` events; during control a met check starts a 6-second grace and hands back automatically unless `auto_handback_disabled` is set. Hand-back with a met check writes the pause Step `passed` / `completed_by_human` and resumes at the next Step; unmet returns to `waiting` on the same deadline; no check retries the paused Step with a fresh timeout. Terminal cleanup closes Chromium and removes the profile before writing the final status. After claim the executor heartbeats `POST /internal/runs/{id}/heartbeat` every five seconds with the shared compose token (`INTERNAL_TOKEN`); a 409 `run_terminal` abandons the Run and closes the browser without overwriting the row. At claim the executor fetches `GET /internal/runs/{id}/credentials` once, holds the resolved Secrets in memory, and loads every returned Auth State into the new context — cookies through `add_cookies`, localStorage and sessionStorage through an init script that fills missing keys before page scripts. Write-back is `POST /internal/runs/{id}/auth-states` at two moments only: a successful terminal, and a takeover hand-back (so a human-refreshed login survives a later failure). A failed Run never writes back. Immediately before the final write-back the Worker re-reads `GET /internal/runs/{id}/auth-state-consents` and includes only consented new domains; an unconsented blob never leaves the process. A 409 `missing_secret` on the start-of-Run fetch ends the Run `failed` / `missing_secret` without opening a browser. Before anything is published, `RedactingStore` substring-replaces every secret value the Run was handed with `••••` in log lines, error strings, failure detail, and trace-zip text — no minimum length. Artifacts are written by the executor: a screenshot when the Step's toggle is on or the Step failed in automation (never during waiting/human/verifying — leak prevention outranks diagnostics), trace chunks with a hole around every secret-referencing Step and with capture paused for the whole takeover interval (the live VNC stream keeps flowing), a download as produced; `PostgresRunStore.add_artifact` puts the bytes in the object store, inserts the row, and publishes an `artifact` event of ids only.
-
-The VNC server takes two passwords from the compose environment, shared across Workers: `VNC_VIEW_PASSWORD` and `VNC_CONTROL_PASSWORD`. The backend is the only client; it authenticates with the view-only password unless the connecting session currently holds takeover. Workers stay unpublished. `GET /api/runs/{id}/vnc?ticket=…` is the WebSocket that spends a single-use ticket, checks Organization membership, and pipes RFB — a stream ticket is view-only, a takeover holder's ticket is control, and a takeover ending closes the control socket.
-
-### The frontend's visual language
-
-`apps/web` is Tailwind CSS 4 with shadcn/ui generated against Base UI (`components.json` style `base-nova`), and TanStack Query for server state. The vocabulary lives in four places, and a screen inherits it rather than inventing one:
-
-- `app/globals.css` — the only file that may name a colour. It defines the surfaces (`--bg`, `--panel`, `--ink`, `--mut`, `--line`) and the five-hue semantic ramp (`--accent` the machine is acting, `--wait` a human is needed, `--human` a secret, `--ok` succeeded, `--bad` failed), maps them onto shadcn's own token names so the generated components speak this palette and no second one, and sets the type scale to exactly six sizes. Spacing and radius are Tailwind's defaults untouched. There is no dark mode: the `dark:` variant is rebound to a class the app never sets, so a viewer's OS preference cannot half-apply a palette that does not exist.
-- `components/ui/` — shadcn's, generated by its CLI and not hand-edited. `Sidebar` arrived with the shell and brought its own dependencies (`sheet`, `tooltip`, `separator`, `skeleton`, `hooks/use-mobile.ts`) and its own token vocabulary, which `globals.css` maps onto the palette rather than giving values of its own: the shell is a panel beside the work, and its highlight is "interactive", which is the accent.
-- `components/primitives/` — the eleven named primitives, one file each, and each the only place its idea is rendered.
-- `lib/labels.ts` and `lib/copy.ts` — the single source of every state's wording, and the sentences two screens must say identically.
-
-`lib/query-client.ts` builds the one QueryClient. `mutations.retry` is `false` because a retried Run start acts twice on a real website; query `retry` and `staleTime` are deliberately absent so each key chooses its own.
-
-The shadcn CLI is run plainly — `pnpm dlx shadcn@latest add <component>` — and its output is taken as it comes: `shadcn` and `tw-animate-css` are project dependencies because `globals.css` imports `shadcn/tailwind.css` (the generated components' `data-open`, `data-closed`, `scroll-fade`, and `shimmer` definitions) and the animation utilities shadcn's overlays are written against. `semver` is listed in `trustPolicyExclude` in `pnpm-workspace.yaml` for it: shadcn pulls `@babel/core`, which pins `semver@^6.3.1`, a 2023 release that predates provenance and that `trustPolicy: no-downgrade` would otherwise refuse.
-
-Three things the CLI writes are deliberately not kept, and a re-run will reintroduce all three:
-
-- **Its colour palette.** `init` overwrites `--accent` and appends the neutral oklch set plus `chart-*` and `sidebar-*`. The ramp above is the only palette; a chart or sidebar token arrives with the first component that needs one.
-- **Its `--radius` scale and its `.dark` block.** Radius is Tailwind's default, and there is no dark mode.
-- **A webfont.** `init` adds Geist through `next/font/google`; the type scale is `system-ui`.
-
-It also rewrites `lib/utils.ts`, which drops the tailwind-merge extension that teaches it the six font sizes. `lib/utils.test.ts` fails when that happens.
-
-### The frontend's data layer
-
-`apps/web` imports only `@step-by-step/api-client`. The generated functions return `{data, error}` rather than throwing, so a 401 is a value the screen reads and not an exception it has to catch. Cookies ride along because the browser talks to one origin: the Next proxy makes the session cookie same-origin, which is also what makes `SameSite=Lax` the whole CSRF story.
-
-Every generated call goes through the package's one `client`, which `src/index.ts` re-exports for exactly that reason: it is the seam the app configures once. Four modules sit on it.
-
-- `lib/gate.ts` — the route gate. `resolveGate(me, activeOrgRole, pathname)` answers `render` or `redirect`, and it is pure: no router, no DOM, no fetch, so the whole guard is a table that `lib/gate.test.ts` reads back. `landingAfterSignIn(next)` is the other half — `next` arrives in a URL anyone can write, so it is honored only when it is a path of this app (one leading slash, not an auth route) and otherwise falls back to `HOME_PATH`.
-- `lib/api.ts` — the global fetch wrapper, and three rules installed separately on the shared client. `installOrganizationHeader(active)` stamps `X-Organization` on the way out, calling `active` per request so that switching re-scopes the very next call. `installUnauthorizedRedirect(navigate)` turns a 401 — a visitor with no session, which is a question the gate already answers — into the redirect the gate names, and the sign-in screen, where `GET /api/auth/me` answers 401 by design, is left alone because the gate says `render` there. `installMembershipLapsed(onLapsed)` reads a `403 not_a_member` from a clone of the answer (the screen still needs the original) and gives the Organization choice up. `app/providers.tsx` installs all three once, empties the query cache before the 401 redirect so a stale identity cannot bounce the visitor back, and invalidates everything after a lapse so a tab open across a removal recovers without a reload.
-- `lib/active-org.ts` — which Organization the app is acting in. `activeOrganization(me, remembered)` resolves it — the remembered one when the identity still carries that Membership, the first otherwise — so a Membership that ended cannot keep scoping the app. `chooseOrganization` writes the choice to `localStorage` and tells its watchers, which is how the switcher re-scopes every screen at once; the wrapper reads it back through the same module, deriving the header from the cached identity rather than from a third copy.
-- `lib/identity.ts` — who the visitor is, under one query key, so the shell and every consumer share one `GET /api/auth/me`. `signOutAndLeave` ends the session, empties the cache, and lands on sign-in with nothing carried.
-
-### The shell
-
-`app/(shell)/` is the route group every signed-in screen renders inside; `/signin` is the one route outside it. `shell.tsx` resolves the identity once and asks the gate before any child renders, so a signed-out visitor meets a single redirect rather than a sidebar whose nav answers 401. There is no top bar and no dashboard: the page title is the first thing in the content column, under the attention band's slot.
-
-- `nav.ts` and `settings/sections.ts` hold the decisions — what the nav offers and in what order, and which sections a role is offered. Both are read back without a DOM, and `sections.test.ts` checks its answers against `resolveGate`, so the nav and the guard cannot disagree about a section.
-- `slots.tsx` renders the shell's attention band and Runs count badge from one `AttentionProvider`. The provider exists only inside the shell, polls every ten seconds only while the document is visible, and refetches on focus; the band ticks its soonest deadline locally and changes no Run state. `lib/attention.ts` owns the shared attention and Runs-list invalidation rule used by Run-changing actions and stream transitions. `ExtensionConnectionProvider` owns one version request and one 1500 ms page probe for the whole shell, re-probes on focus, and supplies the pill, Settings, first-run panel, and editor through context. The connected extension injects its bridge into every page of its instance, where a probe receives the build version; silence deliberately merges not-installed with pointed-elsewhere.
-- The sidebar is shadcn's `Sidebar` at `collapsible="icon"`, 216px wide with a 60px rail, and its `open` follows a `(max-width: 1024px)` media query alone — there is no toggle, because a rail the window width explains needs no explaining. Its `--sidebar-*` tokens are mapped onto the palette in `globals.css` rather than given values of their own.
-- Settings is a section nav beside one panel, and it is where the accounts slices' screens now live: `settings/account/`, `settings/organization/` (General), `settings/organization/members/`, and `settings/organization/invitations/`. The Organization sections act on the active Organization rather than iterating every Membership. `settings/secrets/`, `settings/logins/`, and `settings/extension/` render placeholder panels until their own specs land.
-- `workflows/` is the list the app opens on and the Workflow page beneath it. The decisions are pulled out of the JSX and read back without a DOM: `list.ts` (the page size is the forty-row threshold, so one page decides whether the search box and the sort control render), `actions.ts` (the one list of what can be done to a Workflow, which the row's hover menu and the header's overflow both render), `draft-state.ts` (the badge's word and hue, and the one sentence that refuses a Workflow with no Version), `messages.ts` (a refusal by its `code`, and what the delete dialog names), and `[id]/tabs.ts` (the four tabs as the four addresses they are). A dialog is shadcn's `Dialog`, added with this slice.
-- `workflows/[id]/editor/` is the Draft as a card list. The document is edited whole and saved whole, because the Draft API replaces it whole: the screen holds one edited copy, every tool hands back the next one, and the footer sends it — nothing saves as you type. Its decisions are read back without a DOM too: `steps.ts` (what each of the eight types is called, where a Step keeps its targets, and the three types a person can add by hand — the ones that point at no element), `edits.ts` (reorder, delete, add, replace, none of which rewrites a Step id), `summary.ts` (the Step as a sentence, in parts, so a Variable draws as a pill and the element as a token), `badges.ts` (the right-hand column, and the health of a target: unsupported is the recorder's own flag, fragile is a candidate list that offers nothing but CSS), `selectors.ts` (the selector panel's health wording, the candidate-list tools, and the sentence that refuses Re-pick while the editor is dirty), `test-run.ts` (one field per declared Variable, secret ones masked, and never blocked by the publish-first sentence), `drift.ts` (which Steps resolved through a lower-ranked candidate in recent Step Results, and that the badge leads into the selector panel), `leave.ts` (the unsaved-edits guard lives on the Editor tab: leaving it asks first, staying on it — a Version of the same Workflow — does not, and a save or a discard leaves nothing to warn about), and `messages.ts` (a refused save, where the backend's message is kept rather than dropped, because it is the only thing that says which Step of a hundred is wrong). A test run opens a modal over the saved Draft, snapshots it, and mints no Version — a never-published Workflow can still verify its edits. Each targeting Step carries a selector panel: collapsed, the health badge; expanded, the ranked candidates with move-to-top, remove, add-by-hand, and Pick element again. Hand-edits save through the Draft API like any edit. Re-pick is refused while unsaved; otherwise the editor mints a repick-scoped session, the extension messages a fresh candidate list on click and does not finalize, and confirming is the existing Re-pick finalize. A Step whose recent Runs drifted shows an amber badge on the card; activating it expands the card and opens that panel.
-- Variables are edited in the same document as the Steps, from a drawer over the card list (`variables-drawer.tsx`), and `variables.ts` holds what that costs: which Steps stand on each declaration, why a name cannot be declared, and why one cannot be deleted — the document store's own two rules, said before the save rather than after it, because a refusal about a whole document cannot name the three Steps in the way. A `{{name}}` a value reaches for that nothing declares is the other half of that refusal: the drawer lists it in amber beside the declarations, with the Steps that use it and a one-click Declare it, and the value field says the same under the input it was typed into; a Draft with none of them shows no such section. A rename is one edit that rewrites the declaration and every value reaching for it, since either half alone is the document the store refuses; the same is true of making a Variable out of a literal a recording captured, which is what `value-field.tsx` offers beside a navigate URL and a type value. Secret is a flag on the declaration and never a shape of the syntax: it is what a pill is drawn from, and what masking will key off later. A secret Variable may also point at a vault Secret by id (`secretId`, with `secretName` cached for display); the drawer picks from the vault list, shows the live name while the Secret exists, and keeps the cached name after it is deleted.
-- The version surface sits in the Workflow header, over the same editor: `[id]/versions.ts` holds which document is being shown and what restoring one costs, and `[id]/publish.ts` arranges the backend's one comparison into what the publish modal states — the number about to be minted, the three lists of Steps, and a sentence for the cases a step diff cannot show (a Draft in sync, an edit that only moved the order or the Variables, a Workflow with no Steps at all). Which Version is open lives in the address (`?version=N`) rather than in state, for the reason the tabs are segments: a Version somebody is reading is a place. A Version opens read-only through disabled `fieldset`s around the step form and the Variables drawer, so immutability holds even where a later slice forgets a flag, and the tools that reorder, delete, and add are absent rather than dead. Publishing and restoring both invalidate the Workflow's own key, which is where the Draft chip is drawn from.
-- `runs/` is the shared Runs list: one component (`runs-list.tsx`) for `/runs` and the Workflow's Runs tab, whose only prop is `workflowId`. Decisions live in `presentation.ts` (columns, empty vs filtered-empty, Take control vs chevron, duration) and `lib/cursor-list.ts` (page size, the query key, URL-mirrored filters). The list does not poll; starting or cancelling a Run invalidates `RUNS_KEY` and `ATTENTION_KEY` together. The list row's Run and the Workflow header's Run share `use-start-run.ts`: immediate when the Version declares no Variables, the one-row `ValueGrid` when it declares some.
-- `runs/[id]/` is the cockpit where a Run is understood: a header, a control-interval timeline, a Step rail, the Worker's browser pane, terminal banners, cancel, and Run again. The pane is view-only while automation runs, amber with a waiting card when the Run parks, and interactive under the purple control bar once this tab holds takeover; a second tab stays view-only with a note. Decisions live in `presentation.ts` (the clock, drift chip, timeline proportions, terminal sentences, cancel copy, Run again prefill), `pane.ts` (which chrome the pane shows, the countdown, the grace line, consent, the challenge banner), and `events.ts` (how `step.started` / `step.finished` / `run.status` / `control` / `predicate` / `diagnostic` / `log` advance the screen without a reload). Reconnection refetches over REST and subscribes from now on. Lifecycle state still reaches the user only through `StatusChip`.
-- The pending-invitation banner is the shell's (`pending-invitations.tsx`), because an Invitation is the one thing a person can be offered without asking for it. Sign out is in the sidebar's user menu, beside the Organization switcher, and not in Settings: leaving is not a setting.
-
-### Strictness
-
-Both typecheckers run at full strict, set at scaffold time. TypeScript: the flag set in `tsconfig/base.json` (`strict` plus `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noFallthroughCasesInSwitch`, `noUncheckedSideEffectImports`, `verbatimModuleSyntax`). Python: `[tool.ty.rules]` in the root `pyproject.toml` promotes every rule ty ships at default level "warn" to "error".
+Visual rules that reviews enforce are in `docs/CODING_STANDARDS.md`. In particular, colors come from tokens, lifecycle states use `StatusChip`, and shared Run and Schedule lists have one implementation each.
 
 ## Test tiers
 
-Three tiers, split by pytest markers.
+- `pnpm test` runs fast Vitest and pytest tests. It needs no services or browser.
+- `pnpm test:integration` runs tests against PostgreSQL, Redis, and Garage.
+- `pnpm test:browser` runs Playwright tests for Worker browser behavior and the extension.
 
-**Fast (the default).** `pnpm test` runs Vitest and pytest with no services — hermetic, nothing to start. The pytest side deselects `-m 'not integration and not browser'` through `addopts`, so the tier stays fast by default rather than by anyone remembering a flag.
-
-**Integration.** `pnpm test:integration` runs the tests marked `@pytest.mark.integration` against the real Postgres, Redis, and Garage, with the URLs from `.env.example` in the environment. It lives in `apps/api/tests/integration/` and `packages/core/tests/integration/`. CI runs it in its own `integration` job, which starts the same three services with `docker compose up -d --wait` rather than with service containers — Garage needs its mounted config, and a service container starts before the checkout that would provide it.
-
-**Browser.** `pnpm test:browser` runs the tests marked `@pytest.mark.browser` — the selector resolution module against local fixture pages, the extension's connect handshake, and later the recorder's capture pipeline. They need a Playwright browser and nothing else: no Postgres, no Redis, no compose. It is a tier of its own because the browser binary does not arrive with `uv sync` — `uv run playwright install chromium` puts it there, and CI's `browser` job does the same before running `pytest -m browser`. It lives in `apps/worker/tests/browser/` and `apps/extension/tests/browser/`, where a session-scoped Chromium and a loopback HTTP server over `pages/` are the whole harness — the extension's copy launching a persistent context with the package loaded unpacked, because an extension has nowhere to live in an incognito one.
-
-One thing that tier cannot reach: the permission grant is a native Chrome dialog raised from a click in the extension's popup, and no automation drives it. What the harness proves is that the package loads under its pinned id and that the handshake is refused unless the tab, the origin, and the nonce are all the attempt's; the grant itself, and the connect flow that follows it, are checked by hand in a real browser.
-
-The integration tier owns its state, because the stack is long-lived and shared: no test may assume a fresh one, and two runs never collide. The api tier's session fixture creates a database of its own on the running Postgres, migrates it to head, and drops it at the end; the core tier's store tests either read without writing or write under a key of their own and remove it afterwards.
+Integration tests create and remove their own database or object keys. Browser tests need `uv run playwright install chromium`. CI runs all three tiers and checks that generated API files are current.

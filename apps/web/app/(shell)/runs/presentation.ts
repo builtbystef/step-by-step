@@ -1,14 +1,5 @@
 import type { RunStatus, RunTrigger } from "@step-by-step/api-client";
 
-/**
- * What the Runs list decides about itself before it draws anything.
- *
- * A Workflow id is the only prop, and it changes exactly three things: it
- * scopes the request (the hook), it hides the Workflow column, and it swaps
- * the empty state. Everything else is identical, so it lives here rather
- * than in a second file of rows.
- */
-
 export const COLUMNS = [
   "status",
   "workflow",
@@ -21,7 +12,6 @@ export const COLUMNS = [
 
 export type Column = (typeof COLUMNS)[number];
 
-/** The columns this variant draws. `workflowId` hides the Workflow column. */
 export function columnsOf(workflowId: string | undefined): readonly Column[] {
   return workflowId === undefined ? COLUMNS : COLUMNS.filter((column) => column !== "workflow");
 }
@@ -40,7 +30,6 @@ export const WORKFLOW_EMPTY = {
 
 export const FILTERED_EMPTY = "No Run matches these filters.";
 
-/** Status and trigger are filters; a Workflow id is a route. */
 export function hasListFilter(filters: Record<string, string>): boolean {
   return (filters.status ?? "") !== "" || (filters.trigger ?? "") !== "";
 }

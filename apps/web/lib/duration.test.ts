@@ -2,12 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { duration } from "./duration";
 
-/**
- * How long, in words a person reads rather than in the milliseconds the
- * document stores: a Step's timeout, a wait, and the workflow default the
- * editor shows underneath an empty timeout field.
- */
-
 describe("a length of time, written out", () => {
   it("keeps milliseconds below a second, where seconds would round to nothing", () => {
     expect(duration(800)).toBe("800 ms");

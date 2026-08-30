@@ -1,5 +1,3 @@
-"""The Worker fetches credentials and writes Auth State back over HTTP."""
-
 from __future__ import annotations
 
 import json

@@ -1,10 +1,3 @@
-"""Recording sessions
-
-Revision ID: d2f648a719c3
-Revises: c89e3b6a1f42
-Create Date: 2026-08-24 07:30:00.000000
-"""
-
 from collections.abc import Sequence
 
 import sqlalchemy as sa

@@ -1,5 +1,3 @@
-"""Cancellation and the Worker's control read at the HTTP seam."""
-
 import json
 import time
 from uuid import UUID

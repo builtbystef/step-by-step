@@ -2,16 +2,6 @@ import type { WorkflowDocument } from "@step-by-step/api-client";
 
 import type { Step } from "./steps";
 
-/**
- * Every edit the card list makes, as a document in and a document out.
- *
- * A save replaces the Draft whole, so the editor holds one document and each
- * tool hands back the next one. Nothing here reaches into a Step to renumber
- * it: an id is minted when the Step is created — at capture, or by the add
- * menu — and every edit after that carries it across, which is what lets a
- * Step keep its Step Results and its Selector Drift across Versions.
- */
-
 export type Direction = "up" | "down";
 
 function stepsOf(document: WorkflowDocument): Step[] {

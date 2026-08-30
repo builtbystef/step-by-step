@@ -1,5 +1,3 @@
-"""Artifact download, ownership, and Run deletion against Postgres and Garage."""
-
 import time
 import urllib.error
 import urllib.request

@@ -1,11 +1,3 @@
-"""The Run and Batch event vocabulary: Redis pub/sub plus the log helper.
-
-Workers publish Run events here directly. The backend fans them out over SSE
-and also consumes a copy of each terminal `run.status` on `runs:terminal` so
-a Batch can advance without waiting for the minute loop. Postgres remains the
-record of what happened; Redis carries the live wire and nothing else.
-"""
-
 import json
 from datetime import UTC, datetime
 from typing import Any
@@ -21,21 +13,17 @@ TRUNCATION_TEXT = "log truncated"
 ARTIFACT_FIELDS = frozenset({"run_id", "step_id", "artifact_id", "kind", "at"})
 TERMINAL_STATUSES = frozenset({"succeeded", "failed", "cancelled"})
 TERMINAL_CHANNEL = "runs:terminal"
-"""A copy of each terminal run.status, so the backend can advance a Batch."""
 
 
 def events_channel(run_id: UUID) -> str:
-    """The pub/sub channel one Run's live events travel on."""
     return f"run:{run_id}:events"
 
 
 def batch_events_channel(batch_id: UUID) -> str:
-    """The pub/sub channel one Batch's live row events travel on."""
     return f"batch:{batch_id}:events"
 
 
 def publish(run_id: UUID, event_type: str, payload: dict[str, Any]) -> None:
-    """Publish one event on the Run's channel. Artifact events keep ids only."""
     body = {"type": event_type, **jsonable(payload)}
     if event_type == "artifact":
         body = {
@@ -49,7 +37,6 @@ def publish(run_id: UUID, event_type: str, payload: dict[str, Any]) -> None:
 
 
 def publish_batch(batch_id: UUID, event_type: str, payload: dict[str, Any]) -> None:
-    """Publish one event on the Batch's channel."""
     body = {"type": event_type, **jsonable(payload)}
     get_redis().publish(batch_events_channel(batch_id), json.dumps(body))
 
@@ -62,12 +49,6 @@ def publish_log(
     step_id: UUID | None = None,
     at: datetime | None = None,
 ) -> int | None:
-    """Insert one `run_log_lines` row and publish the matching `log` event.
-
-    Returns the seq that landed, or ``None`` when the Run is already past the
-    cap. The 10 000th stored line is the last real line; the next publish
-    writes one ``log truncated`` row and every further line is dropped.
-    """
     stamped = at or datetime.now(UTC)
     with session_scope() as session:
         count = session.execute(
@@ -115,7 +96,6 @@ def publish_log(
 
 
 def jsonable(value: Any) -> Any:
-    """UUID and datetime become strings; ``None`` fields are left out."""
     if isinstance(value, UUID):
         return str(value)
     if isinstance(value, datetime):

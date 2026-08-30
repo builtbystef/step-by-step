@@ -1,5 +1,3 @@
-"""The Postgres store turns a claimed row into exactly the document it names."""
-
 from uuid import uuid4
 
 from step_by_step_worker.store import work_from_claim

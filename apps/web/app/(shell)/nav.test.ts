@@ -2,11 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { isCurrentSection, NAV_DESTINATIONS, SETTINGS_DESTINATION } from "./nav";
 
-/**
- * The sidebar's nav, read back without a sidebar: what it offers, in the order
- * it offers it, and which item a given address lights up.
- */
-
 describe("the nav", () => {
   it("offers the three destinations, in the order the sidebar renders them", () => {
     expect(NAV_DESTINATIONS.map((item) => [item.label, item.path])).toEqual([

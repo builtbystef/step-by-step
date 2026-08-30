@@ -1,11 +1,3 @@
-"""The rotate-master-key command's boot-gate for the new key.
-
-The current master key is already proven at process start. The replacement
-must fail the same three ways — missing, not base64, wrong length — so an
-operator who mistypes STEPBYSTEP_NEW_MASTER_KEY finds out before any row is
-touched. Nothing here needs a database.
-"""
-
 from base64 import b64encode
 from collections.abc import Iterator
 

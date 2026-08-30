@@ -18,12 +18,6 @@ import { LockedCell } from "@/components/primitives/locked-cell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-/**
- * The one value grid: N rows for a Batch, one row for a Schedule or a
- * run-start. Secret columns are locked, headed with the Variable's name,
- * and never sent.
- */
-
 export function ValueGrid({
   variables,
   rows,
@@ -33,7 +27,6 @@ export function ValueGrid({
   variables: readonly Variable[];
   rows: readonly GridRow[];
   onChange: (rows: GridRow[]) => void;
-  /** When set, the grid cannot grow or shrink. Schedules and run-start pass 1. */
   fixedRowCount?: number;
 }) {
   const columns = columnsOf(variables);
@@ -119,7 +112,6 @@ export function ValueGrid({
   );
 }
 
-/** One empty row of this Workflow's Variables, for first paint and one-row consumers. */
 export function initialRows(variables: readonly Variable[], count: number = 1): GridRow[] {
   return blankRows(columnsOf(variables), count);
 }

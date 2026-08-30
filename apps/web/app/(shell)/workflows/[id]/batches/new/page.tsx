@@ -53,14 +53,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { COPY } from "@/lib/copy";
 
-/**
- * One page, always a grid. Columns are the Workflow's declared Variables;
- * typing, pasting, importing a CSV, and copying a past Batch's rows all land
- * in this table. A Version that gains a Variable while this page is open
- * raises a banner rather than reaching unattended Runs. Submitting creates
- * the Batch and navigates to its progress view.
- */
-
 export default function NewBatchPage() {
   const { active } = useActiveOrganization();
   const params = useParams<{ id: string }>();
@@ -115,10 +107,7 @@ function NewBatch({ orgId, workflowId }: { orgId: string; workflowId: string }) 
             setDeclared((current) => mergeVariables(current ?? [], next));
           }
         })
-        .catch(() => {
-          // The pre-submit check is the one that must not miss; a failed
-          // refocus leaves the banner for that pass.
-        });
+        .catch(() => {});
     };
     window.addEventListener("focus", onFocus);
     return () => {

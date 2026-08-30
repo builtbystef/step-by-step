@@ -23,12 +23,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { invalidateRunState } from "@/lib/attention";
 
-/**
- * Run again: the same dialog a first Run uses, prefilled with this Run's
- * Variable values, executing the latest published Version. Repeating a Run
- * is always a deliberate act.
- */
-
 export function RunAgainDialog({
   open,
   workflowId,

@@ -13,15 +13,6 @@ import {
   submittedVariables,
 } from "./grid";
 
-/**
- * The shared value grid's decisions, read back without a DOM.
- *
- * Columns, the locked secret cell, paste, copy-from-a-past-Batch, and the
- * payload that never carries a secret are the rules the Batch creation page,
- * the Schedule's one-row set, and the run-start grid all draw. The component
- * renders them; it does not re-decide them.
- */
-
 const CITY: Variable = { name: "city" };
 const REGION: Variable = { name: "region" };
 const PASSWORD: Variable = {

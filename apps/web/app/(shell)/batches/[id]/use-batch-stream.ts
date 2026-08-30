@@ -5,11 +5,6 @@ import { useEffect, useRef } from "react";
 
 import type { BatchEvent } from "./events";
 
-/**
- * Follow a live Batch over SSE. Reconnection replays nothing: the caller
- * refetches over REST, then this hook subscribes from now on.
- */
-
 export function useBatchStream(
   batchId: string | undefined,
   live: boolean,
@@ -52,9 +47,7 @@ export function useBatchStream(
               break;
             }
           }
-        } catch {
-          // The socket dropped. Refetch, then subscribe from now on.
-        }
+        } catch {}
         if (stopped || abort.signal.aborted) {
           break;
         }

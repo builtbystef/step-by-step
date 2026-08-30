@@ -32,14 +32,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { IDENTITY_KEY } from "@/lib/identity";
 
-/**
- * Settings → Organization → General: what the active Organization is called,
- * and the two acts it has exactly one person for.
- *
- * A member reads its name and nothing else. Renaming is the owner's and the
- * admins'; handing it on and ending it are the owner's alone. Each rule is the
- * backend's, said again so that a control nobody may use is not offered.
- */
 export default function OrganizationGeneralPage() {
   const { me, active } = useActiveOrganization();
 
@@ -60,7 +52,6 @@ export default function OrganizationGeneralPage() {
   );
 }
 
-/** What the Organization is called, and who may change it. */
 function Name({ org }: { org: OrganizationMembership }) {
   const cache = useQueryClient();
   const [name, setName] = useState(org.name);
@@ -70,8 +61,6 @@ function Name({ org }: { org: OrganizationMembership }) {
       const { error } = await renameOrganization({ path: { org_id: org.id }, body: { name } });
       if (error) throw error;
     },
-    // The identity carries every Organization's name, and the sidebar reads
-    // the active one's from it.
     onSuccess: async () => {
       await cache.invalidateQueries({ queryKey: IDENTITY_KEY });
     },
@@ -119,13 +108,6 @@ function Name({ org }: { org: OrganizationMembership }) {
   );
 }
 
-/**
- * Handing the Organization on.
- *
- * The person who asks for this is the person who stops being the owner, which
- * is the half nobody expects — so it is said before it is done, naming who
- * they are handing it to.
- */
 function HandItOn({ org, viewerId }: { org: OrganizationMembership; viewerId: string }) {
   const cache = useQueryClient();
   const [chosen, setChosen] = useState("");
@@ -233,7 +215,6 @@ function HandItOn({ org, viewerId }: { org: OrganizationMembership; viewerId: st
   );
 }
 
-/** Ending the Organization, behind typing its name. */
 function EndIt({ org }: { org: OrganizationMembership }) {
   const cache = useQueryClient();
   const [typedName, setTypedName] = useState("");
@@ -246,9 +227,6 @@ function EndIt({ org }: { org: OrganizationMembership }) {
       });
       if (error) throw error;
     },
-    // Nothing to reset afterwards: the identity comes back without this
-    // Organization in it, the switcher resolves to another, and everything
-    // read through the old one is read again.
     onSuccess: async () => {
       await cache.invalidateQueries();
     },

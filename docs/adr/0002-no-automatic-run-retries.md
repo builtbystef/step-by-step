@@ -1,3 +1,15 @@
 # 0002 — No automatic Run retries
 
-Context: a Run performs real actions on external websites — clicks, form submissions, downloads — and a crash mid-Run leaves unknown external side effects. Decision: the system never retries a Run automatically; a Run that dies (worker loss, timeout, step failure) becomes `failed` with a machine-readable reason, and only the user re-runs it deliberately. Reason: replaying non-idempotent actions can double a purchase or a submission, which is worse than asking the user to retry; retrying lives only inside a step, where Playwright's actionability waits are safe.
+## Context
+
+A Run may click buttons, submit forms, make purchases, or cause other effects on an external site. If a Run stops halfway through, the system may not know which effects already happened.
+
+## Decision
+
+Never retry a Run automatically. A Run that stops because of Worker loss, timeout, or Step failure becomes `failed` with a machine-readable Failure Reason. A user must choose to run it again.
+
+Playwright may still retry safe checks inside one Step, such as waiting for an element to become usable.
+
+## Reason
+
+Repeating a non-idempotent action can be worse than asking a user to review and retry the Run.

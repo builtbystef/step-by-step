@@ -9,12 +9,6 @@ import {
   withMirroredFilters,
 } from "./cursor-list";
 
-/**
- * The shared cursor-list hook's decisions, read back without a DOM: the page
- * size it owns, the query key mutations invalidate, and how filters become a
- * linkable URL.
- */
-
 describe("the cursor-list page", () => {
   it("owns one page size for every list that sits on it", () => {
     expect(PAGE_SIZE).toBe(25);

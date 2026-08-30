@@ -1,10 +1,3 @@
-"""Resolve and write back a Run's Secrets and Auth State.
-
-Workers never hold the master key (ADR 0004) and never learn that Personal
-Overrides exist. This module is the one place that opens vault rows for a
-Run and that routes a write-back to the layer the resolution rule names.
-"""
-
 import logging
 from typing import Any
 from uuid import UUID, uuid4
@@ -62,7 +55,6 @@ def bound_secret_id(variable: object) -> UUID | None:
 
 
 def document_for(db: Session, run: Run) -> dict[str, Any]:
-    """The document this Run executes: the Draft snapshot or its Version."""
     if run.draft_snapshot is not None:
         return run.draft_snapshot
     if run.version_number is None:
@@ -88,7 +80,6 @@ def secret_variables(document: dict[str, Any]) -> list[tuple[str, UUID | None]]:
 def missing_secret_names(
     db: Session, org_id: UUID, document: dict[str, Any]
 ) -> list[str]:
-    """Variable names whose vault pointer does not resolve in this Organization."""
     missing: list[str] = []
     for name, secret_id in secret_variables(document):
         if secret_id is None:
@@ -143,7 +134,6 @@ def resolve_secrets(
 
 
 def resolve_auth_states(db: Session, run: Run) -> list[AuthStateBlob]:
-    """Org records, overlaid by the starter's personal records per domain."""
     org_rows = db.execute(
         select(AuthState).where(
             AuthState.org_id == run.org_id, AuthState.user_id.is_(None)
@@ -165,7 +155,6 @@ def resolve_auth_states(db: Session, run: Run) -> list[AuthStateBlob]:
 
 
 def credentials_for(db: Session, run: Run) -> Credentials:
-    """The resolved plaintext for this Run. Never log the returned body."""
     document = document_for(db, run)
     credentials = Credentials(
         secrets=resolve_secrets(db, run, document),
@@ -213,7 +202,6 @@ def candidate_for(
 
 
 def write_destination(db: Session, run: Run, domain: str) -> UUID | None:
-    """The user_id to store at (None = Organization), or unconsented_domain."""
     if run.starter_user_id is not None and layer(
         db, run.org_id, run.starter_user_id, domain
     ):

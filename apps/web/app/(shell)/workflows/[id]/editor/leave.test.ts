@@ -2,13 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { LEAVE_PROMPT, shouldAskBeforeLeave } from "./leave";
 
-/**
- * The unsaved-edits guard, read back without a DOM: it lives on the Editor
- * tab. Leaving that tab asks first; staying on it does not; a save or a
- * discard leaves nothing to warn about; closing the browser is a leave of
- * its own.
- */
-
 const EDITOR = "/workflows/3f1a/editor";
 const RUNS = "/workflows/3f1a/runs";
 const OTHER_EDITOR = "/workflows/9c2b/editor";

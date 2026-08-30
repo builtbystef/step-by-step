@@ -1,5 +1,3 @@
-"""Run output: assembled on read from Step Results, as JSON or CSV."""
-
 import csv
 import io
 import json

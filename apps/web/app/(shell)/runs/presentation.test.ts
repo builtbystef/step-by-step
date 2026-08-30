@@ -16,11 +16,6 @@ import {
   triggerLabel,
 } from "./presentation";
 
-/**
- * The Runs list's decisions, read back without a DOM: what a Workflow id
- * changes, what an empty list says, and what each row shows and links to.
- */
-
 describe("what a Workflow id changes", () => {
   it("hides the Workflow column when the list is already on one Workflow", () => {
     expect(columnsOf(undefined)).toContain("workflow");

@@ -1,5 +1,3 @@
-"""Worker → backend routes for a live Run. Shared compose token, no session."""
-
 from uuid import UUID
 
 from fastapi import APIRouter, Response
@@ -48,7 +46,6 @@ class AuthStateWriteBack(BaseModel):
 
 
 def live_assigned_run(db: SessionDep, run_id: UUID) -> Run:
-    """The Run a Worker may still act on: assigned, and not yet terminal."""
     run = db.get(Run, run_id)
     if run is None or run.status not in LIVE or run.worker_id is None:
         raise ApiError(409, "run_terminal", "the Run is no longer this Worker's")
@@ -57,7 +54,6 @@ def live_assigned_run(db: SessionDep, run_id: UUID) -> Run:
 
 @router.get("/internal/runs/{run_id}/control")
 def control(run_id: UUID, db: SessionDep, _: InternalToken) -> RunControl:
-    """The row's request flags. The Worker re-reads these at every boundary."""
     run = db.get(Run, run_id)
     if run is None:
         raise ApiError(404, "run_not_found", "no such Run")
@@ -70,7 +66,6 @@ def control(run_id: UUID, db: SessionDep, _: InternalToken) -> RunControl:
 
 
 def open_takeover_phase(db: SessionDep, run_id: UUID) -> str | None:
-    """The open control interval's kind, when it is not automation."""
     interval = db.execute(
         select(RunControlInterval)
         .where(
@@ -92,7 +87,6 @@ def heartbeat(
     db: SessionDep,
     _: InternalToken,
 ) -> Response:
-    """Stamp the Run's liveness. A terminal Run tells the Worker to stop."""
     run = live_assigned_run(db, run_id)
     run.heartbeat_at = clock.now()
     run.worker_id = body.worker_id
@@ -103,7 +97,6 @@ def heartbeat(
 
 @router.get("/internal/runs/{run_id}/credentials")
 def credentials(run_id: UUID, db: SessionDep, _: InternalToken) -> Credentials:
-    """Resolved plaintext for this Run. The body must never be logged."""
     return credentials_for(db, live_assigned_run(db, run_id))
 
 

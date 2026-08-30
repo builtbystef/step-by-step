@@ -1,10 +1,3 @@
-"""Strip a Run's secret values from anything the Worker is about to publish.
-
-Redaction happens here, in the Worker, before Redis or Postgres see the text.
-The Worker redacts whatever plaintext it was handed — org values and Personal
-Overrides alike — and never learns which layer they came from.
-"""
-
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from datetime import datetime
@@ -18,7 +11,6 @@ TEXT_TRACE_SUFFIXES = (".trace", ".network", ".stacks")
 
 
 def redact(text: str, secrets: Sequence[str]) -> str:
-    """Substring-replace every secret. No minimum length."""
     redacted = text
     for secret in sorted((value for value in secrets if value), key=len, reverse=True):
         redacted = redacted.replace(secret, MASK)
@@ -26,7 +18,6 @@ def redact(text: str, secrets: Sequence[str]) -> str:
 
 
 def redact_trace(body: bytes, secrets: Sequence[str]) -> bytes:
-    """Rewrite a Playwright trace zip so no text member still holds a secret."""
     values = [secret for secret in secrets if secret]
     if not values:
         return body
@@ -46,8 +37,6 @@ def redact_trace(body: bytes, secrets: Sequence[str]) -> bytes:
 
 
 class RedactingStore:
-    """A ResultStore wrapper that redacts before the inner store is called."""
-
     def __init__(self, inner: Any, secrets: Sequence[str]) -> None:
         self._inner = inner
         self._secrets = [secret for secret in secrets if secret]

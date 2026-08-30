@@ -1,5 +1,3 @@
-"""Recording sessions at their public seam: HTTP against the app and Postgres."""
-
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4

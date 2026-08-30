@@ -11,7 +11,6 @@ import { formatDeadline, runsBadge } from "@/lib/attention";
 import { useAttention } from "@/lib/attention-context";
 import { useExtensionConnection } from "@/lib/extension-connection-context";
 
-/** Above the page title, spanning the shell's content column. */
 export function AttentionSlot() {
   const router = useRouter();
   const attention = useAttention();
@@ -32,7 +31,6 @@ export function AttentionSlot() {
   );
 }
 
-/** On the Runs nav item: every Run in flight, with waiting taking priority. */
 export function RunsCountSlot() {
   const attention = useAttention();
   if (attention === null) return null;
@@ -41,7 +39,6 @@ export function RunsCountSlot() {
   return <CountBadge count={badge.count} tone={badge.tone} />;
 }
 
-/** One local tick; it changes display text and never mutates a Run. */
 function useNow(ticking: boolean): number {
   const [now, setNow] = useState(Date.now);
 
@@ -58,7 +55,6 @@ function useNow(ticking: boolean): number {
   return now;
 }
 
-/** In the sidebar footer, beside the user menu. */
 export function ConnectionPillSlot() {
   const connection = useExtensionConnection();
   if (connection.state === null) return null;

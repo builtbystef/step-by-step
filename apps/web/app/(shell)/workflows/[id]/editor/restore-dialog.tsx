@@ -11,13 +11,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-/**
- * Restoring a Version: a confirm, because the Draft is overwritten.
- *
- * The Version is not touched by it and nothing that runs moves — restoring is
- * an edit of the Draft like any other — so what the sentence names is the only
- * thing actually at risk, which is whatever the Draft was holding.
- */
 export function RestoreDialog({
   version,
   consequence,

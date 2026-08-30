@@ -7,16 +7,6 @@ const STATE_CLASSES: Record<ConnectionState, string> = {
   out_of_date: "bg-wait-bg text-wait",
 };
 
-/**
- * The extension's connection state, in the sidebar footer.
- *
- * Three states, not four: "not installed" and "installed but not pointed at
- * this instance" are indistinguishable from the app's side, so they are one
- * state with one recovery path rather than a guess.
- *
- * Pure over props here: the handshake probe arrives with the slice that wires
- * the sidebar.
- */
 export function ConnectionPill({
   state,
   version,

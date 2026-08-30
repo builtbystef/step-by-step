@@ -9,7 +9,6 @@ from dataclasses import dataclass, field
 
 from step_by_step_api.runs.rfb import RFB_VERSION, SECURITY_VNC, vnc_response
 
-# 1x1 32-bpp true-colour. Enough for a ServerInit and one raw rectangle.
 _PIXEL_FORMAT = bytes(
     [
         32,

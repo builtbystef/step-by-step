@@ -32,17 +32,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
-/**
- * `/workflows` — where signing in lands, and the only list this app opens on.
- *
- * The search box and the sort control are not always here: below forty rows a
- * list is scanned rather than searched, and the controls would be furniture.
- * The endpoint supports both whatever the screen shows.
- *
- * The two-step first-run panel that replaces the empty state on a fresh
- * instance is `20k5ft`'s, alongside the extension it walks somebody through
- * installing.
- */
 export default function WorkflowsPage() {
   const { active } = useActiveOrganization();
 
@@ -53,7 +42,6 @@ export default function WorkflowsPage() {
   return <Workflows orgId={active.id} />;
 }
 
-/** Which dialog is open, and about which Workflow. */
 type OpenDialog =
   | { kind: "none" }
   | { kind: "new" }

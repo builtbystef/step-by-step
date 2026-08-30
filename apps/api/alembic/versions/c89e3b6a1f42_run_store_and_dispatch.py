@@ -1,10 +1,3 @@
-"""Run store and dispatch
-
-Revision ID: c89e3b6a1f42
-Revises: b7312f4d990a
-Create Date: 2026-08-24 07:10:00.000000
-"""
-
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -28,7 +21,6 @@ def closed_enum(name: str, values: list[str], length: int) -> sa.Enum:
 
 
 def upgrade() -> None:
-    """Add Runs and every execution row the Worker writes beneath them."""
     op.create_table(
         "runs",
         sa.Column("id", sa.Uuid(), nullable=False),
@@ -206,7 +198,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Remove the Run store."""
     op.drop_index("ix_step_results_run_id", table_name="step_results")
     op.drop_table("step_results")
     op.drop_index("ix_run_log_lines_run_id", table_name="run_log_lines")

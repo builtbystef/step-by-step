@@ -1,5 +1,3 @@
-"""Claim Run ids from Redis and hand exactly one claimed Run to the executor."""
-
 from datetime import UTC, datetime
 from os import environ
 from pathlib import Path
@@ -45,12 +43,6 @@ def work_once(
     pop_timeout: int = 1,
     follow_control: bool = False,
 ) -> bool:
-    """Execute the next claimable id, dropping stale ids along the way.
-
-    ``False`` means the blocking pop timed out. An id that was cancelled or was
-    already claimed is not work and does not make the Worker pause before the
-    next pop.
-    """
     while popped := queue.brpop(DISPATCH_LIST, timeout=pop_timeout):
         raw_id = popped[1]
         if isinstance(raw_id, bytes):

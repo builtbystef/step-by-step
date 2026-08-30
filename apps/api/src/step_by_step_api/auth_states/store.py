@@ -1,5 +1,3 @@
-"""Sealed, last-write-wins Auth State storage."""
-
 from uuid import UUID, uuid4
 
 from sqlalchemy.dialects.postgresql import insert
@@ -14,7 +12,6 @@ from step_by_step_api.envelope import Sealed, master_key, open_sealed, seal
 def store(
     db: Session, org_id: UUID, user_id: UUID | None, blob: AuthStateBlob
 ) -> AuthState:
-    """Insert or replace one destination while retaining its row identity."""
     sealed = seal(blob.model_dump_json(by_alias=True).encode(), master_key())
     row_id = uuid4()
     statement = insert(AuthState).values(
@@ -45,7 +42,6 @@ def store(
 
 
 def open_blob(row: AuthState) -> AuthStateBlob:
-    """The plaintext blob a Worker injects, opened under the master key."""
     plaintext = open_sealed(
         Sealed(value=row.sealed_blob, data_key=row.sealed_data_key), master_key()
     )

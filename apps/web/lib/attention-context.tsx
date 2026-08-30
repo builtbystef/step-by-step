@@ -8,7 +8,6 @@ import { ATTENTION_KEY, attentionRefetchInterval } from "./attention";
 
 const AttentionContext = createContext<Attention | null>(null);
 
-/** Mounted by the shell alone, so no signed-out route starts this poll. */
 export function AttentionProvider({ children }: { children: ReactNode }) {
   const attention = useQuery({
     queryKey: ATTENTION_KEY,

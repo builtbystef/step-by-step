@@ -8,14 +8,6 @@ import {
   type Variable,
 } from "@step-by-step/api-client";
 
-/**
- * The Workflow's past Batches, for "Copy from a past Batch".
- *
- * Its own key, because creating a Batch is the only thing that changes it
- * and the creation page should not refetch a Workflow header that did not
- * move.
- */
-
 export function workflowBatchesKey(orgId: string, workflowId: string) {
   return ["workflow-batches", orgId, workflowId] as const;
 }
@@ -37,7 +29,6 @@ export async function loadBatch(batchId: string): Promise<BatchDetail> {
   return data;
 }
 
-/** The latest published Version's Variables, fetched now rather than from cache. */
 export async function loadPublishedVariables(workflowId: string): Promise<Variable[]> {
   const { data, error } = await getWorkflow({ path: { workflow_id: workflowId } });
   if (error) throw error;

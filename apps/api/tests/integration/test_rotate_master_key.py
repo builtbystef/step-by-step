@@ -1,15 +1,3 @@
-"""rotate-master-key, against real Postgres.
-
-The envelope module already proves rewrap on a single record. This is the
-command that walks every sealed row — Secrets, Auth States, and Personal
-Overrides of both — so a leaked master key is recoverable without dumping
-the database.
-
-The session-scoped test database accumulates vault rows sealed under
-whichever master key each test happened to have. Rotation walks every row,
-so these tests empty the vault first and seed a known mixed set.
-"""
-
 from base64 import b64encode
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
@@ -45,8 +33,6 @@ NEW_B64 = b64encode(NEW).decode()
 
 @dataclass(frozen=True, slots=True)
 class VaultRow:
-    """One sealed row as rotation found it, with the plaintext it must keep."""
-
     kind: str
     id: UUID
     ciphertext: bytes
@@ -65,7 +51,6 @@ def empty_the_vault() -> None:
 def mixed_vault(
     client: TestClient, new_account: NewAccount, monkeypatch: pytest.MonkeyPatch
 ) -> Iterator[list[VaultRow]]:
-    """Four sealed kinds under the current key, and the new key in the environment."""
     empty_the_vault()
     monkeypatch.setenv(NEW_MASTER_KEY_VARIABLE, NEW_B64)
     owner = new_account()

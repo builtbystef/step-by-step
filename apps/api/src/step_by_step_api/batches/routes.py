@@ -1,5 +1,3 @@
-"""The user-facing Batch create, list, row edit, fill, output, skip, and cancel."""
-
 from __future__ import annotations
 
 import csv
@@ -195,7 +193,6 @@ def create_batch(
     member: ActiveMembership,
     db: SessionDep,
 ) -> BatchCreated:
-    """Persist the rows and start the first queued one. Secrets never enter a row."""
     owned_workflow(db, member.org_id, workflow_id)
     published = latest_published(db, workflow_id)
     if published is None:
@@ -264,7 +261,6 @@ def list_batches(
     limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = PAGE_SIZE,
     cursor: str | None = None,
 ) -> BatchPage:
-    """The Workflow's Batches, newest first, with counts derived from rows."""
     owned_workflow(db, member.org_id, workflow_id)
     conditions = [Batch.org_id == member.org_id, Batch.workflow_id == workflow_id]
     if cursor is not None:
@@ -293,7 +289,6 @@ def list_batches(
     responses=errors(400, 401, 403, 404),
 )
 def get_batch(batch_id: UUID, member: ActiveMembership, db: SessionDep) -> BatchDetail:
-    """The Batch, its rows, derived counts, and an ETA once three rows finished."""
     batch = owned_batch(db, member.org_id, batch_id)
     rows = list(
         db.execute(
@@ -329,7 +324,6 @@ def get_batch_output(
     db: SessionDep,
     format: Literal["json", "csv"] = Query(default="json"),
 ) -> OutputTable | Response:
-    """One table: the union of the rows' Variables and extract output names."""
     batch = owned_batch(db, member.org_id, batch_id)
     table = assemble_output(db, batch)
     if format == "csv":
@@ -356,7 +350,6 @@ def get_batch_output(
 def stream_batch_events(
     batch_id: UUID, member: ActiveMembership, db: SessionDep
 ) -> StreamingResponse:
-    """Fan out `batch:{id}:events` after the Organization gate; never replay."""
     owned_batch(db, member.org_id, batch_id)
     from step_by_step_api.runs.routes import fan_out
 
@@ -380,7 +373,6 @@ def stream_batch_events(
     responses=errors(400, 401, 403, 404),
 )
 def cancel_batch(batch_id: UUID, member: ActiveMembership, db: SessionDep) -> Response:
-    """Cancel the current Run and mark every remaining row cancelled."""
     batch = owned_batch(db, member.org_id, batch_id)
     now = clock.now()
     if batch.cancelled_at is None:
@@ -437,7 +429,6 @@ def update_batch_row(
     member: ActiveMembership,
     db: SessionDep,
 ) -> BatchRowRecord:
-    """Edit a queued, skipped, or failed row's values. Status does not change."""
     batch = owned_batch(db, member.org_id, batch_id)
     row = owned_row(db, batch, index)
     if row.status not in EDITABLE_ROW_STATUSES:
@@ -462,7 +453,6 @@ def fill_batch_rows(
     member: ActiveMembership,
     db: SessionDep,
 ) -> FillResult:
-    """Set one Variable on every queued row that has no value for it."""
     batch = owned_batch(db, member.org_id, batch_id)
     rows = list(
         db.execute(
@@ -493,7 +483,6 @@ def fill_batch_rows(
 def skip_batch_row(
     batch_id: UUID, index: int, member: ActiveMembership, db: SessionDep
 ) -> Response:
-    """Cancel a waiting row's Run, mark it skipped, and advance at once."""
     batch = owned_batch(db, member.org_id, batch_id)
     row = owned_row(db, batch, index)
     current = latest_run(db, row.id)
@@ -521,7 +510,6 @@ def skip_batch_row(
 def rerun_batch_row(
     batch_id: UUID, index: int, member: ActiveMembership, db: SessionDep
 ) -> RerunCreated:
-    """Attach a new attempt to one finished row. Other rows stay as they are."""
     batch = owned_batch(db, member.org_id, batch_id)
     row = owned_row(db, batch, index)
     if row.status not in (BatchRowStatus.FAILED, BatchRowStatus.SKIPPED):
@@ -552,7 +540,6 @@ def rerun_batch_row(
 
 
 def cancel_current(db: Session, run: Run, now: datetime) -> None:
-    """The same rules as cancelling a Run: queued and waiting stop now."""
     if run.status.value not in NON_TERMINAL:
         return
     if run.status is RunStatus.QUEUED:
@@ -677,7 +664,6 @@ def stats_of(rows: list[BatchRow]) -> BatchStats:
 
 
 def eta_of(rows: list[BatchRow], attempts: dict[UUID, list[Run]]) -> int | None:
-    """Median completed-row duration times rows remaining; blank before three."""
     durations: list[float] = []
     for row in rows:
         if row.status not in (BatchRowStatus.SUCCEEDED, BatchRowStatus.FAILED):
@@ -763,7 +749,6 @@ def output_extract_names(document: dict[str, Any]) -> list[str]:
 def extracts_by_row(
     db: Session, document: dict[str, Any], row_ids: list[UUID]
 ) -> dict[UUID, dict[str, Any]]:
-    """Latest-attempt extracted values, keyed by the Step's outputName."""
     if not row_ids:
         return {}
     step_names: dict[str, str] = {}

@@ -1,5 +1,3 @@
-"""The Redis client, against the real Redis."""
-
 import pytest
 from step_by_step_core.bus import get_redis
 

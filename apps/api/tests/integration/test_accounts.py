@@ -1,14 +1,3 @@
-"""The accounts tracer at its seam: HTTP against the app, with a real Postgres.
-
-External behaviour only. The console mailer is the capture point — a test asks
-for a Sign-in Code over HTTP and reads the code out of the message that came
-back, rather than out of the table that holds its hash.
-
-Two tests do look in a table, and both assert what a table must *not* hold —
-no user or Organization after a refused signup, and no code or session token
-in the clear. An absence is the one claim no HTTP answer can carry.
-"""
-
 import re
 from base64 import b64encode
 from collections.abc import Iterator
@@ -42,11 +31,6 @@ DEV_MASTER_KEY = b64encode(bytes(range(KEY_BYTES))).decode()
 
 @pytest.fixture
 def client(monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
-    """The app as uvicorn starts it, on a console mailer of this test's own.
-
-    Both caches are cleared around the test so that the outbox a test reads
-    holds its own mail and nobody else's.
-    """
     monkeypatch.setenv("STEPBYSTEP_MASTER_KEY", DEV_MASTER_KEY)
     monkeypatch.setenv(MAILER_VARIABLE, "console")
     monkeypatch.delenv(SIGNUP_MODE_VARIABLE, raising=False)
@@ -59,16 +43,10 @@ def client(monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
 
 
 def an_email() -> str:
-    """An address no other test in this run uses.
-
-    The compose Postgres is long-lived shared state, so nothing may assume an
-    empty `users` table — only that this address is nobody yet.
-    """
     return f"ada-{uuid4().hex[:12]}@example.com"
 
 
 def code_sent_to(address: str) -> str:
-    """The 6-digit code from the newest message the console mailer captured."""
     for message in reversed(outbox()):
         if message.to == address:
             digits = re.search(r"\b(\d{6})\b", message.text)
@@ -89,8 +67,6 @@ def test_requesting_a_code_emails_six_digits(client: TestClient) -> None:
 def test_requesting_a_code_for_an_unknown_address_looks_the_same(
     client: TestClient,
 ) -> None:
-    """No account-existence oracle: the answer cannot say whether the address
-    is anybody, so an attacker cannot enumerate an instance's users."""
     known, unknown = an_email(), an_email()
     client.post("/api/auth/request-code", json={"email": known})
     verify(client, known, code_sent_to(known))
@@ -103,12 +79,6 @@ def test_requesting_a_code_for_an_unknown_address_looks_the_same(
 
 
 def rows_for(email: str) -> list[object]:
-    """The user and Organization rows an address left behind, if any.
-
-    The one look into the tables in this file, and it is here because no HTTP
-    answer can show the *absence* of a row: "and no user or Organization rows
-    exist afterwards" is a claim about the store itself.
-    """
     with session_scope() as db:
         users = (
             db.execute(select(User).where(func.lower(User.email) == email.lower()))
@@ -130,13 +100,10 @@ def rows_for(email: str) -> list[object]:
 
 
 def verify(client: TestClient, email: str, code: str) -> Response:
-    """Sign in with a code, the way the second step of the screen does."""
     return client.post("/api/auth/verify-code", json={"email": email, "code": code})
 
 
 def sign_in(client: TestClient, email: str) -> dict[str, object]:
-    """The whole two-step flow, which is how every test that needs an account
-    gets one: there is no other way to create a user."""
     assert (
         client.post("/api/auth/request-code", json={"email": email}).status_code == 202
     )
@@ -163,9 +130,6 @@ def test_an_unknown_address_becomes_an_account_with_an_organization(
 
 
 def test_the_session_cookie_is_httponly_and_lax(client: TestClient) -> None:
-    """`SameSite=Lax` is the whole CSRF story here, so it is not optional, and
-    a script must never be able to read the token. Attribute names and values
-    are compared without case, which is how a browser reads them."""
     email = an_email()
     client.post("/api/auth/request-code", json={"email": email})
 
@@ -177,8 +141,6 @@ def test_the_session_cookie_is_httponly_and_lax(client: TestClient) -> None:
 
 
 def test_the_session_cookie_is_secure_over_https(client: TestClient) -> None:
-    """`Secure` follows the scheme: a plain-HTTP development instance that set
-    it would hand out a cookie the browser then refuses to send back."""
     email = an_email()
     client.post("/api/auth/request-code", json={"email": email})
     assert (
@@ -197,7 +159,6 @@ def test_the_session_cookie_is_secure_over_https(client: TestClient) -> None:
 def test_the_same_address_in_another_case_is_the_same_account(
     client: TestClient,
 ) -> None:
-    """Email is the sole identity: unique without case, stored as entered."""
     lower = an_email()
     shouted = lower.replace("ada", "Ada").replace("example", "Example")
     sign_in(client, lower)
@@ -224,11 +185,6 @@ def test_a_code_works_once(client: TestClient) -> None:
 
 
 def outstanding_code(email: str) -> SigninCode | None:
-    """The Sign-in Code row for an address, if the store still holds one.
-
-    An absence no HTTP answer can carry: expired is refused as `bad_code`
-    either way, and only the table can show the row is gone rather than kept.
-    """
     with session_scope() as db:
         return db.execute(
             select(SigninCode).where(SigninCode.email == email.lower())
@@ -238,8 +194,6 @@ def outstanding_code(email: str) -> SigninCode | None:
 def test_a_code_expires_after_ten_minutes(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Expired is refused as `bad_code`, and the row is deleted where it is
-    found — the same sweep sessions get, paid for by the next attempt."""
     email = an_email()
     client.post("/api/auth/request-code", json={"email": email})
     code = code_sent_to(email)
@@ -254,8 +208,6 @@ def test_a_code_expires_after_ten_minutes(
 
 
 def test_a_wrong_code_is_refused_the_same_way(client: TestClient) -> None:
-    """One answer for wrong, expired, spent, and never issued — anything else
-    would tell a guesser how close they are."""
     email = an_email()
     client.post("/api/auth/request-code", json={"email": email})
     wrong = "000000" if code_sent_to(email) != "000000" else "111111"
@@ -279,9 +231,6 @@ def test_requesting_a_second_code_retires_the_first(client: TestClient) -> None:
 def test_an_invite_only_instance_takes_nobody_new(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The refusal waits until verification: asking for a code still answers
-    202, because an instance that refused earlier would be saying who has an
-    account here."""
     monkeypatch.setenv(SIGNUP_MODE_VARIABLE, "invite_only")
     email = an_email()
 
@@ -316,8 +265,6 @@ def test_the_current_account_needs_a_session(client: TestClient) -> None:
 def test_signing_out_kills_the_session_the_browser_still_carries(
     client: TestClient,
 ) -> None:
-    """The cookie the browser kept must stop working, not merely stop being
-    sent: a copy of it anywhere is a copy of the session."""
     email = an_email()
     sign_in(client, email)
     cookie = client.cookies[SESSION_COOKIE]
@@ -341,11 +288,6 @@ def test_a_token_that_matches_no_session_is_not_signed_in(client: TestClient) ->
 
 
 def test_the_store_holds_digests_and_never_the_secret(client: TestClient) -> None:
-    """The other claim no HTTP answer can show: what the tables must not hold.
-
-    A leaked backup, a replicated table, or a query in a log must hand nobody
-    a working code or a working session token.
-    """
     email = an_email()
     client.post("/api/auth/request-code", json={"email": email})
     code = code_sent_to(email)
@@ -360,8 +302,6 @@ def test_the_store_holds_digests_and_never_the_secret(client: TestClient) -> Non
     verify(client, email, code)
     token = client.cookies[SESSION_COOKIE]
 
-    # 128 bits is the floor the design sets; urlsafe base64 carries 6 bits a
-    # character, so anything shorter than 22 characters is under it.
     assert len(token) >= 22
     with session_scope() as db:
         held = db.execute(select(Session.token_hash)).scalars().all()

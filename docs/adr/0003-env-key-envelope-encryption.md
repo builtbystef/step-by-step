@@ -1,3 +1,15 @@
-# 0003 — Env-supplied master key with app-level envelope encryption
+# 0003 — Environment master key with application-level envelope encryption
 
-Context: Secrets and Auth State are bearer credentials stored in Postgres, and the product ships as a self-hosted docker compose stack where no cloud KMS can be assumed. Decision: the backend encrypts each Secret and Auth State record with a per-record data key, wrapped by a single 32-byte master key supplied via environment variable or compose secret; Postgres never sees plaintext, and losing the master key makes the stored values unrecoverable by design. Reason: an env-supplied key is the strongest primitive every self-hosted deployment actually has; envelope encryption keeps future KMS integration and key rotation possible without re-encrypting the whole table under a new scheme.
+## Context
+
+Secrets and Auth State are bearer credentials stored in PostgreSQL. A self-hosted Compose deployment cannot depend on a cloud key-management service.
+
+## Decision
+
+The API encrypts each Secret and Auth State record with its own data key. It wraps each data key with one 32-byte master key supplied through `STEPBYSTEP_MASTER_KEY`. PostgreSQL never stores plaintext credentials.
+
+Losing the master key makes the encrypted values unrecoverable.
+
+## Reason
+
+An environment key works in every supported deployment. Per-record data keys also allow master-key rotation and leave room for a future key-management service.

@@ -1,5 +1,3 @@
-"""Heartbeats, reaping, and the queue backstop at the HTTP and tick seams."""
-
 from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 

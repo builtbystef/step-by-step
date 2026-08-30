@@ -1,5 +1,3 @@
-"""The shared Workflow document contract."""
-
 from uuid import uuid4
 
 import pytest
@@ -30,7 +28,6 @@ def test_sparse_steps_observe_execution_defaults() -> None:
 
 
 def test_target_reads_the_stored_document_shape() -> None:
-    """A Worker reads the same camelCase Target that the backend stored."""
     target = Target.from_document(
         {
             "candidates": [
@@ -51,7 +48,6 @@ def test_target_reads_the_stored_document_shape() -> None:
 
 
 def test_a_secret_variable_may_carry_a_vault_pointer() -> None:
-    """The id is the binding; the name is a cache for display."""
     secret_id = uuid4()
     variable = Variable.model_validate(
         {
@@ -68,7 +64,6 @@ def test_a_secret_variable_may_carry_a_vault_pointer() -> None:
 
 
 def test_a_secret_variable_without_a_vault_pointer_is_still_a_variable() -> None:
-    """Binding is a later pick, not a condition of being secret."""
     variable = Variable.model_validate({"name": "password", "secret": True})
 
     assert variable.secret_id is None

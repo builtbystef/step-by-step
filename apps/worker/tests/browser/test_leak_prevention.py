@@ -1,5 +1,3 @@
-"""A Run's own output never discloses a credential it was handed."""
-
 import json
 from collections.abc import Mapping
 from datetime import datetime

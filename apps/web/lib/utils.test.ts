@@ -2,11 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { cn } from "./utils";
 
-/*
- * The generated components in `components/ui/` carry Tailwind's own font
- * sizes. Where a primitive sets one of the six, the six must win — which only
- * happens if tailwind-merge has been taught they are font sizes.
- */
 describe("cn", () => {
   it("lets one of the six sizes replace a generated Tailwind size", () => {
     expect(cn("text-sm", "text-half")).toBe("text-half");

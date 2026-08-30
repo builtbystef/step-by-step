@@ -1,5 +1,3 @@
-"""Recorder behavior through the unpacked extension's emitted checkpoints."""
-
 from typing import Any
 
 import pytest
@@ -10,7 +8,6 @@ pytestmark = pytest.mark.browser
 
 
 def start_recording(browser: BrowserContext, fixture_site: str, page: Page) -> Page:
-    """Hand off from the app, then confirm the target through the popup seam."""
     worker = worker_of(browser)
     worker.evaluate(
         """(origin) => chrome.storage.local.set({connection: {origin}})
@@ -581,7 +578,6 @@ def test_browser_navigation_emits_a_standalone_navigate_step(
 
 
 def hand_repick(page: Page, fixture_site: str) -> None:
-    """Store a Re-pick pending session, retrying if a previous test overwrites it."""
     worker = worker_of(page.context)
     pending = {
         "channel": "step-by-step",
@@ -619,7 +615,6 @@ def hand_repick(page: Page, fixture_site: str) -> None:
 
 
 def start_repick(browser: BrowserContext, fixture_site: str, page: Page) -> Page:
-    """Hand a Re-pick session to the extension and confirm the target tab."""
     hand_repick(page, fixture_site)
     worker = worker_of(browser)
     surface = browser.new_page()

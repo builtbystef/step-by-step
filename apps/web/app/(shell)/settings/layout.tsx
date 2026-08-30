@@ -10,14 +10,6 @@ import { useActiveOrganization } from "../use-active-organization";
 
 import { cn } from "@/lib/utils";
 
-/**
- * Settings: a left section nav beside one panel.
- *
- * Every screen the accounts slices built is homed here, and so is everything
- * the later ones will build. The nav is what a role changes — a member is not
- * offered Invitations — and the gate is what turns away an address a role
- * cannot use, so the two never disagree about the same section.
- */
 export default function SettingsLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { active } = useActiveOrganization();

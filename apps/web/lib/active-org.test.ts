@@ -11,12 +11,6 @@ import {
   watchOrganizationChoice,
 } from "./active-org";
 
-/**
- * Which Organization the app is acting in — the choice the switcher makes and
- * the fetch wrapper stamps on every call. Pure over an identity and whatever
- * this browser remembered, so the whole rule is read back without a DOM.
- */
-
 const ACME: OrganizationMembership = {
   id: "3f0d7c1e-0000-4000-8000-000000000010",
   name: "Acme",
@@ -38,7 +32,6 @@ function accountIn(...orgs: OrganizationMembership[]): Account {
   };
 }
 
-/** A browser's memory, without a browser. */
 function memory(entries: Record<string, string> = {}): Storage {
   const held = new Map(Object.entries(entries));
   return {

@@ -1,5 +1,3 @@
-/** The postMessage protocol shared by the app and its connected extension. */
-
 import type { SelectorCandidate, Variable } from "@step-by-step/api-client";
 
 export const EXTENSION_CHANNEL = "step-by-step";

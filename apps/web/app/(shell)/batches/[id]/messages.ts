@@ -1,7 +1,3 @@
-/**
- * What the batch view says when a call comes back refused.
- */
-
 const REFUSALS: Record<string, string> = {
   batch_not_found: "That Batch is gone — somebody deleted it, or it was never here.",
   not_a_member: "You are no longer a member of that Organization.",

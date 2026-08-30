@@ -1,5 +1,3 @@
-"""The long-lived Worker: prove readiness, then claim and execute Runs serially."""
-
 import logging
 import signal
 import threading
@@ -16,7 +14,6 @@ from step_by_step_worker.store import PostgresRunStore
 
 
 def consume(log: logging.Logger) -> None:
-    """Keep one browser-owning Run at a time on this Worker until shutdown."""
     stopping = threading.Event()
     for asked in (signal.SIGTERM, signal.SIGINT):
         signal.signal(asked, lambda *_: stopping.set())

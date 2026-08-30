@@ -1,14 +1,3 @@
-"""The master-key boot gate.
-
-Losing the master key makes every stored value unrecoverable, and a backend
-that starts without a usable one would serve traffic until the first secret and
-then fail — with the vault half-written and the operator none the wiser. So the
-key is proven at startup: a bad key is a boot failure, never a first-use one.
-
-The app is started through the test client's lifespan, which is the same
-startup uvicorn runs; nothing here needs a service.
-"""
-
 from base64 import b64encode
 from collections.abc import Iterator
 
@@ -29,7 +18,6 @@ VALID = b64encode(bytes(range(KEY_BYTES))).decode()
 
 @pytest.fixture(autouse=True)
 def unconfigured_boot() -> Iterator[None]:
-    """No test here may inherit — or leave behind — what a boot caches."""
     master_key.cache_clear()
     mailer.cache_clear()
     yield
@@ -76,8 +64,6 @@ def test_the_backend_refuses_to_start_on_a_key_of_the_wrong_length(
 def test_the_backend_refuses_to_start_on_a_mailer_it_cannot_configure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The same gate, for the same reason: a mailer that cannot send is found
-    at boot rather than by the first person who asks for a Sign-in Code."""
     monkeypatch.setenv("STEPBYSTEP_MASTER_KEY", VALID)
     monkeypatch.setenv("MAILER", "smtp")
     monkeypatch.delenv("SMTP_HOST", raising=False)
@@ -89,8 +75,6 @@ def test_the_backend_refuses_to_start_on_a_mailer_it_cannot_configure(
 def test_the_backend_refuses_to_start_on_a_signup_mode_it_cannot_read(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The third boot gate. A typo here would otherwise surface on the landing
-    page of an instance whose operator has already walked away."""
     monkeypatch.setenv("STEPBYSTEP_MASTER_KEY", VALID)
     monkeypatch.setenv(SIGNUP_MODE_VARIABLE, "everyone")
 

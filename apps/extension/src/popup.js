@@ -1,22 +1,3 @@
-/**
- * The popup: the one surface where a person connects this extension to their
- * instance, and the only place a permission can be asked for.
- *
- * Chrome grants an optional host permission only from a user gesture, so
- * `chrome.permissions.request` is called from the click itself, before
- * anything is awaited — an `await` first would spend the gesture and the
- * request would be refused without ever being shown.
- *
- * And asking can cost this popup its life: the dialog is a window of Chrome's
- * own, and a popup that loses focus is closed. So the click tells the worker
- * what it is about to do before it asks, and the worker finishes it on the
- * grant. Nothing here is the only way the connect can complete.
- *
- * The connect code is the second way in rather than a way around the grant:
- * the extension has to be allowed to reach the instance either way, so that
- * button asks for the same origin from its own click.
- */
-
 import { originPattern, readInstanceUrl } from "./lib/instance.js";
 import { replacementHint } from "./lib/recording.js";
 
@@ -26,13 +7,6 @@ const ADDRESS_PROBLEMS = {
   "unsupported-scheme": "An instance is reached over http or https.",
 };
 
-/**
- * What a declined grant leaves behind, said whenever it is found unanswered.
- *
- * Chrome raises no event for a refusal and the dialog usually closes the popup
- * that asked, so this is as often said by the next popup to open as by the one
- * that was there.
- */
 const DECLINED =
   "Step by Step needs Chrome's permission for that address before it can connect. " +
   "Try again, and choose Allow.";
@@ -71,8 +45,6 @@ const view = {
   authChoices: document.querySelector("#auth-state-choices"),
 };
 
-// Read the tab while the popup is opening. The later click must call
-// permissions.request directly from its user gesture, before awaiting anything.
 let targetTab = null;
 void chrome.tabs.query({ active: true, lastFocusedWindow: true }).then(([tab]) => {
   targetTab = tab ?? null;
@@ -144,23 +116,15 @@ document.querySelector("#save-button").addEventListener("click", () => {
 });
 
 document.querySelector("#disconnect").addEventListener("click", () => {
-  // The worker clears what it holds before it hands the site access back, and
-  // handing it back restarts the worker — so the answer to this may never
-  // arrive. It is not needed: the disconnection is already true by the time it
-  // could have been sent, and this popup says so without being told.
   const version = view.version.textContent;
   void ask("disconnect").then(show, () => undefined);
   show({ connection: null, version });
 });
 
-// A popup is closed the moment it loses focus, and fetching a connect code from
-// the app costs it exactly that — so what is typed here is handed to the worker
-// as it is typed, and the popup that comes back opens where this one left off.
 view.address.addEventListener("input", () => {
   void ask("remember-address", { address: view.address.value });
 });
 
-// The connection is made in a tab, so it can arrive while this popup is open.
 chrome.storage.local.onChanged.addListener(() => {
   void ask("connection").then(show);
 });
@@ -170,12 +134,6 @@ void ask("connection").then((state) => {
   view.address.value = state.address ?? "";
 });
 
-/**
- * Ask for the origin from this click, and then do whatever the button meant.
- *
- * The request is Chrome's own dialog: it either grants the origin or it does
- * not, and a decline is an answer to show rather than an error.
- */
 function connect(how) {
   const read = readInstanceUrl(view.address.value);
   if (read.origin === undefined) {
@@ -183,37 +141,25 @@ function connect(how) {
     return;
   }
 
-  // Both calls belong to this click, and nothing is awaited between them: an
-  // `await` would spend the gesture and the request would be refused without
-  // ever being shown. The announcement is sent and not waited for, for that
-  // reason — and it is what lets the worker finish alone if this popup is
-  // closed by the dialog, which on most desktops is what happens.
   say("");
   const announced = ask("about-to-connect", { origin: read.origin, how, code: view.code.value });
+  // Request permission before an await consumes the user gesture.
   chrome.permissions
     .request({ origins: [originPattern(read.origin)] })
     .then(async (granted) => {
       if (!granted) {
-        // This popup outlived the dialog, so the announcement has been answered
-        // here and the next popup to open must not say this again.
         void ask("declined");
         declined();
         return undefined;
       }
-      // Now the gesture is spent and waiting costs nothing. An origin already
-      // granted resolves the request in this same tick, and asking to finish
-      // before the announcement had landed would find nothing announced.
       await announced;
       return ask("finish-connect").then(landed);
     })
     .catch(() => say(REFUSALS.failed));
 }
 
-/** What came back from the worker, as a sentence or as a new state. */
 function landed(answer) {
   if (answer.late === true) {
-    // The grant finished it while this popup was still asking. What it did is
-    // in the worker's storage, which is where this popup's state comes from.
     void ask("connection").then(show);
     return;
   }
@@ -387,7 +333,6 @@ function renderSave(recording) {
   }
 }
 
-/** Say what a refused permission means, and offer the way in that is left. */
 function declined() {
   view.fallback.open = true;
   say(DECLINED);
@@ -401,7 +346,6 @@ function say(sentence) {
   view.note.textContent = sentence;
 }
 
-/** The address as typed, trimmed to something a sentence can carry. */
 function short(typed) {
   const read = readInstanceUrl(typed);
   return read.origin ?? typed.trim();

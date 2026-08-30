@@ -1,21 +1,11 @@
 import type { Variable } from "@step-by-step/api-client";
 
-/**
- * The shared value grid's decisions: columns, the locked secret cell, paste,
- * copy-from-a-past-Batch, and a payload that never carries a secret.
- *
- * The Batch creation page, the Schedule's one-row set, and the run-start grid
- * all draw these. A second implementation would be the mistake the spec is
- * trying to prevent.
- */
-
 export type GridColumn = {
   name: string;
   secret: boolean;
   secretName: string | null;
 };
 
-/** One row of typed values. Secret columns never appear as keys. */
 export type GridRow = Record<string, string>;
 
 export function columnsOf(variables: readonly Variable[]): GridColumn[] {
@@ -26,7 +16,6 @@ export function columnsOf(variables: readonly Variable[]): GridColumn[] {
   }));
 }
 
-/** What a locked secret cell reads: "from vault" with the cached Secret name. */
 export function lockedCellLabel(column: GridColumn): string {
   return column.secretName === null ? "from vault" : `from vault · ${column.secretName}`;
 }
@@ -58,10 +47,6 @@ export function setCell(
   return { ...row, [name]: value };
 }
 
-/**
- * A spreadsheet's clipboard is TSV: tabs between cells, newlines between rows.
- * A trailing newline is the cursor, not an extra empty row.
- */
 export function parseSpreadsheet(text: string): string[][] {
   const normalized = text.replaceAll("\r\n", "\n").replaceAll("\r", "\n");
   const trimmed = normalized.endsWith("\n") ? normalized.slice(0, -1) : normalized;
@@ -120,7 +105,6 @@ export function applyCopiedBatch(
   });
 }
 
-/** Set one Variable to the same value on every row. Secret columns refuse the write. */
 export function fillEveryRow(
   rows: readonly GridRow[],
   columns: readonly GridColumn[],

@@ -1,14 +1,3 @@
-"""Takeover tickets and the hand-back stamp
-
-A waiting Run records who holds control and the single-use ticket that will
-admit their VNC connection. Hand-back is a row stamp, same shape as pause
-and cancel, so a dropped pub/sub message never hides it.
-
-Revision ID: b8e4c1d07a92
-Revises: c3f9a1d84e26
-Create Date: 2026-08-25 18:40:00.000000
-"""
-
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -21,7 +10,6 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """Stamp hand-back on the Run and store takeover tickets."""
     op.add_column(
         "runs",
         sa.Column("handback_requested_at", sa.DateTime(timezone=True), nullable=True),
@@ -45,7 +33,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Drop takeover tickets and the hand-back stamp."""
     op.drop_index(
         op.f("ix_run_takeover_tickets_run_id"), table_name="run_takeover_tickets"
     )

@@ -1,12 +1,5 @@
 import { cn } from "@/lib/utils";
 
-/**
- * A number riding a nav item.
- *
- * - `total` — grey; how many there are.
- * - `in-flight` — blue; the machine is acting.
- * - `waiting` — amber; something is waiting on you.
- */
 export type CountTone = "total" | "in-flight" | "waiting";
 
 const TONE_CLASSES: Record<CountTone, string> = {
@@ -15,7 +8,6 @@ const TONE_CLASSES: Record<CountTone, string> = {
   waiting: "bg-wait-bg text-wait",
 };
 
-/** Hidden at zero: a nav item carrying a `0` is noise, not information. */
 export function CountBadge({
   count,
   tone = "total",

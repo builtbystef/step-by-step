@@ -5,11 +5,6 @@ import { SETTINGS_GROUPS, settingsNav } from "./sections";
 
 import { ACCOUNT_PATH, resolveGate } from "../../../lib/gate";
 
-/**
- * Settings' section nav: what each role is offered, and the one section a
- * member is not. Read back directly, because it is a permission table.
- */
-
 const SIGNED_IN: Account = {
   id: "3f0d7c1e-0000-4000-8000-000000000001",
   email: "ada@example.com",
@@ -20,7 +15,6 @@ const SIGNED_IN: Account = {
 
 const ROLES: Role[] = ["owner", "admin", "member"];
 
-/** Every section a role is offered, in the order the nav renders them. */
 function paths(role: Role): string[] {
   return settingsNav(role).flatMap((group) => group.sections.map((section) => section.path));
 }

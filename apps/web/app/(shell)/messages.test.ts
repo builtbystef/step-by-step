@@ -3,11 +3,6 @@ import { describe, expect, it } from "vitest";
 
 import { acceptRefusal, offerSentence } from "./messages";
 
-/**
- * What the shell says for itself: the standing Invitations it surfaces, and
- * the refusals accepting one can meet.
- */
-
 const OFFER: OfferedMembership = {
   id: "3f0d7c1e-0000-4000-8000-000000000020",
   org_name: "Acme",

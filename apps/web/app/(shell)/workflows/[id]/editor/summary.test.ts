@@ -4,14 +4,6 @@ import { describe, expect, it } from "vitest";
 import type { Step } from "./steps";
 import { sentenceOf, summarize, targetToken } from "./summary";
 
-/**
- * The line under a card's label: the Step as a sentence, with the Variables
- * it interpolates and the element it points at kept apart from the words
- * around them, so the card can draw a pill and a token rather than braces.
- *
- * The worked example is the spec's own: "Type {{password}} into Password".
- */
-
 const PASSWORD_FIELD: Target = {
   candidates: [
     { kind: "label", value: "Password" },

@@ -6,15 +6,6 @@ import {
   type GridRow,
 } from "../../../components/value-grid/grid";
 
-/**
- * Starting a Run from the list row or the Workflow header.
- *
- * Immediate when the published Version declares no Variables; the one-row
- * value grid — secret Variables locked, never sent — when it declares some.
- * Both call sites share this so where you press Run cannot change what Run
- * does.
- */
-
 export function needsValueGrid(variables: readonly Variable[]): boolean {
   return variables.length > 0;
 }

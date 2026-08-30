@@ -21,13 +21,6 @@ import {
   type StalledInput,
 } from "./presentation";
 
-/**
- * The batch view's decisions, read back without a DOM: the stats header,
- * the segmented bar, the live badge, the ETA, row expansion copy, the
- * stalled callout, and the new-Variable banner. The page draws these; it
- * does not re-decide them.
- */
-
 const START = "2026-08-26T12:00:00.000Z";
 const T = (seconds: number) => new Date(Date.parse(START) + seconds * 1000).toISOString();
 

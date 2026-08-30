@@ -9,12 +9,6 @@ import {
 
 import { previewBody } from "./creation";
 
-/**
- * The queries the Schedule form needs besides the Workflow header's: the
- * instance default timezone, the preview, past Runs for fill-from-last-Run,
- * and an existing Schedule when editing.
- */
-
 export function instanceKey() {
   return ["instance"] as const;
 }

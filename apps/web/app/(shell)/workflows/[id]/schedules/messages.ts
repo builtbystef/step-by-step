@@ -1,10 +1,5 @@
 import { COPY } from "../../../../../lib/copy";
 
-/**
- * What the Schedule creation page says when create, edit, or preview
- * comes back refused, and when a non-secret Variable is still empty.
- */
-
 const REFUSALS: Record<string, string> = {
   no_published_version: COPY.noPublishedVersion,
   invalid_cron: "That is not a cron expression.",

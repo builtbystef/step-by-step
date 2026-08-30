@@ -1,5 +1,19 @@
-# 0005 — Organization tenancy, passwordless self-serve auth
+# 0005 — Organization tenancy and passwordless self-service
 
-Context: the product should be able to become a hosted SaaS later while staying MIT self-hostable now, and no accounts code exists yet — this is the last cheap moment to change the tenant model. Decision: the tenant is the Organization — every Workflow, Run, Batch, Schedule, Secret, and Auth State belongs to exactly one Organization; signing up auto-creates one, users join others by Invitation (roles: owner, admin, member), and there is no instance-level admin — instances are self-serve, gated only by a signup-mode environment variable. Authentication is passwordless: a short-lived Sign-in Code emailed through a mailer seam (Resend, SMTP, or console adapter), so there are no passwords, temp passwords, or recovery CLI anywhere. Reason: retrofitting org ownership onto user-owned tables later is the painful path ADR 0001 itself warned about, and OTP sign-in deletes the entire password lifecycle at the cost of one email dependency, which the mailer seam keeps optional for self-hosters.
+Supersedes ADR 0001.
 
-Supersedes ADR 0001 (per-user tenancy). Sessions are unchanged: opaque server-side sessions in Postgres, sliding 30-day expiry.
+## Context
+
+The product must remain easy to self-host and may later support a hosted service. Organization ownership is much harder to add after every domain table already exists. Passwords would also require reset, recovery, and storage flows.
+
+## Decision
+
+The Organization is the tenant. Every Workflow, Run, Batch, Schedule, Secret, and Auth State belongs to one Organization.
+
+A new user normally gets an Organization. Users join other Organizations through Invitations. Membership roles are owner, admin, and member. There is no instance administrator; `SIGNUP_MODE` controls whether unknown addresses may sign up.
+
+Authentication uses short-lived Sign-in Codes sent by the console, SMTP, or Resend mail adapter. There are no passwords or password-recovery tools. Sessions are opaque server-side tokens in PostgreSQL with a sliding 30-day idle expiry.
+
+## Reason
+
+Organization ownership supports both teams and future hosted use. Sign-in Codes remove the password lifecycle while keeping email delivery replaceable for self-hosters.

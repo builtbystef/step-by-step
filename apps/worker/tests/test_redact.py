@@ -1,5 +1,3 @@
-"""The Worker redacts secret values before anything is published."""
-
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any

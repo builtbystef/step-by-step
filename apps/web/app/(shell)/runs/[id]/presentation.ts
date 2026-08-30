@@ -14,19 +14,8 @@ import type { LifecycleState } from "@/lib/labels";
 
 import { targetsOf, type Step } from "../../workflows/[id]/editor/steps";
 
-/**
- * The cockpit's wording and arithmetic, kept out of the JSX so a test can
- * read the acceptance criteria back: the clock, the drift chip, the timeline
- * proportions, the terminal sentences, cancel, Run again's prefill, and the
- * Output tab's empty-vs-table decision and download URLs.
- *
- * Lifecycle state is named here only as a value handed to `StatusChip`.
- * This module never words a state itself.
- */
-
 const TERMINAL: ReadonlySet<RunStatus> = new Set(["succeeded", "failed", "cancelled"]);
 
-/** Elapsed as the banner writes it: unpadded minutes, two-digit seconds. */
 export function clock(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
   const minutes = Math.floor(total / 60);
@@ -48,7 +37,6 @@ export function isTerminal(status: RunStatus): boolean {
   return TERMINAL.has(status);
 }
 
-/** Selector Drift: any match that was not the recorded best candidate. */
 export function driftedCount(results: StepResultRecord[]): number {
   return results.filter((result) => isDrifted(result.matched_candidate_rank)).length;
 }
@@ -465,10 +453,6 @@ function controlBandsBefore(
   return bands;
 }
 
-/**
- * A non-automation interval sits before the first Step that started after it,
- * or after every started Step when none did.
- */
 function bandIndex(
   interval: ControlIntervalRecord,
   steps: Step[],

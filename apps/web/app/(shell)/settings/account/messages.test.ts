@@ -9,12 +9,6 @@ import {
   soleOwnerExplanation,
 } from "./messages";
 
-/**
- * The account screen's decisions, tested where they are made: what a refusal
- * says, when the delete button means it, and what somebody who still owns a
- * team is told to do about it.
- */
-
 const REFUSALS = ["sole_owner", "confirmation_mismatch"];
 
 function org(name: string, role: OrganizationMembership["role"]): OrganizationMembership {

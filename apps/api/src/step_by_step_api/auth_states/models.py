@@ -1,5 +1,3 @@
-"""Encrypted Auth State at the Organization and Personal Override layers."""
-
 from datetime import datetime
 from uuid import UUID, uuid4
 
@@ -19,8 +17,6 @@ from step_by_step_core.db import Base
 
 
 class AuthState(Base):
-    """Signed-in browser state for one site; NULL user means Organization scope."""
-
     __tablename__ = "auth_states"
     __table_args__ = (
         ForeignKeyConstraint(

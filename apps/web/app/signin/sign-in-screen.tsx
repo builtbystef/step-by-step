@@ -15,16 +15,6 @@ import { Label } from "@/components/ui/label";
 import { landingAfterSignIn, resolveGate, SIGN_IN_PATH } from "@/lib/gate";
 import { IDENTITY_KEY, identityQuery } from "@/lib/identity";
 
-/**
- * The sign-in screen: the one route outside the shell.
- *
- * Signing in and signing up are the same two steps, because there are no
- * passwords — an address, then the Sign-in Code that address received. What
- * the instance does with an address it has never seen is the one thing that
- * differs between the two, and `GET /api/instance` is what says so.
- */
-
-/** The instance's own facts change about as often as the deployment does. */
 const INSTANCE_QUERY = {
   queryKey: ["instance"] as const,
   staleTime: Number.POSITIVE_INFINITY,
@@ -43,8 +33,6 @@ export function SignInScreen() {
   const identity = useQuery(identityQuery());
   const instance = useQuery(INSTANCE_QUERY);
 
-  // Someone who is already signed in has no business on this screen; the gate
-  // says so, and `next` says where they were going before they were sent here.
   const arrived = resolveGate(identity.data ?? null, null, SIGN_IN_PATH).kind === "redirect";
   useEffect(() => {
     if (arrived) {
@@ -80,8 +68,6 @@ export function SignInScreen() {
 
   const note = emailStepNote(instance.data?.signup_mode);
 
-  // One refusal at a time: a wrong code and a refused resend cannot both be
-  // the last thing that happened.
   const refused = signIn.error ?? askForCode.error;
 
   return (
@@ -176,7 +162,6 @@ export function SignInScreen() {
   );
 }
 
-/** No sidebar and no attention band: the wordmark, and one 400px card. */
 function Screen({ children }: { children?: ReactNode }) {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 px-4 py-12">

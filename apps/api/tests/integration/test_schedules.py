@@ -1,5 +1,3 @@
-"""The Schedule store and the minute tick: HTTP against Postgres and Redis."""
-
 from datetime import datetime
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo

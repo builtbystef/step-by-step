@@ -42,7 +42,6 @@ type InvalidatingCache = {
   invalidateQueries: (filters: { queryKey: readonly string[] }) => Promise<unknown>;
 };
 
-/** Start, cancel, hand-back, and stream transitions all call this one rule. */
 export async function invalidateRunState(cache: InvalidatingCache): Promise<void> {
   await Promise.all([
     cache.invalidateQueries({ queryKey: ATTENTION_KEY }),

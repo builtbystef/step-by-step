@@ -1,5 +1,3 @@
-"""The Worker credential path and takeover consent, at the HTTP seam."""
-
 import logging
 from uuid import UUID, uuid4
 

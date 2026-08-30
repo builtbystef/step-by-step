@@ -1,5 +1,3 @@
-"""The shell attention summary at its HTTP seam, against real Postgres."""
-
 from datetime import timedelta
 from typing import Any, cast
 from uuid import UUID

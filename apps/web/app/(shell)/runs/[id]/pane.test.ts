@@ -22,12 +22,6 @@ import {
 } from "./pane";
 import { clock, terminalBanner } from "./presentation";
 
-/**
- * The pane's decisions, read back without a DOM: which chrome it shows,
- * the waiting-card reason, the countdown going red, the grace line, the
- * unmet choice, the second-tab note, the challenge banner, and consent.
- */
-
 const START = "2026-08-26T12:00:00.000Z";
 const T = (seconds: number) => new Date(Date.parse(START) + seconds * 1000).toISOString();
 

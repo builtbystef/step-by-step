@@ -21,11 +21,6 @@ import { Button } from "@/components/ui/button";
 import { useCursorList } from "@/hooks/use-cursor-list";
 import { relativeTime } from "@/lib/relative-time";
 
-/**
- * The Workflow's Batches. There is no global Batches index — this tab is
- * where they live. Rows navigate to the batch progress screen.
- */
-
 export function BatchesList({ workflowId }: { workflowId: string }) {
   const { active } = useActiveOrganization();
 

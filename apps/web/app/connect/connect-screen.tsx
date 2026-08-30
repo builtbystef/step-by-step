@@ -24,20 +24,6 @@ import {
   readExtensionMessage,
 } from "@/lib/extension-protocol";
 
-/**
- * The page the extension opens once, to be told which instance this is.
- *
- * The extension is the one that opens the channel: it asked Chrome for this
- * origin, opened this address with a nonce of its own in the query, and
- * injected a bridge that is listening in this very window. So the whole of the
- * app's part is to post the nonce back — the extension holds it against the
- * attempt it made, and a page that was not opened by that attempt has nothing
- * to post.
- *
- * The nonce is in the URL rather than anywhere private on purpose: it proves
- * nothing about the visitor, and it is not a credential. What it proves is
- * that this tab is the tab the extension opened.
- */
 export function ConnectScreen() {
   const nonce = useSearchParams().get("nonce");
   const [state, setState] = useState<ConnectState>(
@@ -52,8 +38,6 @@ export function ConnectScreen() {
     const handOver = () => window.postMessage(handshakeMessage(nonce, origin), origin);
 
     const listen = (event: MessageEvent) => {
-      // Anything from another window, or from another origin, is somebody
-      // else's traffic on this page's bus.
       if (event.source !== window || event.origin !== origin) {
         return;
       }
@@ -70,9 +54,6 @@ export function ConnectScreen() {
     };
 
     window.addEventListener("message", listen);
-    // The bridge is injected when this page finishes loading, which may be
-    // before or after this runs — so the page both announces itself and waits
-    // to be announced to, and whichever happens second carries the handshake.
     handOver();
     return () => window.removeEventListener("message", listen);
   }, [nonce]);

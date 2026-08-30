@@ -1,11 +1,3 @@
-"""Membership management at its seam: HTTP against the app, with a real Postgres.
-
-External behaviour only. Who is in an Organization, what each of them may do,
-and what stops the moment a Membership ends — every one of them asked the way
-the members screen asks it, and read by the machine-readable `code` a client
-acts on.
-"""
-
 from collections.abc import Callable
 from uuid import uuid4
 
@@ -19,62 +11,48 @@ NewAccount = Callable[[], Account]
 
 
 def members_of(account: Account, org_id: str | None = None) -> Response:
-    """The Organization's people, as the members screen lists them."""
     return account.client.get(f"/api/orgs/{org_id or account.org_id}/members")
 
 
 def roles_in(account: Account, org_id: str | None = None) -> dict[str, str]:
-    """Who is in the Organization, by account id, and as what."""
     listed = members_of(account, org_id)
     assert listed.status_code == 200, listed.text
     return {row["user_id"]: row["role"] for row in listed.json()}
 
 
 def user_id_of(account: Account) -> str:
-    """The account's own id, which is what a Membership is named by."""
     me = account.client.get("/api/auth/me")
     assert me.status_code == 200, me.text
     return str(me.json()["id"])
 
 
 def orgs_of(account: Account) -> dict[str, str]:
-    """Every Organization this account acts in, with the role it has there."""
     me = account.client.get("/api/auth/me")
     assert me.status_code == 200, me.text
     return {org["id"]: org["role"] for org in me.json()["orgs"]}
 
 
 def set_role(actor: Account, target: Account, role: str) -> Response:
-    """Change what somebody may do in the Organization the actor names."""
     return actor.client.patch(
         f"/api/orgs/{actor.org_id}/members/{user_id_of(target)}", json={"role": role}
     )
 
 
 def remove(actor: Account, target: Account) -> Response:
-    """End a Membership — somebody else's, or the actor's own, which is leaving."""
     return actor.client.delete(f"/api/orgs/{actor.org_id}/members/{user_id_of(target)}")
 
 
 def transfer(actor: Account, target_id: str) -> Response:
-    """Hand the Organization to somebody else in it."""
     return actor.client.post(
         f"/api/orgs/{actor.org_id}/transfer-ownership", json={"user_id": target_id}
     )
 
 
 def rename(actor: Account, name: str) -> Response:
-    """Rename the Organization the actor names in the path."""
     return actor.client.patch(f"/api/orgs/{actor.org_id}", json={"name": name})
 
 
 def domain_work_in(account: Account, org_id: str) -> Response:
-    """A domain route, asked in the named Organization — the shared gate's ground.
-
-    The Workflow it names is nobody's, so a caller the gate lets through meets
-    404 `workflow_not_found` and one it refuses never reaches the route at all:
-    the answer says which of the two happened without any Workflow existing.
-    """
     return account.client.get(
         f"/api/workflows/{uuid4()}/draft", headers={"X-Organization": org_id}
     )
@@ -154,8 +132,6 @@ def test_a_member_changes_nobodys_role(new_account: NewAccount) -> None:
 
 
 def test_owner_is_not_a_role_anybody_may_hand_out(new_account: NewAccount) -> None:
-    """Ownership transfers, and there is exactly one of it — so the role change
-    route cannot express it at all."""
     owner = new_account()
     member = join(owner, new_account())
 
@@ -262,8 +238,6 @@ def test_ownership_transfers_and_the_old_owner_becomes_an_admin(
 def test_the_old_owner_may_leave_once_they_have_transferred(
     new_account: NewAccount,
 ) -> None:
-    """The refusals follow the role, not the person: what stopped the owner
-    stops whoever holds it now."""
     owner = new_account()
     member = join(owner, new_account())
     assert transfer(owner, user_id_of(member)).status_code == 204

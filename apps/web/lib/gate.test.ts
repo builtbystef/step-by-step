@@ -3,11 +3,6 @@ import { describe, expect, it } from "vitest";
 
 import { landingAfterSignIn, resolveGate } from "./gate";
 
-/**
- * The guard's whole table, exercised directly: no browser, no DOM, no router.
- * Every row below is a worked example from the spec.
- */
-
 const SIGNED_IN: Account = {
   id: "3f0d7c1e-0000-4000-8000-000000000001",
   email: "ada@example.com",

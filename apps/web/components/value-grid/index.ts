@@ -1,7 +1,3 @@
-/**
- * The shared value grid: one component for a Batch's N rows, a Schedule's
- * one-row set, and the run-start grid.
- */
 export { ValueGrid, initialRows } from "./value-grid";
 export { CsvImportPanel } from "./csv-import-panel";
 export {

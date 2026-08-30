@@ -12,14 +12,6 @@ import {
   type CursorPage,
 } from "@/lib/cursor-list";
 
-/**
- * The shared infinite-query wrapper both lists sit on.
- *
- * It owns page size, Load more, and mirroring filter state into the URL.
- * It does not poll and it does not refetch on focus: a list refreshes on
- * navigation, on filter change, and on Load more.
- */
-
 export function useCursorList<T>({
   path,
   orgId,

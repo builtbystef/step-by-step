@@ -1,10 +1,3 @@
-"""Artifacts a Run leaves behind
-
-Revision ID: d5e8a1c04b73
-Revises: b8e4c1d07a92
-Create Date: 2026-08-25 20:10:00.000000
-"""
-
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -27,7 +20,6 @@ def closed_enum(name: str, values: list[str], length: int) -> sa.Enum:
 
 
 def upgrade() -> None:
-    """Store screenshot, trace, and download Artifacts under a Run."""
     op.create_table(
         "artifacts",
         sa.Column("id", sa.Uuid(), nullable=False),
@@ -55,6 +47,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Drop Artifacts."""
     op.drop_index(op.f("ix_artifacts_run_id"), table_name="artifacts")
     op.drop_table("artifacts")

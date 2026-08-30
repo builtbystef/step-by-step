@@ -1,5 +1,3 @@
-"""The signed-in HTTP surface for the Organization's Secret vault."""
-
 from collections.abc import Iterable
 from datetime import datetime
 from typing import Annotated, Any
@@ -106,7 +104,6 @@ def commit_unique(db: SessionDep) -> None:
 
 
 def bound_secret_id(variable: object) -> UUID | None:
-    """The vault pointer a Variable carries, if it is a well-formed id."""
     if not isinstance(variable, dict):
         return None
     raw = variable.get("secretId")
@@ -121,7 +118,6 @@ def bound_secret_id(variable: object) -> UUID | None:
 def usages_in(
     documents: Iterable[tuple[UUID, str, dict[str, Any]]],
 ) -> dict[UUID, list[SecretUsage]]:
-    """Which Workflows bind to which Secret, each Workflow once."""
     found: dict[UUID, dict[UUID, str]] = {}
     for workflow_id, workflow_name, document in documents:
         for variable in document.get("variables") or []:
@@ -139,7 +135,6 @@ def usages_in(
 
 
 def usages_for(db: SessionDep, org_id: UUID) -> dict[UUID, list[SecretUsage]]:
-    """Draft and Version bindings in this Organization, keyed by Secret id."""
     drafts = db.execute(
         select(Workflow.id, Workflow.name, WorkflowDraft.document)
         .join(WorkflowDraft, WorkflowDraft.workflow_id == Workflow.id)
@@ -197,7 +192,6 @@ def create_secret(
 def create_for_organization(
     body: CreateSecret, db: SessionDep, org_id: UUID
 ) -> SecretIdentity:
-    """Create the Organization Secret shared by both authorized surfaces."""
     sealed = sealed_text(body.value)
     secret = Secret(
         org_id=org_id,

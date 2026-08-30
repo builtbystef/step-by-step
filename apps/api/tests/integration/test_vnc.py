@@ -1,5 +1,3 @@
-"""The VNC path: stream tickets and the WebSocket proxy, at the HTTP seam."""
-
 from datetime import timedelta
 from uuid import UUID
 
@@ -60,7 +58,6 @@ def point_at(run_id: str, endpoint: str) -> None:
 
 
 def open_rfb(ws):
-    """Complete Security None against the proxy and read the first frames."""
     assert ws.receive_bytes() == b"RFB 003.008\n"
     ws.send_bytes(b"RFB 003.008\n")
     types = ws.receive_bytes()
@@ -262,8 +259,6 @@ def test_a_terminal_run_never_connects_to_the_worker(new_account: NewAccount) ->
     assert account.client.post(f"/api/runs/{run_id}/cancel").status_code == 202
     with FakeVnc(view_password=VIEW_PASSWORD, control_password=CONTROL_PASSWORD) as vnc:
         point_at(run_id, vnc.endpoint)
-        # A ticket minted before cancel would be the interesting case; minting
-        # is already refused, so a made-up ticket must not open a socket.
         with (
             pytest.raises(WebSocketDenialResponse) as denied,
             account.client.websocket_connect(

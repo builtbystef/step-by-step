@@ -2,11 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { PAGE_SIZE, SEARCH_AND_SORT_FROM, SORT_OPTIONS, offersSearchAndSort } from "./list";
 
-/**
- * The two decisions the Workflows list makes about itself: when it grows a
- * search box and a sort control, and what the sort control offers.
- */
-
 describe("when the list offers a search box and a sort control", () => {
   it("keeps them away until the list is long enough to need them", () => {
     expect(offersSearchAndSort(0, false)).toBe(false);

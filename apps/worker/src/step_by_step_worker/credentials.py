@@ -1,10 +1,3 @@
-"""Fetch, inject, and write back a Run's already-resolved credentials.
-
-Workers never hold the master key and never learn that Personal Overrides
-exist. This module speaks the internal HTTP contract and the browser APIs
-that load and capture Auth State.
-"""
-
 from __future__ import annotations
 
 import ctypes
@@ -29,8 +22,6 @@ SESSION_COOKIE_EXPIRES = -1
 
 
 class MissingSecret(Exception):
-    """The credentials fetch refused this Run because a bound Secret is gone."""
-
     def __init__(self, variable_names: Sequence[str]) -> None:
         self.variable_names = list(variable_names)
         names = ", ".join(self.variable_names) or "a secret Variable"
@@ -39,15 +30,11 @@ class MissingSecret(Exception):
 
 @dataclass(frozen=True, slots=True)
 class CredentialSet:
-    """The plaintext the backend already resolved for this Run."""
-
     secrets: Mapping[str, str]
     auth_states: Sequence[Mapping[str, Any]]
 
 
 class Credentials(Protocol):
-    """The Worker-facing credential boundary for one claimed Run."""
-
     def fetch(self) -> CredentialSet: ...
 
     def consents(self) -> Sequence[str]: ...
@@ -60,7 +47,6 @@ class Credentials(Protocol):
 
 
 def site_identity(hostname: str) -> str:
-    """The Auth State key for a host: eTLD+1, or the host when that has no meaning."""
     host = hostname.lstrip(".").rstrip(".").lower()
     if not host:
         return host
@@ -89,7 +75,6 @@ def _libpsl() -> ctypes.CDLL:
 
 
 def registrable_domain(hostname: str) -> str:
-    """Return a hostname's eTLD+1 according to the public suffix list."""
     normalized = hostname.rstrip(".").lower().encode("idna")
     psl = _libpsl()
     found = psl.psl_registrable_domain(psl.psl_builtin(), normalized)
@@ -99,7 +84,6 @@ def registrable_domain(hostname: str) -> str:
 
 
 def owning_domain(host: str, known: set[str]) -> str | None:
-    """The known record a host belongs to, if any."""
     identity = site_identity(host)
     if identity in known:
         return identity
@@ -113,7 +97,6 @@ def owning_domain(host: str, known: set[str]) -> str | None:
 
 
 def playwright_cookie(cookie: Mapping[str, Any]) -> dict[str, Any]:
-    """The Playwright cookie shape, accepting either wire alias."""
     converted: dict[str, Any] = {
         "name": cookie["name"],
         "value": cookie["value"],
@@ -135,7 +118,6 @@ def playwright_cookie(cookie: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def seed_script(auth_states: Sequence[Mapping[str, Any]]) -> str:
-    """Init script that fills missing localStorage and sessionStorage keys."""
     local_by_origin: dict[str, list[dict[str, str]]] = {}
     session_by_origin: dict[str, list[dict[str, str]]] = {}
     for state in auth_states:
@@ -170,7 +152,6 @@ def seed_script(auth_states: Sequence[Mapping[str, Any]]) -> str:
 
 
 def inject(context: BrowserContext, auth_states: Sequence[Mapping[str, Any]]) -> None:
-    """Load every returned Auth State into a just-opened browser context."""
     cookies = [
         playwright_cookie(cookie)
         for state in auth_states
@@ -210,7 +191,6 @@ def wire_cookie(cookie: Mapping[str, Any]) -> dict[str, Any]:
 def collect_session_storage(
     context: BrowserContext, extra_origins: Sequence[str]
 ) -> dict[str, list[dict[str, str]]]:
-    """Read sessionStorage from open pages, then a scratch tab for other origins."""
     collected: dict[str, list[dict[str, str]]] = {}
 
     def read(page: Page) -> None:
@@ -262,7 +242,6 @@ def collect_session_storage(
 def capture(
     context: BrowserContext, known_domains: set[str]
 ) -> tuple[list[dict[str, Any]], list[str]]:
-    """Group the context's cookies and storage into Auth State blobs."""
     raw = context.storage_state()
     known_origins = [
         origin["origin"]
@@ -327,8 +306,6 @@ def existing_and_consented(
 
 
 class HttpCredentials:
-    """The internal credential routes, authenticated with the shared token."""
-
     def __init__(self, run_id: UUID) -> None:
         self.run_id = run_id
 

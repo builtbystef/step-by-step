@@ -2,10 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { refusalMessage } from "./messages";
 
-/**
- * The section's one decision, tested where it is made: what a refusal says.
- */
-
 const REFUSALS = [
   "already_member",
   "already_invited",

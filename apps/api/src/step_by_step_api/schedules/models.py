@@ -1,5 +1,3 @@
-"""The Schedule table and the holes that record Occurrences that produced no Run."""
-
 from datetime import datetime
 from enum import StrEnum
 from typing import Any
@@ -31,8 +29,6 @@ class OccurrenceReason(StrEnum):
 
 
 class Schedule(Base):
-    """A cron-based trigger. Firing always executes the latest published Version."""
-
     __tablename__ = "schedules"
     __table_args__ = (
         Index(
@@ -62,8 +58,6 @@ class Schedule(Base):
 
 
 class ScheduleOccurrence(Base):
-    """One due instant that produced no Run, and the reason it did not."""
-
     __tablename__ = "schedule_occurrences"
     __table_args__ = (
         UniqueConstraint(

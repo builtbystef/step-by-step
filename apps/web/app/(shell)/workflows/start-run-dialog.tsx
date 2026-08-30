@@ -16,11 +16,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-/**
- * The one-row value grid a Run starts from when the Workflow declares
- * Variables. Secret columns are locked; the payload never carries them.
- */
-
 export function StartRunDialog({
   open,
   variables,

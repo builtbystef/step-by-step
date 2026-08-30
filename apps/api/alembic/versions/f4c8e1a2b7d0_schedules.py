@@ -1,10 +1,3 @@
-"""Schedules
-
-Revision ID: f4c8e1a2b7d0
-Revises: e3a79b8c2410
-Create Date: 2026-08-25 16:30:00.000000
-"""
-
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -17,7 +10,6 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """Add Schedules and point a Run's schedule_id at them."""
     op.create_table(
         "schedules",
         sa.Column("id", sa.Uuid(), nullable=False),

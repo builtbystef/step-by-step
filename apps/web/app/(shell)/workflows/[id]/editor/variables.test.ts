@@ -20,16 +20,6 @@ import {
 
 import { interpolatedValue, type Step } from "./steps";
 
-/**
- * The Variables drawer's decisions, read back without a drawer.
- *
- * Every one of them is a document in and a document out, the way every other
- * edit on this tab is: a Variable is declared inside the Draft document, and
- * the store validates that document as a whole. What the drawer adds is the
- * one question the document does not answer by itself — which Steps use this
- * Variable — and everything the drawer refuses follows from that answer.
- */
-
 function typing(id: string, value: string): Step {
   return {
     id,

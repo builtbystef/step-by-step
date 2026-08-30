@@ -48,17 +48,6 @@ import {
 import { relativeTime } from "@/lib/relative-time";
 import { cn } from "@/lib/utils";
 
-/**
- * The Workflow page: one header over four tabs.
- *
- * The header is the layout's rather than each tab's, so that the name, the
- * draft-state chip, the version dropdown, and the Run and Publish actions are
- * there from every tab — switching tab is a navigation inside a Workflow, not
- * a different screen about it.
- *
- * The overflow repeats the list row's actions, from the one list of them, so
- * that where you are never changes what you can do.
- */
 export default function WorkflowLayout({ children }: { children: ReactNode }) {
   const { active } = useActiveOrganization();
   const params = useParams<{ id: string }>();
@@ -93,8 +82,6 @@ function WorkflowFrame({
 
   const workflow = useQuery(workflowQuery(orgId, workflowId));
   const versions = useQuery(versionsQuery(orgId, workflowId));
-  // Only while the modal is open: comparing two whole documents is not
-  // something to keep warm behind a screen nobody opened.
   const diff = useQuery(draftDiffQuery(orgId, workflowId, publishing));
   const here = tabAt(pathname) ?? EDITOR;
   const viewing = viewedVersion(useSearchParams().get("version"));
@@ -178,9 +165,6 @@ function WorkflowFrame({
   const state = workflow.data?.draft_state ?? "never-published";
   const badge = draftStateBadge(state, workflow.data?.published_version);
   const runRefusal = disabledReason(RUN, state);
-  // Publishing publishes the Draft, and a person reading v2 is not looking at
-  // it. Saying so is kinder than minting something they did not have in front
-  // of them.
   const publishRefusal =
     viewing === null ? null : "Publishing publishes the Draft. Open the Draft to publish it.";
   const refused = workflow.error ?? duplicate.error ?? remove.error ?? startRun.refusal;
@@ -317,14 +301,6 @@ function WorkflowFrame({
   );
 }
 
-/**
- * Which document this Workflow is showing: the Draft, or one of its Versions.
- *
- * Every entry is a link, because the answer lives in the address — a Version
- * somebody is reading is a place they can reload and send on. Picking one
- * always lands in the editor, since reading a document is what the editor is
- * for; the other three tabs are about Runs, and Runs pin their own Version.
- */
 function VersionMenu({
   workflowId,
   versions,

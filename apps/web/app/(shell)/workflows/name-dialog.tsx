@@ -15,14 +15,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-/**
- * The one dialog that asks for a name: creating a Workflow, and renaming one.
- *
- * One component for both, because they ask the same question and only differ
- * in what they call the button. Creating is name-only by decision — the
- * recording protocol is app-first, so a Workflow is created and named here and
- * recording then targets its Draft.
- */
 export function NameDialog({
   open,
   title,
@@ -46,8 +38,6 @@ export function NameDialog({
 }) {
   const [name, setName] = useState(initialName ?? "");
 
-  // Opening is what resets the field: the dialog outlives one use, and a stale
-  // name left in it would rename the next Workflow to the last one's.
   useEffect(() => {
     if (open) {
       setName(initialName ?? "");

@@ -19,15 +19,6 @@ import {
 import { chooseOrganization, offersASwitcher } from "@/lib/active-org";
 import { signOutAndLeave } from "@/lib/identity";
 
-/**
- * The sidebar footer's menu: who you are, which Organization you are acting
- * in, and the way out.
- *
- * The switcher lives here rather than beside the work because the answer it
- * gives is "where am I", which is the same question the name and the address
- * above it answer. Sign out lives here too, and not in Settings: leaving is
- * not a setting.
- */
 export function UserMenu({ me, active }: { me: Account; active: OrganizationMembership | null }) {
   const router = useRouter();
   const cache = useQueryClient();
@@ -62,11 +53,6 @@ export function UserMenu({ me, active }: { me: Account; active: OrganizationMemb
           <DropdownMenuRadioGroup
             value={active?.id ?? ""}
             onValueChange={(chosen) => {
-              // Everything in the cache was read as somebody acting in the
-              // Organization being left, so none of it survives the switch:
-              // the lists refetch under the new header rather than showing the
-              // old Organization's rows until something happens to invalidate
-              // them.
               chooseOrganization(chosen);
               void cache.invalidateQueries();
             }}
@@ -79,8 +65,6 @@ export function UserMenu({ me, active }: { me: Account; active: OrganizationMemb
             ))}
           </DropdownMenuRadioGroup>
         ) : (
-          // One Organization is not a choice, and a menu of one would be a
-          // question with a single answer. The name is the whole fact.
           <p className="px-1.5 py-1 text-half text-ink">{active?.name}</p>
         )}
 

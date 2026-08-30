@@ -1,5 +1,3 @@
-"""The Organization's Secret vault and each member's Personal Override."""
-
 from datetime import datetime
 from uuid import UUID, uuid4
 
@@ -9,8 +7,6 @@ from step_by_step_core.db import Base
 
 
 class Secret(Base):
-    """A named encrypted value belonging to one Organization."""
-
     __tablename__ = "secrets"
     __table_args__ = (UniqueConstraint("org_id", "name", name="secrets_org_name_key"),)
 
@@ -30,8 +26,6 @@ class Secret(Base):
 
 
 class SecretOverride(Base):
-    """One member's encrypted value layered over an Organization Secret."""
-
     __tablename__ = "secret_overrides"
     __table_args__ = (
         UniqueConstraint(

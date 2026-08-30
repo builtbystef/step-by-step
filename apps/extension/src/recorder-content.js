@@ -2,9 +2,6 @@
   if (globalThis.stepByStepRecorderInstalled) return;
   globalThis.stepByStepRecorderInstalled = true;
 
-  // randomUUID is restricted to secure contexts, while getRandomValues is
-  // available on ordinary HTTP pages too. A page-load id only needs to be
-  // unguessably distinct from the ids used by another navigation.
   const pageLoad = [...crypto.getRandomValues(new Uint8Array(16))]
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");

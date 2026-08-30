@@ -22,14 +22,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { deleteAccountAndLeave, IDENTITY_KEY, signOutEverywhereAndLeave } from "@/lib/identity";
 
-/**
- * Settings → Account: everything that is about the person rather than about a
- * team they are in — what they are called, ending every session at once, and
- * ending the account itself.
- *
- * Signing out of this browser alone is not here. It is in the sidebar's user
- * menu, because leaving is not a setting.
- */
 export default function AccountPage() {
   const { me } = useActiveOrganization();
 
@@ -46,7 +38,6 @@ export default function AccountPage() {
   );
 }
 
-/** What this person is called, wherever the app names them. */
 function DisplayName({ me }: { me: Account }) {
   const cache = useQueryClient();
   const [name, setName] = useState(me.display_name ?? "");
@@ -102,7 +93,6 @@ function DisplayName({ me }: { me: Account }) {
   );
 }
 
-/** The one action that reaches past this browser without ending anything. */
 function EverySession() {
   const router = useRouter();
   const cache = useQueryClient();
@@ -139,13 +129,6 @@ function EverySession() {
   );
 }
 
-/**
- * Ending the account, behind typing its address.
- *
- * An account that still owns an Organization is shown what stands in the way
- * and where to go about it instead of a form it cannot use: the refusal it
- * would meet is one the person can act on, so the screen says it first.
- */
 function DangerZone({ me }: { me: Account }) {
   const router = useRouter();
   const cache = useQueryClient();

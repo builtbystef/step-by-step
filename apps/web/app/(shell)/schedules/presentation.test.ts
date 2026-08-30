@@ -27,12 +27,6 @@ import { editSchedulePath } from "../workflows/[id]/tabs";
 import { OVERFLOW_ACTIONS, RUN, disabledReason } from "../workflows/actions";
 import { COPY } from "../../../lib/copy";
 
-/**
- * The Schedules table's decisions, read back without a DOM: the row, the
- * strip, the three hole stories, the banners, the enabled patch, the
- * next-Occurrence labels, and what a Workflow id changes on the list.
- */
-
 describe("what a Workflow id changes", () => {
   it("hides the Workflow column when the list is already on one Workflow", () => {
     expect(columnsOf(undefined)).toContain("workflow");

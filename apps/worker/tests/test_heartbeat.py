@@ -1,5 +1,3 @@
-"""The Worker posts heartbeats over HTTP and stops when the Run is terminal."""
-
 from __future__ import annotations
 
 import json

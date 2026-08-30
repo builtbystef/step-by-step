@@ -1,5 +1,3 @@
-"""The live Run wire: Redis events, SSE fan-out, and persisted log lines."""
-
 import json
 import os
 import threading
@@ -27,7 +25,6 @@ pytestmark = pytest.mark.integration
 
 @pytest.fixture(scope="module")
 def live_origin() -> Iterator[str]:
-    """A real HTTP server: TestClient buffers the body and cannot observe SSE."""
     os.environ.setdefault("STEPBYSTEP_MASTER_KEY", DEV_MASTER_KEY)
     os.environ.setdefault("MAILER", "console")
     server = uvicorn.Server(

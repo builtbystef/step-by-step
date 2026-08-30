@@ -1,5 +1,3 @@
-"""Saved logins visible to one active Organization member."""
-
 from datetime import datetime
 from enum import StrEnum
 from uuid import UUID

@@ -16,14 +16,6 @@ const TONE_CLASSES: Record<LifecycleTone, string> = {
   bad: "bg-bad-bg text-bad",
 };
 
-/**
- * A lifecycle state, and the only place one is ever rendered. Runs,
- * Occurrences, and Batch rows all reach the user through this chip, so a state
- * cannot look like one thing on one screen and another thing on the next.
- *
- * A live state carries a leading dot; `running`'s dot pulses, because it is
- * the one state where something is happening as you look at it.
- */
 export function StatusChip({ state, className }: { state: LifecycleState; className?: string }) {
   const live = isLiveState(state);
 

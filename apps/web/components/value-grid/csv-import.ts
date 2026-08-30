@@ -2,12 +2,6 @@ import { reconcile, type MappingEntry } from "../../lib/reconcile";
 
 import { emptyRow, setCell, type GridColumn, type GridRow } from "./grid";
 
-/**
- * Client-side CSV import: parse in the browser, reconcile, land when
- * confident, otherwise wait on the mapping strip. The file never leaves
- * this module, and a dropped secret column's values never become a cell.
- */
-
 export type ParsedCsv = {
   headers: string[];
   rows: string[][];
@@ -127,7 +121,6 @@ export function stripFromSummary(panel: SummaryPanel): StripPanel {
   };
 }
 
-/** Headers the strip may map — dropped secret columns are not offered. */
 export function mappableHeaders(panel: StripPanel): string[] {
   return panel.headers.filter((header) => !panel.droppedSecretHeaders.includes(header));
 }

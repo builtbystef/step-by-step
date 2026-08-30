@@ -1,5 +1,3 @@
-"""The user-facing Schedule CRUD. Firing belongs to the minute loop."""
-
 import json
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from datetime import datetime
@@ -148,7 +146,6 @@ def latest_published(db: Session, workflow_id: UUID) -> WorkflowVersion | None:
 
 
 def public_variable_names(document: dict[str, Any]) -> set[str]:
-    """Non-secret Variable names the latest Version declares."""
     return {
         variable["name"]
         for variable in document.get("variables", [])
@@ -157,7 +154,6 @@ def public_variable_names(document: dict[str, Any]) -> set[str]:
 
 
 def stored_variables(asked: dict[str, Any], names: set[str]) -> dict[str, Any]:
-    """The value set a Schedule may keep: non-secret names only."""
     return {name: value for name, value in asked.items() if name in names}
 
 
@@ -166,7 +162,6 @@ def missing_from(values: dict[str, Any], names: set[str]) -> list[str]:
 
 
 def require_variable_values(asked: dict[str, Any], names: set[str]) -> dict[str, Any]:
-    """Refuse a value set that leaves a declared non-secret Variable blank."""
     missing = missing_from(asked, names)
     if missing:
         raise ApiError(
@@ -278,7 +273,6 @@ def read_cursor(cursor: str) -> tuple[datetime, UUID]:
 def history_of(
     db: Session, schedule_id: UUID
 ) -> list[RunHistoryEntry | OccurrenceHistoryEntry]:
-    """Runs and holes interleaved by time, so a missing Run is never a gap."""
     runs = db.execute(
         select(Run)
         .where(Run.schedule_id == schedule_id)
@@ -316,7 +310,6 @@ def history_of(
     responses=errors(400, 401, 403),
 )
 def preview_schedule(asked: PreviewRequest, member: ActiveMembership) -> PreviewResult:
-    """The next five Occurrences of an expression. No Schedule has to exist."""
     after = asked.from_ if asked.from_ is not None else clock.now()
     return PreviewResult(
         next_occurrences=next_occurrences(
@@ -337,7 +330,6 @@ def list_all_schedules(
     limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = PAGE_SIZE,
     cursor: str | None = None,
 ) -> SchedulePage:
-    """Every Schedule in the active Organization, newest-created last."""
     conditions = [Schedule.org_id == member.org_id]
     if workflow_id is not None:
         owned_workflow(db, member.org_id, workflow_id)
@@ -491,7 +483,6 @@ def update_schedule(
 def run_schedule_now(
     schedule_id: UUID, member: ActiveMembership, db: SessionDep
 ) -> RunNowResult:
-    """Queue a Run of this Schedule now. Two copies never act at once."""
     schedule = owned_schedule(db, member.org_id, schedule_id)
     names = declared_public_names(db, schedule.workflow_id)
     missing = missing_from(schedule.variables, names)

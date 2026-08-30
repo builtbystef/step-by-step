@@ -20,13 +20,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { IDENTITY_KEY } from "@/lib/identity";
 
-/**
- * Settings → Organization → Members: everybody in the active Organization.
- *
- * Every role reads the list — who is in a team is not a secret from it. Only
- * an owner and an admin change a role or end a Membership, and the row a
- * person is looking at is their own way out.
- */
 export default function MembersPage() {
   const { me, active } = useActiveOrganization();
 
@@ -41,11 +34,6 @@ function MemberList({ org, viewerId }: { org: OrganizationMembership; viewerId: 
   const cache = useQueryClient();
   const members = useQuery(membersQuery(org.id));
 
-  /**
-   * Both keys, always. A role and a removal each change what the identity says
-   * about this visitor — which Organizations they are in and what they may do
-   * there — and the screen reads its own place from it.
-   */
   const refresh = async () => {
     await Promise.all([
       cache.invalidateQueries({ queryKey: membersKey(org.id) }),
@@ -74,8 +62,6 @@ function MemberList({ org, viewerId }: { org: OrganizationMembership; viewerId: 
     onSuccess: refresh,
   });
 
-  // One refusal at a time: a role change and a removal cannot both be the last
-  // thing that happened.
   const refused = setRole.error ?? end.error;
   const viewer = { role: org.role, userId: viewerId };
 

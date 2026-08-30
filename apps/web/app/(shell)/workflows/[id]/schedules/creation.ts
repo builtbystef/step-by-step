@@ -3,16 +3,6 @@ import type { CreateSchedule, RunTrigger } from "@step-by-step/api-client";
 import type { GridColumn, GridRow } from "../../../../../components/value-grid/grid";
 import { fromCron, toCron, type Recurrence } from "../../../../../lib/recurrence";
 
-/**
- * The Schedule creation page's decisions: the preset chips, the sentence ↔
- * cron mode, the preview request, the timezone default, fill-from-last-Run,
- * the empty-value refusal, and the save payload.
- *
- * The page draws these. It does not re-decide them. Occurrence *times* come
- * from the preview endpoint; this module only phrases the timestamps it is
- * given.
- */
-
 export type RecurrenceMode = { raw: false; recurrence: Recurrence } | { raw: true; cron: string };
 
 export type PresetId =
@@ -65,10 +55,6 @@ export function previewBody(cron: string, timezone: string): { cron: string; tim
   return { cron, timezone };
 }
 
-/**
- * The picker default: the browser's IANA zone when the instance knows it,
- * else the instance default (UTC unless DEFAULT_TIMEZONE says otherwise).
- */
 export function defaultTimezone(
   browserZone: string | undefined,
   knownZones: readonly string[],
@@ -169,7 +155,6 @@ function clockOf(recurrence: Recurrence): { hour: number; minute: number } {
   }
 }
 
-/** Keep the clock (and interval / day) when the sentence's frequency changes. */
 export function withFrequency(current: Recurrence, kind: Recurrence["kind"]): Recurrence {
   const { hour, minute } = clockOf(current);
   switch (kind) {

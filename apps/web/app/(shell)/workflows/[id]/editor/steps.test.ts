@@ -15,12 +15,6 @@ import {
   type StepType,
 } from "./steps";
 
-/**
- * What the editor knows about a Step before it renders one: what each of the
- * eight types is called, which of them a person can add by hand, and where a
- * Step keeps the elements it points at.
- */
-
 const A_TARGET: Target = { candidates: [{ kind: "css", value: "#save" }] };
 
 const EVERY_TYPE: StepType[] = [

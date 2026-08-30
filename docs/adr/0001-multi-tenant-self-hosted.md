@@ -1,5 +1,13 @@
 # 0001 — Multi-tenant data model in a self-hosted tool
 
-Status: superseded by ADR 0005 — the tenant is now the Organization, not the user.
+Status: superseded by ADR 0005.
 
-Context: Step by Step ships as self-hosted open source, an org may host one instance for many people, and a hosted paid version is a possible future. Decision: the data model is multi-tenant from day one — every Workflow, Run, Batch, and secret Variable belongs to exactly one user — while v1 has no teams, sharing, or org roles. Reason: retrofitting per-user ownership onto every table later is painful, while deferring teams until the need appears costs nothing now.
+## Context
+
+A self-hosted instance may serve many people. Adding ownership to every table later would be costly.
+
+## Decision
+
+The first design made each user a tenant and made every Workflow, Run, Batch, and secret Variable belong to one user. Teams and roles were left for later.
+
+ADR 0005 replaced user tenancy with Organization tenancy.

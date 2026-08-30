@@ -33,8 +33,12 @@ A named input that a Workflow declares, either plain or secret. Step values refe
 _Avoid_: parameter, placeholder
 
 **Batch**:
-One Workflow plus a list of input rows, where each row supplies the Workflow's Variables and produces one Run. The Runs execute sequentially.
+One Workflow plus a list of input rows. Its rows run in order, one at a time.
 _Avoid_: bulk run, campaign
+
+**Batch Row**:
+One set of non-secret Variable values inside a Batch. It may have more than one Run when a user re-runs it.
+_Avoid_: input, record, item
 
 **Draft**:
 The single mutable copy of a Workflow's Steps that the recorder and editor modify. Publishing it produces a Version.
@@ -88,8 +92,16 @@ _Avoid_: invite link, provisioning
 A short-lived, single-use code emailed to an address; entering it proves control of the address and signs the user in. The only authentication method — there are no passwords.
 _Avoid_: OTP, magic link, verification code
 
+**Target**:
+The description of the page element a Step should use, including an ordered list of Selector Candidates.
+_Avoid_: element, locator, selector
+
+**Selector Candidate**:
+One ranked way to identify a Target on a page. A Target keeps several candidates so it can survive small page changes.
+_Avoid_: selector, locator
+
 **Selector Drift**:
-The condition where a Step resolves through a lower-ranked selector candidate than the one recorded as best, showing that the page has changed under the Workflow.
+The condition where a Step uses a lower-ranked Selector Candidate than the one recorded as best, showing that the page has changed under the Workflow.
 _Avoid_: selector rot, degraded selector, healing signal
 
 **Re-pick**:
@@ -99,6 +111,10 @@ _Avoid_: re-record element, selector refresh, heal
 **Worker**:
 A long-lived process that executes at most one Run at a time, with an exclusive browser for that Run. The number of Workers is the instance's total Run concurrency.
 _Avoid_: runner, executor, agent
+
+**Auth Challenge**:
+A page condition, such as a sign-in prompt, MFA request, or CAPTCHA, that requires human attention before safe automation can continue.
+_Avoid_: login error, blocker
 
 **Takeover**:
 The interval where a human controls a paused Run's browser directly, while automation is suspended. It begins when the user takes control of a Run that is waiting for a human, and ends when control is handed back, the Run is abandoned, or the deadline passes.

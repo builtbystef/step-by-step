@@ -1,10 +1,3 @@
-"""Takeover Auth State candidates and consents
-
-Revision ID: e8b4c2a19f70
-Revises: d5e8a1c04b73
-Create Date: 2026-08-26 06:10:00.000000
-"""
-
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -27,7 +20,6 @@ def closed_enum(name: str, values: list[str], length: int) -> sa.Enum:
 
 
 def upgrade() -> None:
-    """Store per-Run takeover candidates and the consent that routes them."""
     op.create_table(
         "run_auth_state_candidates",
         sa.Column("id", sa.Uuid(), nullable=False),
@@ -59,7 +51,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Drop takeover Auth State candidates."""
     op.drop_index(
         op.f("ix_run_auth_state_candidates_run_id"),
         table_name="run_auth_state_candidates",

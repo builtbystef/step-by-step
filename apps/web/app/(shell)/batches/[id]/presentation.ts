@@ -9,16 +9,6 @@ import type {
 import { duration } from "../../../../lib/duration";
 import type { LifecycleState } from "@/lib/labels";
 
-/**
- * The batch view's decisions, kept out of the JSX so a test can read the
- * acceptance criteria back: the stats header, the segmented bar, the live
- * badge, the ETA, row expansion copy, the stalled callout, the new-Variable
- * banner, and Output-tab download URLs.
- *
- * Lifecycle state is named here only as a value handed to `StatusChip`.
- * This module never words a state itself.
- */
-
 export type StatsView = {
   done: number;
   total: number;
@@ -279,7 +269,6 @@ export function runningDriftBanner(
   return null;
 }
 
-/** The one write the fill action issues. */
 export function fillRowsBody(name: string, value: string): FillRows {
   return { name, value };
 }

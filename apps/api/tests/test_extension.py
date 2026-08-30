@@ -1,12 +1,3 @@
-"""How a browser gets the extension: the paired build, and the page that says
-what to do with it.
-
-v1 ships unpacked, so this is the whole distribution channel — there is no
-store listing and no update feed. Everything here is unauthenticated: a person
-who cannot sign in yet still has to be able to install the thing that records.
-Nothing here needs a service.
-"""
-
 import json
 import zipfile
 from io import BytesIO
@@ -45,8 +36,6 @@ def test_the_zip_is_the_paired_build_itself() -> None:
 
     package = zipfile.ZipFile(BytesIO(response.content))
     assert package.testzip() is None
-    # The manifest sits at the root of the archive, because Chrome loads the
-    # folder it was unzipped into and not a folder inside it.
     assert json.loads(package.read("manifest.json")) == MANIFEST
     assert "service-worker.js" in package.namelist()
     assert "lib/handshake.js" in package.namelist()
@@ -65,8 +54,6 @@ def test_the_install_page_describes_the_unpacked_sequence() -> None:
 
 
 def test_the_install_page_carries_the_enterprise_policy_note() -> None:
-    """One sentence, and nothing built for it: a fleet on Windows or macOS can
-    force-install the same package through policy."""
     assert "policy" in client.get("/extension").text
 
 

@@ -1,5 +1,3 @@
-"""The Organization's Secret vault, at its HTTP seam against real Postgres."""
-
 from collections.abc import Callable
 
 import pytest
@@ -225,7 +223,6 @@ def bind(
     secret: dict[str, object],
     name: str = "password",
 ) -> None:
-    """Point a secret Variable at this vault entry."""
     saved = save_draft(
         actor,
         workflow_id,
@@ -294,7 +291,6 @@ def test_renaming_a_secret_leaves_every_binding_pointing_at_its_id(
 def test_deleting_a_bound_secret_does_not_block_and_leaves_the_document(
     new_account: NewAccount,
 ) -> None:
-    """No blocking delete, no zombie rows. The Draft keeps the cached name."""
     owner = new_account()
     secret = create(owner, name="acme-portal-password").json()
     workflow_id = a_workflow(owner, "Invoices")

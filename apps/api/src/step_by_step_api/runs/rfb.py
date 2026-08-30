@@ -1,5 +1,3 @@
-"""RFB 3.8 enough to authenticate to a Worker and to speak None to noVNC."""
-
 from __future__ import annotations
 
 from asyncio import StreamReader, StreamWriter
@@ -15,7 +13,7 @@ SECURITY_VNC = 2
 
 
 class RfbError(Exception):
-    """The peer did not speak RFB 3.8, or authentication failed."""
+    pass
 
 
 class BytePipe(Protocol):
@@ -25,8 +23,6 @@ class BytePipe(Protocol):
 
 
 class _DESKeySchedule(Structure):
-    """OpenSSL's DES_key_schedule: 16 round keys of 8 bytes."""
-
     _fields_ = [("ks", c_char * 128)]
 
 
@@ -49,11 +45,6 @@ _DES = _libcrypto()
 
 
 def des_encrypt(block: bytes, key: bytes) -> bytes:
-    """One 8-byte DES block under an 8-byte key.
-
-    VNC authentication is DES-ECB of a 16-byte challenge. OpenSSL still ships
-    DES; Python's standard library does not.
-    """
     if len(block) != 8 or len(key) != 8:
         raise ValueError("DES acts on 8-byte blocks with an 8-byte key")
     schedule = _DESKeySchedule()
@@ -69,19 +60,16 @@ def des_encrypt(block: bytes, key: bytes) -> bytes:
 
 
 def vnc_key(password: str) -> bytes:
-    """VNC's DES key: 8 bytes, each bit-reversed."""
     raw = password.encode("latin-1")[:8].ljust(8, b"\x00")
     return bytes(int(f"{byte:08b}"[::-1], 2) for byte in raw)
 
 
 def vnc_response(password: str, challenge: bytes) -> bytes:
-    """The 16-byte VNC authentication response to a 16-byte challenge."""
     key = vnc_key(password)
     return des_encrypt(challenge[:8], key) + des_encrypt(challenge[8:], key)
 
 
 async def authenticate_as_client(pipe: BytePipe, password: str) -> None:
-    """Version + VNC-auth (or None) as a client. Stops before ClientInit."""
     version = await pipe.readexactly(12)
     if not version.startswith(b"RFB "):
         raise RfbError(f"not an RFB banner: {version!r}")
@@ -102,7 +90,6 @@ async def authenticate_as_client(pipe: BytePipe, password: str) -> None:
 
 
 async def offer_none(pipe: BytePipe) -> None:
-    """Version + Security None as a server. Stops before ClientInit."""
     await pipe.write(RFB_VERSION)
     version = await pipe.readexactly(12)
     if not version.startswith(b"RFB "):
@@ -115,8 +102,6 @@ async def offer_none(pipe: BytePipe) -> None:
 
 
 class StreamPipe:
-    """asyncio StreamReader/Writer as a BytePipe."""
-
     def __init__(self, reader: StreamReader, writer: StreamWriter) -> None:
         self._reader = reader
         self._writer = writer
@@ -130,8 +115,6 @@ class StreamPipe:
 
 
 class WebsocketPipe:
-    """A binary WebSocket as a BytePipe, buffering across frames."""
-
     def __init__(self, socket: WebSocket) -> None:
         self._socket = socket
         self._buf = bytearray()

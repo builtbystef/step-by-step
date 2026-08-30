@@ -24,7 +24,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { relativeTime } from "@/lib/relative-time";
 
-/** Settings → Secrets: the active Organization's vault and the caller's layer. */
 export default function SecretsPage() {
   const secrets = useQuery({ queryKey: SECRETS_KEY, queryFn: loadSecrets });
 

@@ -21,19 +21,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-/**
- * Settings → Organization → Invitations: the offers the active Organization
- * has out, and the two things to do about one.
- *
- * An owner's and an admin's section. A member never reaches it — the nav does
- * not offer it and the gate sends the address to Account — so nothing here
- * asks again what role is reading it.
- *
- * The offers standing for the person rather than for the team are the shell's:
- * an Invitation you have been sent finds you wherever you are.
- */
-
-/** One key per Organization, so that inviting refreshes only its own list. */
 function invitationsKey(orgId: string) {
   return ["invitations", orgId] as const;
 }
@@ -86,8 +73,6 @@ function Invitations({ org }: { org: OrganizationMembership }) {
     onSuccess: refresh,
   });
 
-  // One refusal at a time: sending and withdrawing cannot both be the last
-  // thing that happened.
   const refused = send.error ?? withdraw.error;
 
   return (

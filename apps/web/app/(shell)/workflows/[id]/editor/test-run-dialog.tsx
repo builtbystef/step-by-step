@@ -24,11 +24,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { invalidateRunState } from "@/lib/attention";
 
-/**
- * The test-run modal: a value per declared Variable, secrets masked, of the
- * Draft. Starting mints no Version.
- */
-
 export function TestRunDialog({
   open,
   workflowId,

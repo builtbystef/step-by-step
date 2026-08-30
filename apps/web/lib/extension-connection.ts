@@ -1,21 +1,13 @@
 import type { ConnectionState } from "./labels";
 import { EXTENSION_CHANNEL, EXTENSION_PROBE, readExtensionMessage } from "./extension-protocol";
 
-/** The exact silence budget after which the app admits it cannot see the extension. */
 export const EXTENSION_PROBE_TIMEOUT_MS = 1_500;
 
-/** The browser surface needed by the probe, kept small enough to test without a DOM. */
 export interface ProbeWindow extends EventTarget {
   readonly location: { readonly origin: string };
   postMessage(message: unknown, targetOrigin: string): void;
 }
 
-/**
- * Ask the bridge injected by the connected extension to announce its version.
- *
- * A page cannot tell an absent extension from one pointed at another instance;
- * both are silence and deliberately become the same `null` answer.
- */
 export function probeExtension(
   page: ProbeWindow,
   timeoutMs = EXTENSION_PROBE_TIMEOUT_MS,
@@ -47,7 +39,6 @@ export function probeExtension(
   });
 }
 
-/** Register the spec's re-probe trigger and return its cleanup. */
 export function watchWindowFocus(page: EventTarget, probe: () => void): () => void {
   page.addEventListener("focus", probe);
   return () => {
@@ -55,7 +46,6 @@ export function watchWindowFocus(page: EventTarget, probe: () => void): () => vo
   };
 }
 
-/** Compare Chrome manifest versions as numeric dotted components. */
 function versionAtLeast(version: string, minimum: string): boolean {
   const actual = version.split(".").map(Number);
   const required = minimum.split(".").map(Number);
@@ -68,7 +58,6 @@ function versionAtLeast(version: string, minimum: string): boolean {
   return true;
 }
 
-/** Turn the observed version and the instance's floor into the shared three states. */
 export function connectionState(version: string | null, minimumSupported: string): ConnectionState {
   if (version === null) return "not_connected";
   return versionAtLeast(version, minimumSupported) ? "connected" : "out_of_date";

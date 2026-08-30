@@ -8,11 +8,6 @@ import { isTerminal } from "./presentation";
 
 import type { RunStatus } from "@step-by-step/api-client";
 
-/**
- * Follow a live Run over SSE. Reconnection replays nothing: the caller
- * refetches over REST, then this hook subscribes from now on.
- */
-
 export function useRunStream(
   runId: string | undefined,
   status: RunStatus | undefined,
@@ -57,9 +52,7 @@ export function useRunStream(
               break;
             }
           }
-        } catch {
-          // The socket dropped. Refetch, then subscribe from now on.
-        }
+        } catch {}
         if (stopped || abort.signal.aborted) {
           break;
         }

@@ -1,5 +1,3 @@
-"""The Run store and dispatch surface: HTTP against Postgres and Redis."""
-
 from datetime import timedelta
 from uuid import UUID, uuid4
 
@@ -162,7 +160,6 @@ def test_secret_variable_values_never_enter_a_run(new_account: NewAccount) -> No
 def test_run_summaries_carry_non_secret_variables(
     new_account: NewAccount,
 ) -> None:
-    """GET /api/runs items expose the value set "fill from my last Run" reads."""
     account = new_account()
     secret = create(account).json()
     workflow_id = a_workflow(account)
@@ -373,7 +370,6 @@ def test_a_normal_run_requires_a_published_version_but_a_test_run_does_not(
 def test_a_test_run_freezes_the_draft_and_mints_no_version(
     new_account: NewAccount,
 ) -> None:
-    """Draft edits after start do not affect the Run; the Version list is untouched."""
     account = new_account()
     workflow_id = a_workflow(account)
     first = [a_navigate_step(str(uuid4()))]
@@ -431,7 +427,6 @@ def test_selector_drift_flags_steps_that_matched_below_the_recorded_best(
 def test_selector_drift_only_reads_the_most_recent_runs(
     new_account: NewAccount,
 ) -> None:
-    """Eleven Runs: only the ten newest count, matching the catalog's recent window."""
     account = new_account()
     workflow_id = published_workflow(account)
     stale = uuid4()

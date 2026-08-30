@@ -12,12 +12,6 @@ import type { Step } from "../../workflows/[id]/editor/steps";
 
 import { clock, isTerminal } from "./presentation";
 
-/**
- * The pane's wording and which chrome it shows. The page draws these; it
- * does not re-decide them. Lifecycle state still reaches the user only
- * through StatusChip.
- */
-
 export const LOW_COUNTDOWN_MS = 5 * 60 * 1000;
 
 export type PaneFrame = "none" | "view_only" | "interactive" | "ended";

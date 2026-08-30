@@ -2,11 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { relativeTime } from "./relative-time";
 
-/**
- * Times as a list renders them: how long ago, in the coarsest unit that still
- * says something. `Intl` does the wording; what is decided here is the unit.
- */
-
 const NOW = new Date("2026-08-19T12:00:00Z");
 
 describe("how long ago", () => {

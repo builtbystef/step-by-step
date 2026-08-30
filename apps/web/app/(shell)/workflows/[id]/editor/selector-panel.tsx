@@ -22,15 +22,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-/**
- * How this Step finds its element: collapsed, a health badge; expanded, the
- * ranked candidate list with the two repair paths — Re-pick on the live page,
- * and hand-editing the candidates, which are plain stored data.
- *
- * The header is a `<summary>`, not a button, so it still opens when this
- * panel sits inside a Version's disabled fieldset. The tools that rewrite
- * the list are buttons, so they do not.
- */
 export function SelectorPanel({
   target,
   label = "Element",

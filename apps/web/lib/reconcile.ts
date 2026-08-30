@@ -1,11 +1,3 @@
-/**
- * CSV column reconciliation: match file headers to Workflow Variables.
- *
- * Exact matches under normalize are applied. Near matches (substring or
- * Levenshtein ≤ 2) are only ever offered — a suggestion anywhere forces
- * `confident: false` and the mapping strip. There is no alias dictionary.
- */
-
 export type ReconcileVariable = {
   name: string;
   secret?: boolean;
@@ -24,7 +16,6 @@ export type ReconcileResult = {
   droppedSecretHeaders: string[];
 };
 
-/** Lowercase, then strip every non-alphanumeric character. */
 export function normalize(value: string): string {
   return value.toLowerCase().replaceAll(/[^a-z0-9]/g, "");
 }

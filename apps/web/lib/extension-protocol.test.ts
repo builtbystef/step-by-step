@@ -22,12 +22,6 @@ import {
   repickPendingMessage,
 } from "./extension-protocol";
 
-/**
- * One end of a conversation, checked against the other. The extension is a
- * package of its own with no build step and nothing importable from here, so
- * what keeps the two ends speaking the same protocol is this file.
- */
-
 const EXTENSION_SOURCE = readFileSync(
   join(import.meta.dirname, "..", "..", "extension", "src", "lib", "handshake.js"),
   "utf8",

@@ -1,10 +1,3 @@
-"""What a Worker proves before it will take a Run.
-
-A Worker that cannot reach Redis, Postgres, its display, its VNC server, or
-the Artifact store must not sit in the pool looking healthy. It says what it
-found, and it refuses to start.
-"""
-
 import logging
 
 import pytest
@@ -42,7 +35,6 @@ def test_the_failure_names_the_check_and_its_reason(
 def test_every_check_runs_even_after_one_fails(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """One boot shows every problem, rather than one problem per boot."""
 
     def unreachable() -> str:
         raise ConnectionError("connection refused")

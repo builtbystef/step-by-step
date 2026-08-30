@@ -1,16 +1,5 @@
 import { cn } from "@/lib/utils";
 
-/**
- * A slot in a Schedule's Occurrence strip where nothing happens. A 3px hatch,
- * in one of four readings:
- *
- * - `prevented` — amber, 45°: overlap. A human should look.
- * - `missed` — grey, 135°: the instance was not running; never run late.
- * - `missing-values` — red, 45°: the Workflow now declares a Variable this
- *   Schedule has no value for.
- * - `never-due` — grey, 45°: the Schedule was never due here (a paused band),
- *   so nothing is wrong.
- */
 export type OccurrenceHatch = "prevented" | "missed" | "missing-values" | "never-due";
 
 const HATCH_CLASSES: Record<OccurrenceHatch, string> = {

@@ -8,14 +8,6 @@ import type {
   RunStatus,
 } from "@step-by-step/api-client";
 
-/**
- * How a live Batch advances without a reload.
- *
- * Reconnection still refetches over REST — this reducer only applies
- * `batch.row` events that arrived after the last fetch. Commands never
- * travel on this path.
- */
-
 export type BatchSnapshot = {
   batch: BatchRecord;
   rows: BatchRowRecord[];

@@ -1,10 +1,5 @@
 import { getBatch, getBatchOutput, getRunOutput, type BatchDetail } from "@step-by-step/api-client";
 
-/**
- * The batch view's server state: the detail a reconnect refetches, the
- * uniform Output table, and a succeeded row's assembled extract.
- */
-
 export function batchKey(orgId: string, batchId: string) {
   return ["batch", orgId, batchId] as const;
 }

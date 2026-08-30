@@ -18,19 +18,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-/**
- * Publishing: what it would change, before it changes it.
- *
- * A Version is what Schedules and Batches execute, so minting one is the one
- * moment the editor stops being private. The modal is therefore a reading of
- * the diff rather than a confirmation of an intention: the Steps by name, in
- * three lists, the number about to appear on them, and the Schedules that would
- * stop firing until their values are set.
- *
- * Nothing is minted by opening it. The comparison is a read, and the only
- * thing that publishes is the button that says so — which is what makes
- * cancelling free.
- */
 export function PublishDialog({
   open,
   comparison,
@@ -95,14 +82,12 @@ export function PublishDialog({
   );
 }
 
-/** The icon and hue each of the three lists is read by. */
 const MARKS: Record<DiffSection["key"], { icon: ReactNode; className: string }> = {
   added: { icon: <Plus className="size-3.5" />, className: "text-ok" },
   changed: { icon: <PenLine className="size-3.5" />, className: "text-wait" },
   removed: { icon: <Minus className="size-3.5" />, className: "text-bad" },
 };
 
-/** One list of Steps, named the way the cards name them. */
 function Section({ section }: { section: DiffSection }) {
   const mark = MARKS[section.key];
 

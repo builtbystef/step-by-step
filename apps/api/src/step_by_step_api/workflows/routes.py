@@ -1,13 +1,3 @@
-"""The Workflow HTTP surface: its Draft, and the Versions publishing mints.
-
-Creating takes a name and nothing else — the rest of the Workflow contract
-(list, rename, duplicate, delete) is the app shell's. What lives here is the
-document: one GET that reads the Draft whole and one PUT that replaces it,
-the publish that snapshots it into a numbered Version, the Versions that can
-be listed, read, and restored but never written, and the one comparison the
-publish modal and the Draft chip both read.
-"""
-
 from collections.abc import Callable, Coroutine
 from datetime import datetime
 from typing import Any
@@ -39,14 +29,6 @@ from step_by_step_api.workflows.models import (
 
 
 class DocumentRoute(APIRoute):
-    """A route whose body is a Workflow document, refused in this app's shape.
-
-    FastAPI answers a body it cannot parse with its own 422 and its own
-    envelope. A client of these two routes reads one `code` for every refusal
-    — a duplicate id, an undeclared Variable, an unknown type — so the shape
-    failure has to arrive as a code as well, and not as a second dialect.
-    """
-
     def get_route_handler(self) -> Callable[[Request], Coroutine[Any, Any, Response]]:
         handle = super().get_route_handler()
 
@@ -64,18 +46,10 @@ drafts = APIRouter(route_class=DocumentRoute)
 
 
 class WorkflowCreation(BaseModel):
-    """Everything creating a Workflow asks for: what to call it."""
-
     name: str = Field(min_length=1, max_length=NAME_LENGTH)
 
 
 class WorkflowRecord(BaseModel):
-    """The Workflow row itself, without its document.
-
-    What creating one answers with. The list has a summary of its own, richer
-    and joined against the Draft and the Versions; this is the plain row.
-    """
-
     id: UUID
     name: str
     default_step_timeout_ms: int
@@ -92,12 +66,6 @@ class WorkflowRecord(BaseModel):
 def create_workflow(
     asked: WorkflowCreation, member: ActiveMembership, db: SessionDep
 ) -> WorkflowRecord:
-    """Make an empty Workflow in the acting Organization.
-
-    Its Draft exists from this moment, empty: a recorder or an editor opening
-    a Workflow that has never been touched must find a document to write into
-    rather than a missing row.
-    """
     workflow = Workflow(org_id=member.org_id, name=asked.name)
     db.add(workflow)
     db.flush()
@@ -107,7 +75,6 @@ def create_workflow(
 
 
 def summary(workflow: Workflow) -> WorkflowRecord:
-    """The Workflow as every route that answers with one renders it."""
     return WorkflowRecord(
         id=workflow.id,
         name=workflow.name,
@@ -124,17 +91,6 @@ def draft_of(
     *,
     locked: bool = False,
 ) -> WorkflowDraft:
-    """The Draft of a Workflow the acting Organization owns.
-
-    Owned by somebody else, or not there at all, answer the same: another
-    Organization's Workflow is missing, not forbidden. A 403 would confirm
-    that the id exists, which is a question only its owner may ask.
-
-    `locked` holds the row until the request commits, which is what makes the
-    next Version number the next one: two publishes that read the same count
-    would otherwise both mint it, and the one that lost would be the user's
-    work disappearing behind a database error.
-    """
     reading = (
         select(WorkflowDraft)
         .join(Workflow, Workflow.id == WorkflowDraft.workflow_id)
@@ -158,7 +114,6 @@ def draft_of(
 def get_workflow_draft(
     workflow_id: UUID, member: ActiveMembership, db: SessionDep
 ) -> WorkflowDocument:
-    """The Draft as one document: its Steps and the Variables they reference."""
     return WorkflowDocument.model_validate(draft_of(db, member, workflow_id).document)
 
 
@@ -172,12 +127,6 @@ def get_workflow_draft(
 def save_workflow_draft(
     workflow_id: UUID, saved: WorkflowDocument, member: ActiveMembership, db: SessionDep
 ) -> WorkflowDocument:
-    """Replace the Draft with the document sent, whole.
-
-    Whole rather than patched: the editor holds the document it is editing, so
-    a save is a statement of what the Draft now is, and there is no order of
-    arrival in which two saves leave a Draft nobody wrote.
-    """
     draft = draft_of(db, member, workflow_id)
     draft.document = document.stored(document.validated(saved))
     db.commit()
@@ -185,8 +134,6 @@ def save_workflow_draft(
 
 
 class VersionSummary(BaseModel):
-    """A Version without its document — what a version dropdown lists."""
-
     number: int
     created_at: datetime
 
@@ -200,13 +147,6 @@ class VersionSummary(BaseModel):
 def publish_workflow_version(
     workflow_id: UUID, member: ActiveMembership, db: SessionDep
 ) -> VersionSummary:
-    """Snapshot the Draft as the next Version.
-
-    The document is copied across as it is stored rather than re-serialized
-    through the models: what a Run reads weeks from now has to be what the
-    editor was looking at, down to the byte, and a round trip through code
-    that has changed since is exactly how that stops being true.
-    """
     draft = draft_of(db, member, workflow_id, locked=True)
     published = WorkflowVersion(
         workflow_id=workflow_id,
@@ -219,7 +159,6 @@ def publish_workflow_version(
 
 
 def next_number(db: SessionDep, workflow_id: UUID) -> int:
-    """The number this Workflow's next Version carries. The first one is 1."""
     highest = db.execute(
         select(func.max(WorkflowVersion.number)).where(
             WorkflowVersion.workflow_id == workflow_id
@@ -236,7 +175,6 @@ def next_number(db: SessionDep, workflow_id: UUID) -> int:
 def list_workflow_versions(
     workflow_id: UUID, member: ActiveMembership, db: SessionDep
 ) -> list[VersionSummary]:
-    """Every Version of this Workflow, oldest first, without their documents."""
     draft_of(db, member, workflow_id)
     published = db.execute(
         select(WorkflowVersion)
@@ -252,7 +190,6 @@ def list_workflow_versions(
 def version_of(
     db: SessionDep, member: ActiveMembership, workflow_id: UUID, number: int
 ) -> WorkflowVersion:
-    """One Version of a Workflow the acting Organization owns."""
     draft_of(db, member, workflow_id)
     published = db.execute(
         select(WorkflowVersion).where(
@@ -275,7 +212,6 @@ def version_of(
 def get_workflow_version(
     workflow_id: UUID, number: int, member: ActiveMembership, db: SessionDep
 ) -> WorkflowDocument:
-    """One published document, exactly as the publish that minted it left it."""
     return WorkflowDocument.model_validate(
         version_of(db, member, workflow_id, number).document
     )
@@ -291,17 +227,6 @@ def get_workflow_version(
 def restore_workflow_version(
     workflow_id: UUID, number: int, member: ActiveMembership, db: SessionDep
 ) -> WorkflowDocument:
-    """Copy a Version's document back into the Draft.
-
-    An edit of the Draft and nothing more: the Version stays where it is, and
-    what Schedules and Batches execute does not change until the user
-    publishes what they restored.
-
-    The document is not revalidated on the way in. It passed the rules at the
-    save that preceded its publish, and a Version is executable forever —
-    refusing to bring one back because a rule has since grown stricter would
-    make it exactly not that.
-    """
     published = version_of(db, member, workflow_id, number)
     draft_of(db, member, workflow_id).document = published.document
     db.commit()
@@ -309,26 +234,14 @@ def restore_workflow_version(
 
 
 class StrandedScheduleRef(BaseModel):
-    """A Schedule the candidate Version would leave unable to fire."""
-
     id: UUID
     name: str | None
     cron: str
 
 
 class DraftComparison(DocumentDiff):
-    """The Draft measured against the latest Version.
-
-    One answer for two readers: the publish modal renders the three lists, and
-    the Draft chip in the editor header — and the same chip in the Workflows
-    list — renders the state. They are one derivation because they are one
-    question, and two answers could disagree. The stranded list is what the
-    same modal names when publishing would stop Schedules firing.
-    """
-
     state: DraftState
     latest_version: int | None
-    """The number the Draft is compared against, absent until a first publish."""
     stranded_schedules: list[StrandedScheduleRef]
 
 
@@ -340,11 +253,6 @@ class DraftComparison(DocumentDiff):
 def get_workflow_draft_diff(
     workflow_id: UUID, member: ActiveMembership, db: SessionDep
 ) -> DraftComparison:
-    """What publishing would change, and where the Draft stands.
-
-    Against the latest Version and no other: it is what Schedules and Batches
-    execute, so it is the only thing "unpublished changes" can mean.
-    """
     draft = draft_of(db, member, workflow_id)
     latest = latest_version(db, workflow_id)
     published = latest.document if latest is not None else document.empty()
@@ -367,8 +275,6 @@ def get_workflow_draft_diff(
 def stranded_by(
     db: SessionDep, workflow_id: UUID, candidate: dict[str, Any]
 ) -> list[StrandedScheduleRef]:
-    """Enabled Schedules whose value set misses a non-secret Variable the
-    candidate Version declares — the ones publishing would stop firing."""
     names = public_variable_names(candidate)
     rows = db.execute(
         select(Schedule)
@@ -383,8 +289,6 @@ def stranded_by(
 
 
 def latest_version(db: SessionDep, workflow_id: UUID) -> WorkflowVersion | None:
-    """The newest Version of this Workflow, or nothing if it has never been
-    published — which is the difference between two of the three draft states."""
     return db.execute(
         select(WorkflowVersion)
         .where(WorkflowVersion.workflow_id == workflow_id)

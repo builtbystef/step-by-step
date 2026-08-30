@@ -7,22 +7,11 @@ import {
 
 import { PAGE_SIZE } from "./list";
 
-/**
- * The Workflows list as server state: one key per Organization and per filter,
- * paged by the cursor the endpoint cuts.
- *
- * The filters are part of the key rather than of the query function, so that a
- * search is its own cache entry and going back to the unfiltered list is
- * instant — and so that a create, a rename, or a delete invalidates every one
- * of them by naming the Organization alone.
- */
-
 export type WorkflowFilters = {
   q: string;
   sort: WorkflowSort;
 };
 
-/** Everything this Organization's list holds, whatever is filtered. */
 export function workflowsKey(orgId: string) {
   return ["workflows", orgId] as const;
 }
@@ -51,7 +40,6 @@ export function workflowsQuery(orgId: string, filters: WorkflowFilters) {
   };
 }
 
-/** Every row loaded so far, flattened out of the pages that carried them. */
 export function rowsOf(pages: WorkflowPage[] | undefined): WorkflowSummary[] {
   return (pages ?? []).flatMap((page) => page.items);
 }

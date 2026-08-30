@@ -3,14 +3,8 @@ import type { ReactNode } from "react";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
 
-/**
- * The one callout family. `note.*`, `banner.*`, and `driftbox` were three
- * components for one idea: drift is the `warn` tone, and a grey banner is the
- * `info` tone.
- */
 export type CalloutTone = "info" | "warn" | "bad" | "ok" | "secret";
 
-/** `inline` sits inside a panel; `banner` spans the content column. */
 export type CalloutSize = "inline" | "banner";
 
 const TONE_CLASSES: Record<CalloutTone, string> = {

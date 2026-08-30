@@ -1,10 +1,3 @@
-"""The session dependency, exercised the way a route handler receives it.
-
-No domain table exists yet, so the proof runs against a table of its own on a
-throwaway app: a handler writes a row through its request's session, and a
-second request reads it back through a session of its own.
-"""
-
 from collections.abc import Iterator
 
 import pytest

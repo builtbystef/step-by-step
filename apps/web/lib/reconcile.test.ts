@@ -2,12 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { reconcile, type ReconcileVariable } from "./reconcile";
 
-/**
- * Seam 2: reconcile is a pure function. These tests call it with no DOM and
- * no component rendering — the spec's worked examples, plus the collision
- * that spoils confidence.
- */
-
 const CITY: ReconcileVariable = { name: "city" };
 const ZIP_CODE: ReconcileVariable = { name: "zipCode" };
 const PASSWORD: ReconcileVariable = { name: "password", secret: true };

@@ -1,16 +1,3 @@
-"""Sign-in Codes: minting them, storing what proves them, and spending them.
-
-Six decimal digits from a CSPRNG, valid ten minutes, single-use, and one per
-address at a time — requesting a code replaces the last one, so the newest is
-the only one that works.
-
-The table holds a SHA-256 of the code and never the code itself. A digest is
-not a defence against guessing a six-digit number offline, and it is not meant
-to be: the code's protection is its ten minutes, its single use, and the
-attempt cap the throttling slice adds. What the digest buys is that a leaked
-backup, a replicated table, or a query in a log hands nobody a working code.
-"""
-
 import hashlib
 import secrets
 from datetime import timedelta
@@ -24,58 +11,25 @@ from step_by_step_api import clock
 from step_by_step_api.accounts.models import CodeIssuance, SigninCode
 
 CODE_DIGITS = 6
-"""Short enough to read out of an email and type; the caps make it enough."""
 
 CODE_LIFETIME = timedelta(minutes=10)
-"""Long enough to switch to a mail client, short enough that a guess is stale."""
 
 ATTEMPT_CAP = 5
-"""Wrong guesses one code survives.
-
-Five is what turns a million possible codes into a defence: a guesser gets
-five of them per code, and asking for a code of their own to guess at is what
-the issuance limit meets. Generous enough that nobody mistyping their own
-code runs out of it.
-"""
 
 ISSUANCE_LIMIT = 5
-"""Codes one address is sent per window.
-
-The cap and this are one defence between them: five guesses at a code is only
-a limit while codes are scarce, and this is what makes them scarce. Five an
-hour is more than anybody who mislaid an email needs and far less than a
-mailbox being used as a doorbell.
-"""
 
 ISSUANCE_WINDOW = timedelta(hours=1)
-"""How long those five are counted for, from the first of them."""
 
 
 def mint() -> str:
-    """A fresh code: six digits from the CSPRNG, leading zeros kept.
-
-    `randbelow` rather than `randint` on a shuffled range, because a uniform
-    draw over the whole space is the only property that matters here.
-    """
     return f"{secrets.randbelow(10**CODE_DIGITS):0{CODE_DIGITS}d}"
 
 
 def digest(code: str) -> str:
-    """What the table stores in place of the code."""
     return hashlib.sha256(code.encode()).hexdigest()
 
 
 def count_issuance(db: DbSession, email: str) -> int:
-    """Count one request against the address's window, and say where it lands.
-
-    A fixed window: the first request of an hour opens it, and the request
-    that arrives after it has closed opens the next one. One statement, so
-    that two requests at once cannot both read four and both write five —
-    Postgres settles the order, and the row is the only place the count lives.
-
-    The number comes back rather than a verdict, so the caller decides what
-    being over the limit means; here it is only arithmetic.
-    """
     now = clock.now()
     opened_within_the_window = CodeIssuance.window_started_at > now - ISSUANCE_WINDOW
     counted = (
@@ -99,15 +53,6 @@ def count_issuance(db: DbSession, email: str) -> int:
 
 
 def sweep_closed_windows(db: DbSession) -> None:
-    """Remove issuance rows that can no longer refuse anyone.
-
-    A row only matters while its window is open: once the hour has passed, the
-    next request would reset it anyway, and leaving it is how the table grew
-    with every address anybody ever asked about. Deleted here, on the request
-    that already writes this table, so ordinary traffic pays for the sweeping
-    and nothing scheduled does. An open window is never touched, which is how
-    an address at its limit stays refused until the hour has actually passed.
-    """
     db.execute(
         delete(CodeIssuance).where(
             CodeIssuance.window_started_at <= clock.now() - ISSUANCE_WINDOW
@@ -116,12 +61,6 @@ def sweep_closed_windows(db: DbSession) -> None:
 
 
 def issue(db: DbSession, email: str) -> str:
-    """Replace whatever code that address had, and return the new one to send.
-
-    `email` is the normalized address: codes are looked up by it, and the
-    person who typed `Ada@Example.com` must get the code that `ada@example.com`
-    was issued.
-    """
     db.execute(delete(SigninCode).where(SigninCode.email == email))
     code = mint()
     db.add(
@@ -135,41 +74,20 @@ def issue(db: DbSession, email: str) -> str:
 
 
 class Attempt(StrEnum):
-    """How an entered code came out, which is what the caller answers with."""
-
     ACCEPTED = "accepted"
-    """Right, live, and now spent."""
 
     WRONG = "wrong"
-    """Wrong, expired, already spent, or never issued — one outcome for all
-    four, because telling them apart tells a guesser how close they are."""
 
     EXHAUSTED = "exhausted"
-    """This code has taken its wrong guesses and no longer answers to any."""
 
 
 def claim(db: DbSession, email: str, code: str) -> Attempt:
-    """Spend the address's code, and say how the attempt came out.
-
-    Success deletes the row, which is what makes a code single-use: the second
-    attempt with the same digits finds nothing and is refused exactly like a
-    wrong one. A wrong guess is counted instead, and once the count reaches the
-    cap the row stops answering — to the right code as much as to a wrong one,
-    because a guesser who has spent five tries must not be handed the sixth by
-    finally getting it right. An exhausted row stays where it is, refusing,
-    until it expires or the next request replaces it: that request is the
-    recovery, and it is the one the person who owns the address can ask for.
-    An expired row is deleted where it is found rather than merely refused.
-    """
     outstanding = db.execute(
         select(SigninCode).where(SigninCode.email == email)
     ).scalar_one_or_none()
     if outstanding is None:
         return Attempt.WRONG
     if outstanding.expires_at <= clock.now():
-        # Deleted rather than merely refused: the row is dead weight from here
-        # on, and reaping it where it is found is the whole of the cleanup this
-        # table gets — the same sweep sessions get, paid for by this attempt.
         db.delete(outstanding)
         return Attempt.WRONG
     if outstanding.attempts >= ATTEMPT_CAP:

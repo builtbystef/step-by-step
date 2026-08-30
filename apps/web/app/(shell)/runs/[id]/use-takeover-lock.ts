@@ -4,12 +4,6 @@ import { useEffect, useState } from "react";
 
 import { heldElsewhere, type TakeoverLock } from "./pane";
 
-/**
- * Coordinates takeover across tabs of the same browser. The backend keys
- * control on the session cookie, which every tab shares, so a second tab
- * learns about the hold here and stays view-only.
- */
-
 const CHANNEL = "takeover-hold";
 
 function storageKey(runId: string): string {

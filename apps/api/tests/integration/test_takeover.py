@@ -1,5 +1,3 @@
-"""Takeover control: pause, tickets, hand-back, abandon, deadline, cancel."""
-
 import json
 from datetime import timedelta
 from uuid import UUID
@@ -34,7 +32,6 @@ def internal_token(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def org_session(account) -> TestClient:
-    """The same person, a second browser, acting in the same Organization."""
     browser = another_device(account)
     browser.headers["X-Organization"] = account.org_id
     return browser

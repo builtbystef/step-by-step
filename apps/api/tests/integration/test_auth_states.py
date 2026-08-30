@@ -1,5 +1,3 @@
-"""Auth State at its store and signed-in HTTP seams against real Postgres."""
-
 from collections.abc import Callable
 from datetime import timedelta
 from uuid import UUID

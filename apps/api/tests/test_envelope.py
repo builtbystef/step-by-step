@@ -1,14 +1,3 @@
-"""The envelope-encryption module, on its own terms.
-
-This is the one place where "it silently produced garbage" is both
-unacceptable and invisible from outside: every vault row in the system is
-sealed here, and a bug that returns plausible bytes instead of an error would
-surface as a corrupted password weeks later. So the module is tested directly
-rather than through the vault endpoints that will use it.
-
-Sealing talks to nobody, so this is fast tier.
-"""
-
 from dataclasses import replace
 
 import pytest
@@ -16,24 +5,19 @@ from nacl.exceptions import CryptoError
 from step_by_step_api.envelope import open_sealed, rewrap, seal
 
 MASTER = bytes(range(32))
-"""A master key of a test's own — the real one comes from the environment."""
 
 OTHER_MASTER = bytes(range(32, 64))
-"""The key a record was not sealed under."""
 
 THIRD_MASTER = bytes(range(64, 96))
-"""A third key, for the rotation that finds a record it cannot open at all."""
 
 
 def must_rewrap(sealed_data_key: bytes, current: bytes, new: bytes) -> bytes:
-    """Re-wrap a key that has not been rotated yet, failing the test if it had."""
     rotated = rewrap(sealed_data_key, current, new)
     assert rotated is not None
     return rotated
 
 
 def flip_a_byte(blob: bytes) -> bytes:
-    """One bit of damage, in the middle of a blob — the smallest tampering."""
     middle = len(blob) // 2
     return blob[:middle] + bytes([blob[middle] ^ 0x01]) + blob[middle + 1 :]
 

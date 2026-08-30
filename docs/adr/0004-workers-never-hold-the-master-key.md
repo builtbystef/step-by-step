@@ -1,3 +1,13 @@
 # 0004 — Workers never hold the master key
 
-Context: `px25yw` settled that Workers reach Postgres directly rather than routing their writes through the backend, and ADR 0003 put every Secret and Auth State behind a single master key supplied to the stack by environment variable. Decision: the master key is given to the backend container alone — Workers never receive `STEPBYSTEP_MASTER_KEY`, the envelope-encryption module never ships in the Worker image, and a Worker obtains the plaintext for its own Run over an internal endpoint instead of decrypting anything itself. Reason: Workers are the containers that host hostile web content, and one that held the key could decrypt every Organization's vault out of the database it already reaches, whereas one that must ask the backend gets only the Runs it executes.
+## Context
+
+Workers write execution results directly to PostgreSQL and run browser content that cannot be trusted. A Worker with the master key could decrypt every Organization's vault.
+
+## Decision
+
+Only the API receives `STEPBYSTEP_MASTER_KEY`. The encryption module is not included in the Worker image. A Worker asks an authenticated internal API endpoint for the resolved plaintext needed by its assigned Run.
+
+## Reason
+
+This limits a Worker to credentials for the Run it is executing instead of giving it access to every stored Secret and Auth State record.

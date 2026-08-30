@@ -1,13 +1,3 @@
-"""Schedule occurrences
-
-A Schedule's holes — Occurrences that produced no Run — become rows, and
-last_skip_reason is replaced by them. Disabling clears next_due_at.
-
-Revision ID: c3f9a1d84e26
-Revises: a91c3e7b04f2
-Create Date: 2026-08-25 17:35:00.000000
-"""
-
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -30,7 +20,6 @@ def closed_enum(name: str, values: list[str], length: int) -> sa.Enum:
 
 
 def upgrade() -> None:
-    """Record non-firing Occurrences and drop last_skip_reason."""
     op.create_table(
         "schedule_occurrences",
         sa.Column("id", sa.Uuid(), nullable=False),

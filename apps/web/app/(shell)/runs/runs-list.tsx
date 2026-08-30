@@ -40,15 +40,6 @@ import { duration } from "@/lib/duration";
 import { relativeTime } from "@/lib/relative-time";
 import { cn } from "@/lib/utils";
 
-/**
- * One reverse-chronological Runs list.
- *
- * `workflowId` is the only prop, and it changes exactly three things: it
- * scopes the request, it hides the Workflow column, and it swaps the empty
- * state for the Workflow's own call to action. No second file renders Run
- * rows.
- */
-
 export function RunsList({ workflowId }: { workflowId?: string }) {
   const { active } = useActiveOrganization();
 

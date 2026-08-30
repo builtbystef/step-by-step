@@ -18,13 +18,6 @@ import {
   writeCronInstead,
 } from "./creation";
 
-/**
- * The Schedule creation page's decisions, read back without a DOM: the
- * preset chips, the sentence ↔ cron bridge, the preview request, the
- * timezone default, fill-from-last-Run, the empty-value refusal, and the
- * save payload.
- */
-
 const CITY: Variable = { name: "city" };
 const PASSWORD: Variable = {
   name: "password",
@@ -108,7 +101,6 @@ describe("the timezone default and the save", () => {
   });
 
   it("trails the viewer's local time when it differs from the Schedule's", () => {
-    // 07:00Z is 09:00 in Belgrade (CEST) and 03:00 in New York (EDT).
     const same = occurrenceLabel("2026-08-26T07:00:00.000Z", "Europe/Belgrade", "Europe/Belgrade");
     expect(same.at).toContain("09:00");
     expect(same.local).toBeNull();

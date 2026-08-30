@@ -20,15 +20,6 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 
-/**
- * The frame's left edge, top to bottom: the wordmark; the three destinations;
- * a separator; Settings; a spacer; and a footer holding the extension's
- * connection pill and the user menu.
- *
- * The spacer is not an element — the content region grows to fill what the
- * header and the footer leave, which is the same thing said in one place
- * instead of two.
- */
 export function AppSidebar({
   me,
   active,
@@ -85,18 +76,6 @@ export function AppSidebar({
   );
 }
 
-/**
- * One nav item.
- *
- * `title` rather than a tooltip component: in the icon rail the label is gone
- * and the name has to come from somewhere, and the browser's own is the one
- * that needs nothing mounted around it.
- *
- * Anything passed as a child rides over the item rather than inside it: the
- * button clips its own contents down to the icon in the rail, and the count
- * badge is the one thing that has to survive that — a number is the whole
- * point of a rail that has no room for a word.
- */
 function NavItem({
   destination,
   here,

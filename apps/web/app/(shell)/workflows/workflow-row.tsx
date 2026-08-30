@@ -22,19 +22,6 @@ import {
 import { relativeTime } from "@/lib/relative-time";
 import { cn } from "@/lib/utils";
 
-/**
- * One Workflow in the list.
- *
- * The name is the row and the row is a link: clicking anywhere that is not an
- * action opens the editor. Everything else is secondary — the meta line
- * underneath, and the draft-state badge on the right, which is an
- * `AttributeBadge` because a draft state is a property and not a lifecycle
- * state.
- *
- * The meta line carries the last Run's status chip and its relative time (or
- * "never run") and the schedule indicator — the one Schedule's label, or a
- * count of several.
- */
 export function WorkflowRow({
   workflow,
   onAction,

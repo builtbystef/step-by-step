@@ -1,5 +1,3 @@
-"""Single-use tickets. The VNC path spends them; takeover and stream mint them."""
-
 import hashlib
 import secrets
 from dataclasses import dataclass
@@ -12,7 +10,6 @@ from step_by_step_api import clock
 from step_by_step_api.runs.models import RunTakeoverTicket
 
 TICKET_TTL = timedelta(seconds=60)
-"""Long enough to open the socket, short enough a leaked ticket rots."""
 
 
 def digest(token: str) -> str:
@@ -20,7 +17,6 @@ def digest(token: str) -> str:
 
 
 def mint_ticket(db: DbSession, run_id: UUID, session_id: str) -> tuple[str, datetime]:
-    """A fresh ticket for this Run and holding session, and when it expires."""
     token = secrets.token_urlsafe(32)
     expires_at = clock.now() + TICKET_TTL
     db.add(
@@ -41,11 +37,6 @@ class RedeemedTicket:
 
 
 def redeem_ticket(db: DbSession, presented: str) -> RedeemedTicket | None:
-    """Spend a ticket. Returns its Run and session, or None if it is no good.
-
-    Missing, expired, and already-spent are the same answer: a second redeem
-    must not confirm that a ticket once existed.
-    """
     row = db.get(RunTakeoverTicket, digest(presented))
     if row is None or row.redeemed_at is not None or row.expires_at <= clock.now():
         return None

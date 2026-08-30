@@ -1,11 +1,3 @@
-"""The checks a Worker runs against the world it was given.
-
-Each returns what it found, for the log, or raises to say what went wrong.
-They are deliberately end-to-end: the store check writes and reads a real
-object, and the VNC check reads the server's RFB banner, because an open port
-and a reachable host prove less than a round trip.
-"""
-
 from os import environ
 from socket import create_connection
 from socket import gethostname as host_name
@@ -18,7 +10,6 @@ from step_by_step_core.objects import artifact_bucket, object_store
 
 
 def worker_id() -> str:
-    """This Worker's name. Compose gives each replica a hostname of its own."""
     return environ.get("WORKER_ID") or host_name()
 
 
@@ -36,7 +27,6 @@ def database_reachable() -> str:
 
 
 def display_open() -> str:
-    """The X display the Run's browser draws on."""
     display = environ["DISPLAY"]
     shown = run(
         ["xdpyinfo", "-display", display],
@@ -57,11 +47,6 @@ def display_open() -> str:
 
 
 def vnc_listening() -> str:
-    """The VNC server the backend proxies a Takeover through.
-
-    It binds inside the compose network only and is never published to the
-    host, so this connects over the loopback of the Worker's own container.
-    """
     port = int(environ.get("VNC_PORT", "5900"))
     with create_connection(("127.0.0.1", port), timeout=5) as vnc:
         banner = vnc.recv(12).decode("ascii", "replace").strip()
@@ -71,7 +56,6 @@ def vnc_listening() -> str:
 
 
 def store_reachable() -> str:
-    """The Artifact store, proved by a real round trip under a key of our own."""
     bucket = artifact_bucket()
     key = f"_readiness/{worker_id()}"
     store = object_store()
@@ -90,4 +74,3 @@ STARTUP_CHECKS = {
     "vnc": vnc_listening,
     "artifact store": store_reachable,
 }
-"""Everything a Worker must have before it may take a Run."""

@@ -1,14 +1,3 @@
-"""What the extension's browser tier shares: a real Chromium with the package
-loaded unpacked, and a real origin to be a fake instance at.
-
-This is the harness the recorder slices build on. It proves what a headless
-browser can prove: that the package Chrome is handed loads, and that the
-handshake is refused unless it is the one this connect attempt asked for. The
-permission grant itself is a native Chrome dialog raised from a click in the
-popup, which no automation can drive — that check is attended, in a real
-browser, and the issue names it.
-"""
-
 import http.server
 import json
 import shutil
@@ -22,21 +11,14 @@ import pytest
 from playwright.sync_api import BrowserContext, Playwright, Worker, sync_playwright
 
 PACKAGE = Path(__file__).parents[2] / "src"
-"""The unpacked extension: the directory Chrome loads and the zip carries."""
 
 PAGES = Path(__file__).parent / "pages"
 
 EXTENSION_PREFIX = "/ext/"
-"""Where the fixture site serves the package's own modules from.
-
-A page importing them is how a module Chrome would run inside the extension is
-exercised from outside it — the file under test is the file that ships.
-"""
 
 
 @pytest.fixture(scope="session")
 def fixture_site() -> Iterator[str]:
-    """The origin that stands in for an instance."""
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), SiteHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -51,23 +33,18 @@ def fixture_site() -> Iterator[str]:
 
 @pytest.fixture(scope="session")
 def insecure_site(fixture_site: str) -> str:
-    """The fixture through a host Chrome does not treat as trustworthy."""
     return fixture_site.replace("127.0.0.1", "0.0.0.0")
 
 
 @pytest.fixture(scope="session")
 def other_site(fixture_site: str) -> str:
-    """A second origin on the same server: `localhost` is not `127.0.0.1`."""
     return fixture_site.replace("127.0.0.1", "localhost")
 
 
 LIVE_CODE = "ABCD-EFGH-JKLM"
-"""The one connect code the fixture instance will accept."""
 
 
 class RecordingSink:
-    """The fixture instance's observable recording boundary."""
-
     def __init__(self) -> None:
         self.condition = threading.Condition()
         self.checkpoints: list[dict[str, Any]] = []
@@ -142,13 +119,6 @@ def recording_sink() -> RecordingSink:
 
 
 class SiteHandler(http.server.SimpleHTTPRequestHandler):
-    """The fixture pages, with the extension's own modules beside them.
-
-    It answers as much of an instance as the extension can tell apart: the
-    connect page at the address the extension opens, and the one endpoint a
-    connect code is spent at.
-    """
-
     def __init__(self, *args: object, **kwargs: object) -> None:
         super().__init__(*args, directory=str(PAGES), **kwargs)  # ty: ignore
 
@@ -230,7 +200,6 @@ class SiteHandler(http.server.SimpleHTTPRequestHandler):
 
 @pytest.fixture(scope="session")
 def package() -> Path:
-    """The directory Chrome loads, for a test that reads the manifest."""
     return PACKAGE
 
 
@@ -244,11 +213,6 @@ def playwright_driver() -> Iterator[Playwright]:
 def extension(
     playwright_driver: Playwright, tmp_path_factory: pytest.TempPathFactory
 ) -> Iterator[BrowserContext]:
-    """One browser with the unpacked package loaded, for the whole tier.
-
-    A persistent context, because an extension has nowhere to live in an
-    incognito one — which is also the shape a person's own Chrome has.
-    """
     context = playwright_driver.chromium.launch_persistent_context(
         user_data_dir=str(tmp_path_factory.mktemp("chrome-profile")),
         headless=True,
@@ -266,7 +230,6 @@ def extension(
 
 @pytest.fixture(scope="session")
 def extension_id(extension: BrowserContext) -> str:
-    """The id Chrome gave the package, taken from its running service worker."""
     return worker_of(extension).url.split("/")[2]
 
 
@@ -277,19 +240,6 @@ def connected_browser(
     fixture_site: str,
     insecure_site: str,
 ) -> Iterator[BrowserContext]:
-    """A browser holding the package with the fixture instance already granted.
-
-    The one thing this fakes is the one thing no automation can do: Chrome
-    raises the optional-permission dialog from a click in the popup, and there
-    is nothing to click it with. So the origin is written into a copy of the
-    manifest as a host permission, which is the state the dialog would leave
-    the browser in — and everything after the dialog is then the real thing:
-    the popup's own click path, the tab the worker opens, the bridge it
-    injects, the nonce it judges, and what it stores.
-
-    `test_the_unpacked_package_loads_under_its_pinned_id` is the counterweight:
-    it loads the package as it ships, unedited.
-    """
     granted = tmp_path_factory.mktemp("granted-package")
     shutil.copytree(PACKAGE, granted, dirs_exist_ok=True)
     manifest = json.loads((granted / "manifest.json").read_text())
@@ -315,7 +265,6 @@ def connected_browser(
 
 
 def worker_of(context: BrowserContext) -> Worker:
-    """The extension's service worker, started if it has not been yet."""
     workers = context.service_workers
     if not workers:
         workers = [context.wait_for_event("serviceworker", timeout=10_000)]

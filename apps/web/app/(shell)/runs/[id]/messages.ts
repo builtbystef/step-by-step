@@ -1,9 +1,5 @@
 import { COPY } from "../../../../lib/copy";
 
-/**
- * What the cockpit says when a call comes back refused.
- */
-
 const REFUSALS: Record<string, string> = {
   run_not_found: "That Run is gone — somebody deleted it, or it was never here.",
   run_terminal: "That Run has already finished.",

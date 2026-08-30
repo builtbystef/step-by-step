@@ -1,5 +1,3 @@
-"""Auth State injection and write-back, observed through the executor seam."""
-
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path

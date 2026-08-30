@@ -1,5 +1,3 @@
-"""The encrypted Auth State document shared by capture, injection, and write-back."""
-
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -8,8 +6,6 @@ from step_by_step_api.auth_states.domains import registrable_domain
 
 
 class Cookie(BaseModel):
-    """The common Chrome and Playwright cookie fields, preserving newer fields."""
-
     model_config = ConfigDict(extra="allow", populate_by_name=True)
 
     name: str
@@ -39,8 +35,6 @@ class SessionStorage(BaseModel):
 
 
 class AuthStateBlob(BaseModel):
-    """All browser state kept for one registrable domain."""
-
     domain: str
     cookies: list[Cookie]
     origins: list[OriginStorage]

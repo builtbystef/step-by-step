@@ -4,15 +4,6 @@ import { describe, expect, it } from "vitest";
 import { withStepAdded, withStepDeleted, withStepMoved, withStepReplaced } from "./edits";
 import { blankStep, type Step } from "./steps";
 
-/**
- * What the hover tools and the forms do to the Draft: every edit is the whole
- * document again, because that is what a save is.
- *
- * The rule under all of them is the one the document store enforces at the
- * seam — a Step id is minted once and never rewritten — so each of these
- * tests reads the ids back.
- */
-
 function waiting(id: string, ms: number): Step {
   return {
     id,

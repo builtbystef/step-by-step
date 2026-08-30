@@ -1,17 +1,8 @@
-/**
- * Everything the connect screen says, decided away from the DOM.
- *
- * The screen has three things to say and one of them is a refusal, so the
- * wording is worth reading back in a test rather than through a browser.
- */
-
-/** Where the connect attempt has got to. */
 export type ConnectState =
   | { kind: "waiting" }
   | { kind: "connected"; version: string }
   | { kind: "opened-by-hand" };
 
-/** The one line at the top of the screen. */
 export function connectHeadline(state: ConnectState): string {
   switch (state.kind) {
     case "waiting":
@@ -23,7 +14,6 @@ export function connectHeadline(state: ConnectState): string {
   }
 }
 
-/** What to do about it, if anything. */
 export function connectDetail(state: ConnectState): string {
   switch (state.kind) {
     case "waiting":
@@ -45,19 +35,12 @@ const REFUSALS: Record<string, string> = {
 
 const UNKNOWN_REFUSAL = "The code could not be shown. Try again in a moment.";
 
-/** What the screen shows when asking for a code came back a refusal. */
 export function codeRefusal(error: unknown): string {
   const code =
     typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
   return (typeof code === "string" ? REFUSALS[code] : undefined) ?? UNKNOWN_REFUSAL;
 }
 
-/**
- * How long the code on the screen has left, in the words the screen uses.
- *
- * Minutes, because the code lives for ten of them and a second-by-second
- * countdown would be a clock nobody is watching.
- */
 export function codeLifetime(expiresAt: string, now: Date): string {
   const left = Math.round((new Date(expiresAt).getTime() - now.getTime()) / 60_000);
   if (Number.isNaN(left) || left <= 0) {

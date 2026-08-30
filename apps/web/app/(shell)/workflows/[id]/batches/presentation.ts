@@ -1,12 +1,3 @@
-/**
- * The Workflow's Batches tab: where a row goes, what an empty Workflow
- * says, and how a row names its size. The page draws these. It does not
- * re-decide them.
- *
- * There is no global Batches list. This tab is the list's only home, so a
- * Workflow id is not a prop that changes three things — it is the list.
- */
-
 export function batchHref(id: string): string {
   return `/batches/${id}`;
 }

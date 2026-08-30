@@ -10,11 +10,6 @@ import {
   type SummaryPanel,
 } from "./csv-import";
 
-/**
- * The mapping strip and the import summary. The page decides when to land
- * rows; this only draws the panel the import module produced.
- */
-
 const SELECT_CLASS = "h-8 rounded-md border border-line bg-panel px-2 text-half text-ink";
 
 export function CsvImportPanel({

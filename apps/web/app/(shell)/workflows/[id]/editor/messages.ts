@@ -1,14 +1,3 @@
-/**
- * What the editor says when a save comes back refused.
- *
- * The sentence is chosen by the refusal's `code`, the way every screen in
- * this app reads the backend. What is different here is that the backend's
- * own message is kept: the document store validates the document as a whole,
- * so its refusals are about one Step among a hundred, and the id or the
- * Variable name it names is the only thing that says which one. Dropping it
- * would leave a person searching a card list by hand.
- */
-
 const REFUSALS: Record<string, string> = {
   duplicate_step_id: "Two Steps carry the same id, so the Draft was not saved.",
   undeclared_variable:
@@ -32,13 +21,6 @@ export function saveRefusal(error: unknown): string {
   return detail === "" ? sentence : `${sentence} — ${detail}`;
 }
 
-/**
- * What the editor says when a document will not load at all.
- *
- * Apart from the refusals above, because nothing was being written: a screen
- * that failed to read the Draft and answered "the Draft was not saved" would
- * be telling a person about work they had not done.
- */
 const READ_REFUSALS: Record<string, string> = {
   version_not_found: "That Version is not here. The version dropdown lists the ones that are.",
   workflow_not_found: "That Workflow is gone — somebody deleted it, or it was never here.",

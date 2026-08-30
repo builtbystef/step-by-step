@@ -9,12 +9,6 @@ import {
   signOutEverywhereAndLeave,
 } from "./identity";
 
-/**
- * Signing out is two things, and both have to happen: the session ends on the
- * server, and the identity this browser is holding goes with it. What is left
- * behind is a visitor on the sign-in screen with nothing to come back to.
- */
-
 afterEach(() => {
   client.setConfig({ baseUrl: "", fetch: undefined });
 });

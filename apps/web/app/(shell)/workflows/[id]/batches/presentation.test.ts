@@ -5,12 +5,6 @@ import { batchHref, listKind, rowCountLabel, WORKFLOW_EMPTY } from "./presentati
 import { OVERFLOW_ACTIONS, disabledReason } from "../../actions";
 import { COPY } from "../../../../../lib/copy";
 
-/**
- * The Workflow's Batches tab, read back without a DOM: where a row goes,
- * what an empty Workflow says, and that New batch is the same action the
- * overflow offers — refused while never-published.
- */
-
 describe("the Batch row", () => {
   it("navigates to the batch progress screen", () => {
     expect(batchHref("bat-1")).toBe("/batches/bat-1");

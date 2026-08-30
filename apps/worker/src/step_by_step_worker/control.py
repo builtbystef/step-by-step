@@ -1,5 +1,3 @@
-"""The flags a Worker re-reads at every safe boundary."""
-
 import json
 from dataclasses import dataclass
 from threading import Event, Thread
@@ -12,8 +10,6 @@ from step_by_step_core.db import session_scope
 
 @dataclass(frozen=True, slots=True)
 class ControlFlags:
-    """What the Run row currently asks of automation."""
-
     cancel_requested: bool = False
     pause_requested: bool = False
     takeover_phase: str | None = None
@@ -23,15 +19,14 @@ class ControlFlags:
 
 
 class RunCancelled(Exception):
-    """Stop at the next boundary; an action already in flight still finishes."""
+    pass
 
 
 class RunPaused(Exception):
-    """Park between resolve walks; the Step's action has not started."""
+    pass
 
 
 def flags_from_row(run_id: UUID) -> ControlFlags:
-    """Read the Run row. A dropped control message never hides a stamp here."""
     with session_scope() as session:
         row = (
             session.execute(
@@ -60,8 +55,6 @@ def flags_from_row(run_id: UUID) -> ControlFlags:
 
 
 class ControlWatch:
-    """Act on a control message when it arrives; re-read the row on every poll."""
-
     def __init__(self, run_id: UUID) -> None:
         self.run_id = run_id
         self._heard_cancel = False

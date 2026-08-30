@@ -1,5 +1,3 @@
-"""The session scope a Worker opens, against the real Postgres."""
-
 import pytest
 from sqlalchemy import text
 from step_by_step_core.db import session_scope

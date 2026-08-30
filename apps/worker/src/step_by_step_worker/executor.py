@@ -1,10 +1,3 @@
-"""Execute one claimed Run in a fresh browser and persist what happened.
-
-The executor knows the Workflow document and the rows it writes, but not how a
-Run reached it. Dispatch supplies a claimed :class:`RunWork`; the store protocol
-keeps each Step Result durable before the next Step can touch the page.
-"""
-
 import mimetypes
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -62,8 +55,6 @@ HAND_BACK_GRACE = timedelta(seconds=6)
 
 @dataclass(frozen=True, slots=True)
 class RunWork:
-    """Everything execution needs from a Run and its Workflow."""
-
     run_id: UUID
     document: WorkflowDocument
     default_step_timeout_ms: int
@@ -74,8 +65,6 @@ class RunWork:
 
 @dataclass(frozen=True, slots=True)
 class StepOutcome:
-    """One complete Step Result, ready to become a durable row."""
-
     step_id: UUID
     position: int
     status: str
@@ -91,8 +80,6 @@ class StepOutcome:
 
 
 class ResultStore(Protocol):
-    """The Worker-side persistence boundary used during one Run."""
-
     def start_interval(self, run_id: UUID, kind: str, at: datetime) -> object: ...
 
     def end_interval(self, handle: object, at: datetime) -> None: ...
@@ -142,16 +129,12 @@ class ResultStore(Protocol):
 
 @dataclass(frozen=True, slots=True)
 class DownloadCapture:
-    """The file a download Step produced, before it is stored as an Artifact."""
-
     filename: str
     content_type: str
     body: bytes
 
 
 class TraceCapture:
-    """Playwright tracing, with holes around secrets and takeover."""
-
     def __init__(
         self,
         context: Any,
@@ -234,7 +217,6 @@ def execute(
     control: Callable[[], ControlFlags] | None = None,
     credentials: Credentials | None = None,
 ) -> None:
-    """Drive every Step in one claimed Run and leave no browser profile behind."""
     run_started = now()
     automation_clock = monotonic()
     automation_ms = 0
@@ -608,7 +590,6 @@ def execute(
     if watcher is not None:
         watcher.join(timeout=heartbeat_every + 1)
     if lost.is_set():
-        # A 409 means the row is already terminal; do not overwrite it.
         close_open(now())
         return
 
@@ -668,7 +649,6 @@ def start_heartbeat(
     lost: Event,
     context_holder: list[Any],
 ) -> Thread | None:
-    """Beat in the background; a terminal Run closes the browser from this thread."""
     if heartbeat is None:
         return None
 
@@ -782,8 +762,7 @@ def extracted_count(value: Any) -> int | None:
 def should_screenshot(
     step: Step, outcome: StepOutcome, *, automation: bool = True
 ) -> bool:
-    # Leak prevention outranks diagnostics: a Step that fails during
-    # waiting/human/verifying takes no screenshot (an MFA code may be on screen).
+    # Human-controlled screens may contain credentials or challenge codes.
     if not automation:
         return False
     if outcome.status == "failed":
@@ -872,7 +851,6 @@ def execute_step(
     on_challenge: Callable[[Mapping[str, Any]], None] | None = None,
     downloads: list[DownloadCapture] | None = None,
 ) -> StepOutcome:
-    """Execute one Step, returning only after its observable outcome is complete."""
     started_at = now()
     if step.disabled:
         return StepOutcome(step.id, position, "skipped", None, started_at)
@@ -975,7 +953,6 @@ def watch_challenge(
 
 
 def success_check_met(page: Page, target: Target) -> bool:
-    """One read-only walk of the success check. Never an action."""
     try:
         found = resolve(page, target, Deadline(monotonic() - 1))
     except PlaywrightError:
@@ -1008,7 +985,6 @@ def perform(
     on_control: Callable[..., None] | None = None,
     downloads: list[DownloadCapture] | None = None,
 ) -> tuple[Resolved | None, Any | None]:
-    """Perform the action named by one parsed Step."""
     if isinstance(step, NavigateStep):
         page.goto(
             interpolate(step.payload.url, variables), timeout=deadline.remaining_ms
@@ -1084,7 +1060,6 @@ def perform(
 
 
 def interpolate(value: str, variables: Mapping[str, Any]) -> str:
-    """Substitute the declared Run values in navigate and type strings."""
     return REFERENCE.sub(
         lambda reference: str(variables.get(reference.group(1), reference.group(0))),
         value,
@@ -1092,7 +1067,6 @@ def interpolate(value: str, variables: Mapping[str, Any]) -> str:
 
 
 def captured_download(downloaded: Any) -> DownloadCapture:
-    """Read the file Playwright saved, with the name the site suggested."""
     filename = Path(str(downloaded.suggested_filename)).name or "download"
     path = downloaded.path()
     body = Path(path).read_bytes() if path else b""

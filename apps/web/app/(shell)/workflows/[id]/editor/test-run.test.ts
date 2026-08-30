@@ -7,14 +7,6 @@ import { refusalToRun } from "../../draft-state";
 
 import { testRunBody, testRunFields, testRunRefusal } from "./test-run";
 
-/**
- * The test-run action: a modal over the Draft, never the published Version.
- *
- * One field per declared Variable, secret ones masked, and the shared
- * publish-first sentence has nothing to say here — a never-published
- * Workflow can still verify its Draft.
- */
-
 const PLAIN: Variable = { name: "customer", secret: false };
 const SECRET: Variable = { name: "password", secret: true, secretName: "vault-password" };
 

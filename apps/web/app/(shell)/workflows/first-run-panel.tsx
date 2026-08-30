@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useExtensionConnection } from "@/lib/extension-connection-context";
 
-/** The two independent first steps: connection helps recording, but never gates naming. */
 export function FirstRunPanel({ onCreate }: { onCreate: () => void }) {
   const connection = useExtensionConnection();
   const connected = connection.state === "connected";

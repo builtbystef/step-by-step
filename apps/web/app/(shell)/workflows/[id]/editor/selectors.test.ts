@@ -16,12 +16,6 @@ import {
 } from "./selectors";
 import type { Step } from "./steps";
 
-/**
- * The selector panel's decisions, read back without a DOM: how healthy a
- * target is, in the spec's own words; what the candidate tools do to the
- * list; and the one sentence that refuses Re-pick while the editor is dirty.
- */
-
 const TESTID: SelectorCandidate = { kind: "testid", value: "save" };
 const ROLE: SelectorCandidate = { kind: "role", value: 'button[name="Save"]' };
 const CSS: SelectorCandidate = { kind: "css", value: "div > button:nth-child(2)" };

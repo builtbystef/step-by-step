@@ -1,15 +1,3 @@
-"""The accounts tables.
-
-Six of them landed together with the accounts tracer, even though it animated
-only the first four: a column a later slice fills is cheaper than a migration
-a later slice writes. `signin_code_issuance` came later, with the throttling
-the spec left to its own slice, because counting what one address has been
-sent is state no column of an outstanding code could hold.
-
-The tenant is the Organization (ADR 0005). Ownership cascades: rows an
-Organization owns go with it, and the rows a user owns go with the user.
-"""
-
 from datetime import datetime
 from enum import StrEnum
 from uuid import UUID, uuid4
@@ -28,31 +16,17 @@ from sqlalchemy.orm import Mapped, mapped_column
 from step_by_step_core.db import Base
 
 EMAIL_LENGTH = 320
-"""The longest address SMTP allows: 64 for the local part, 255 for the domain."""
 
 HASH_LENGTH = 64
-"""A SHA-256 digest in hex."""
 
 
 class Role(StrEnum):
-    """What a Membership lets a user do in its Organization.
-
-    Exactly three, and an Organization has exactly one owner. Roles gate
-    membership and lifecycle actions only — every role does the domain work.
-    """
-
     OWNER = "owner"
     ADMIN = "admin"
     MEMBER = "member"
 
 
 def role_column(name: str) -> Enum:
-    """A role stored as its own word rather than as its Python name.
-
-    `native_enum=False` keeps it a VARCHAR with a check constraint, so adding
-    a role would be a migration rather than an ALTER TYPE — and the constraint
-    needs a name of its own per table.
-    """
     return Enum(
         Role,
         native_enum=False,
@@ -65,8 +39,6 @@ def role_column(name: str) -> Enum:
 
 
 class User(Base):
-    """One person. The email is the identity; there is nothing else to prove."""
-
     __tablename__ = "users"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -76,17 +48,12 @@ class User(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
-    # Stored as entered and compared without case: `Ada@Example.com` is the
-    # same person as `ada@example.com`, and the address they see is the one
-    # they typed. The index is what makes both true at once.
     __table_args__ = (
         Index("users_email_lower_key", text("lower(email)"), unique=True),
     )
 
 
 class Session(Base):
-    """A signed-in browser. Revocation is deleting the row, and nothing else."""
-
     __tablename__ = "sessions"
 
     token_hash: Mapped[str] = mapped_column(String(HASH_LENGTH), primary_key=True)
@@ -100,13 +67,6 @@ class Session(Base):
 
 
 class SigninCode(Base):
-    """The outstanding Sign-in Code for one address.
-
-    One row per address, because requesting a code replaces the last one: the
-    newest code is the only code. `attempts` counts wrong guesses against it;
-    capping them is the throttling slice's work.
-    """
-
     __tablename__ = "signin_codes"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -120,16 +80,6 @@ class SigninCode(Base):
 
 
 class CodeIssuance(Base):
-    """How many Sign-in Codes one address has been sent in its current window.
-
-    A counter and the moment its window opened, rather than a row per request:
-    the limit only ever asks how many, and a log of every request anybody made
-    for any address would be a table that grows with the spraying it exists to
-    stop. Its own row, and not a column on `signin_codes`, because the count
-    has to outlive the code — a code is deleted the moment it is spent, and a
-    limit that a successful sign-in reset would be no limit at all.
-    """
-
     __tablename__ = "signin_code_issuance"
 
     email: Mapped[str] = mapped_column(String(EMAIL_LENGTH), primary_key=True)
@@ -138,8 +88,6 @@ class CodeIssuance(Base):
 
 
 class Organization(Base):
-    """The tenant. Everything the product makes belongs to exactly one."""
-
     __tablename__ = "organizations"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -150,8 +98,6 @@ class Organization(Base):
 
 
 class Membership(Base):
-    """A user's place in one Organization, with the role that sets what they may do."""
-
     __tablename__ = "memberships"
 
     org_id: Mapped[UUID] = mapped_column(
@@ -167,12 +113,6 @@ class Membership(Base):
 
 
 class Invitation(Base):
-    """An offer to join an Organization, which signing in with that address accepts.
-
-    The Invitations slice animates this table; it lands here so that the
-    accounts schema is one migration rather than two.
-    """
-
     __tablename__ = "invitations"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)

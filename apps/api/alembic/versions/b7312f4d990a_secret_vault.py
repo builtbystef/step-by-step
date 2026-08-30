@@ -1,10 +1,3 @@
-"""Secret vault
-
-Revision ID: b7312f4d990a
-Revises: a4f7c2b19e83
-Create Date: 2026-08-24 06:50:00.000000
-"""
-
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -17,7 +10,6 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """Add Organization Secrets and member Personal Overrides."""
     op.create_table(
         "secrets",
         sa.Column("id", sa.Uuid(), nullable=False),
@@ -83,7 +75,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Remove the Secret vault."""
     op.drop_index(op.f("ix_secret_overrides_user_id"), table_name="secret_overrides")
     op.drop_index(op.f("ix_secret_overrides_secret_id"), table_name="secret_overrides")
     op.drop_table("secret_overrides")

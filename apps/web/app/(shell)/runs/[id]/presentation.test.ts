@@ -36,13 +36,6 @@ import {
   type BannerInput,
 } from "./presentation";
 
-/**
- * The cockpit's decisions, read back without a DOM: the header chip and
- * drift wording, the timeline's proportions, the terminal sentences, cancel,
- * Run again's prefill, and the Output tab's table vs empty sentence. The page
- * draws these; it does not re-decide them.
- */
-
 const START = "2026-08-25T12:00:00.000Z";
 const T = (seconds: number) => new Date(Date.parse(START) + seconds * 1000).toISOString();
 

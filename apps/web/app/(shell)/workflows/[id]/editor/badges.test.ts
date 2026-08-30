@@ -4,12 +4,6 @@ import { describe, expect, it } from "vitest";
 import { stepBadges, targetHealth } from "./badges";
 import type { Step } from "./steps";
 
-/**
- * The column down the right of a card: what is true of this Step that its
- * sentence does not say — and, in the two hues that mean attention, how well
- * it will find its element again.
- */
-
 const SEALED_OFF =
   "This part of the page is sealed off in a way that automation can't reach later — " +
   "this step will likely fail when the workflow runs.";

@@ -1,9 +1,3 @@
-"""The Artifact store, against the real Garage.
-
-The presigned tests are the point: they fetch over plain HTTP from outside the
-compose network, which is the one thing an in-network test can never prove.
-"""
-
 import time
 import urllib.error
 import urllib.request
@@ -15,7 +9,6 @@ pytestmark = pytest.mark.integration
 
 
 def fetch(url: str) -> tuple[int, bytes]:
-    """The status and body a browser would get, without raising on a refusal."""
     try:
         with urllib.request.urlopen(url) as response:
             return response.status, response.read()
@@ -65,8 +58,5 @@ def test_a_presigned_url_stops_working_once_it_expires(object_key: str) -> None:
     time.sleep(2)
     status, body = fetch(url)
 
-    # Garage refuses an expired signature with 400 `InvalidRequest: Date is too
-    # old`, where AWS S3 answers 403. The assertion is on the refusal rather
-    # than on one store's status code, because the store is swappable.
     assert status >= 400
     assert body != b"step by step"

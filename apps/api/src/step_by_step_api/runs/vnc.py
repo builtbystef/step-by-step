@@ -1,5 +1,3 @@
-"""The WebSocket that pipes RFB between a browser and a Worker's VNC server."""
-
 from __future__ import annotations
 
 import asyncio
@@ -31,11 +29,9 @@ router = APIRouter()
 VNC_CONTROL_PASSWORD_VARIABLE = "VNC_CONTROL_PASSWORD"
 VNC_VIEW_PASSWORD_VARIABLE = "VNC_VIEW_PASSWORD"
 WATCH_INTERVAL = 0.25
-"""How often an open proxy re-reads the Run to notice takeover ending."""
 
 
 def vnc_passwords() -> tuple[str, str]:
-    """Control and view-only passwords, shared across Workers."""
     control = environ.get(VNC_CONTROL_PASSWORD_VARIABLE, "")
     view = environ.get(VNC_VIEW_PASSWORD_VARIABLE, "")
     if not control or not view:
@@ -52,7 +48,6 @@ def parse_endpoint(endpoint: str) -> tuple[str, int]:
 
 @router.websocket("/api/runs/{run_id}/vnc")
 async def vnc_socket(websocket: WebSocket, run_id: UUID, ticket: str) -> None:
-    """Validate the ticket, then pipe RFB. View-only unless this session holds."""
     control_password, view_password = vnc_passwords()
     with session_scope() as db:
         session_id, endpoint, control = admit(db, websocket, run_id, ticket)
@@ -72,11 +67,6 @@ async def vnc_socket(websocket: WebSocket, run_id: UUID, ticket: str) -> None:
 
 
 def admit(db, websocket: WebSocket, run_id: UUID, ticket: str) -> tuple[str, str, bool]:
-    """Spend the ticket and return (session_id, vnc endpoint, holds control).
-
-    Another Organization's Run, a bad ticket, and a missing session are the
-    same 404 — and none of them opens a socket to a Worker.
-    """
     token = websocket.cookies.get(SESSION_COOKIE)
     if not token:
         raise ApiError(401, "unauthenticated", "no session")
@@ -123,7 +113,6 @@ async def pipe_rfb(
     session_id: str,
     control: bool,
 ) -> None:
-    """Copy bytes both ways until the client, the Worker, or takeover ends."""
 
     async def to_worker() -> None:
         while True:
@@ -157,7 +146,6 @@ async def pipe_rfb(
 
 
 def still_open(run_id: UUID, session_id: str, control: bool) -> bool:
-    """False once the Run ended, or a control connection lost the hold."""
     with session_scope() as db:
         run = db.get(Run, run_id)
         if run is None or run.status.value not in NON_TERMINAL:

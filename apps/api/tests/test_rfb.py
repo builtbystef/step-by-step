@@ -1,5 +1,3 @@
-"""RFB DES and VNC authentication, without a Worker or a database."""
-
 from step_by_step_api.runs.rfb import des_encrypt, vnc_response
 
 
@@ -11,7 +9,6 @@ def test_des_encrypts_the_fips_46_vector() -> None:
 
 
 def test_vnc_response_is_two_des_blocks_under_a_bit_reversed_password() -> None:
-    """VNC auth: 8-byte password, each byte bit-reversed, DES-ECB the challenge."""
     challenge = bytes(range(16))
     password = "pass"
 

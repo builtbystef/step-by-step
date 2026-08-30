@@ -9,14 +9,6 @@ import type {
   StepResultRecord,
 } from "@step-by-step/api-client";
 
-/**
- * How a live event advances the cockpit without a reload.
- *
- * Reconnection still refetches over REST — this reducer only applies events
- * that arrived after the last fetch, so it cannot disagree with Postgres for
- * long. Commands never travel on this path.
- */
-
 export type PredicateState = {
   met: boolean;
   graceEndsAt: string | null;

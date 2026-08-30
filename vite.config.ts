@@ -6,11 +6,6 @@ export default defineConfig({
     "*.py": ["uv run ruff format", "uv run ruff check --fix"],
   },
   fmt: {
-    // Machine-written files keep their generators' formatting so the CI
-    // contract job can diff regenerated output against what's committed.
-    // .beaver issue files are managed by the beaver CLI, not formatted here.
-    // The agents' sandbox policy is mounted read-only while a sandboxed
-    // session runs, so a reformat there would fail the commit from inside one.
     ignorePatterns: [
       "**/src/generated/**",
       "**/openapi.json",
@@ -29,7 +24,6 @@ export default defineConfig({
     ignorePatterns: ["**/dist/**", "**/coverage/**", "**/.next/**", "**/src/generated/**"],
     overrides: [
       {
-        // `plugins` in an override replaces the base list, so repeat it.
         files: ["**/*.test.ts", "**/*.spec.ts"],
         plugins: ["typescript", "vitest"],
       },

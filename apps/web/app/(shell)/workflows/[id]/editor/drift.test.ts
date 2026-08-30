@@ -5,12 +5,6 @@ import { stepBadges } from "./badges";
 import { driftedStepIds, repairFromDrift } from "./drift";
 import type { Step } from "./steps";
 
-/**
- * Selector Drift on a card: an aggregate warning from recent Step Results,
- * and the one move that takes the person to the selector panel that repairs
- * it. Rank 0 is the recorded best; anything above it is drift.
- */
-
 const FOUND_BY_NAME: Target = { candidates: [{ kind: "role", value: "Save" }] };
 
 function clicking(id: string): Step {

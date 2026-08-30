@@ -1,5 +1,3 @@
-"""The user-facing Run start, list, detail, events, logs, output, and cancellation."""
-
 import csv
 import io
 import json
@@ -218,7 +216,6 @@ def workflow_to_run(
     workflow_id: UUID,
     asked: StartRun,
 ) -> Run:
-    """Build the queued row from the Draft or latest immutable Version."""
     row = db.execute(
         select(Workflow, WorkflowDraft)
         .join(WorkflowDraft, WorkflowDraft.workflow_id == Workflow.id)
@@ -280,7 +277,6 @@ def start_run(
     member: ActiveMembership,
     db: SessionDep,
 ) -> RunCreated:
-    """Persist one queued Run, then place its id on the dumb dispatch pipe."""
     run = workflow_to_run(db, member, workflow_id, asked)
     refuse_missing(missing_secret_names(db, run.org_id, document_for(db, run)))
     db.add(run)
@@ -299,12 +295,6 @@ def get_workflow_selector_drift(
     member: ActiveMembership,
     db: SessionDep,
 ) -> SelectorDrift:
-    """The Steps whose recent Runs resolved through a lower-ranked candidate.
-
-    The editor is where repair happens, so the warning is computed here from
-    Step Results rather than on each Run. Rank 0 is the recorded best; anything
-    above it in the last ten Runs of this Workflow is Selector Drift.
-    """
     owned = db.execute(
         select(Workflow.id).where(
             Workflow.id == workflow_id, Workflow.org_id == member.org_id
@@ -346,7 +336,6 @@ def list_runs(
     limit: Annotated[int, Query(ge=1, le=MAX_PAGE_SIZE)] = PAGE_SIZE,
     cursor: str | None = None,
 ) -> RunPage:
-    """Runs in newest-first order, optionally narrowed by Workflow, status, trigger."""
     conditions = [Run.org_id == member.org_id]
     if workflow_id is not None:
         conditions.append(Run.workflow_id == workflow_id)
@@ -375,7 +364,6 @@ def list_runs(
 
 
 def attention_statement(org_id: UUID):
-    """One index-bounded scan for both the waiting head and all three counts."""
     waiting = Run.status == RunStatus.WAITING_FOR_HUMAN
     return (
         select(
@@ -411,7 +399,6 @@ def attention_statement(org_id: UUID):
     responses=errors(400, 401, 403),
 )
 def get_attention(member: ActiveMembership, db: SessionDep) -> Attention:
-    """The active Organization's non-terminal Run summary for the shell."""
     rows = db.execute(attention_statement(member.org_id)).all()
     if not rows:
         return Attention(waiting=[], waiting_count=0, running_count=0, queued_count=0)
@@ -464,7 +451,6 @@ def owned_run(db: SessionDep, org_id: UUID, run_id: UUID) -> Run:
     responses=errors(400, 401, 403, 404),
 )
 def get_run(run_id: UUID, member: ActiveMembership, db: SessionDep) -> RunDetail:
-    """The persisted state a reconnect needs, in one payload."""
     run = owned_run(db, member.org_id, run_id)
     results = db.execute(
         select(StepResult)
@@ -508,7 +494,6 @@ def consent_run_auth_state(
     member: ActiveMembership,
     db: SessionDep,
 ) -> Response:
-    """Record where a new takeover domain should land on the next write-back."""
     run = owned_run(db, member.org_id, run_id)
     try:
         domain = registrable_domain(asked.domain)
@@ -546,7 +531,6 @@ def consent_run_auth_state(
 def stream_run_events(
     run_id: UUID, member: ActiveMembership, db: SessionDep
 ) -> StreamingResponse:
-    """Fan out `run:{id}:events` after the Organization gate; never replay."""
     owned_run(db, member.org_id, run_id)
     pubsub = get_redis().pubsub(ignore_subscribe_messages=True)
     pubsub.subscribe(events_channel(run_id))
@@ -562,7 +546,6 @@ def stream_run_events(
 
 
 def fan_out(pubsub: Any) -> Iterator[str]:
-    """Yield SSE frames until the client hangs up. Comments keep the socket alive."""
     try:
         while True:
             message = pubsub.get_message(timeout=1.0)
@@ -595,7 +578,6 @@ def list_run_logs(
     after_seq: int | None = None,
     step_id: UUID | None = None,
 ) -> list[LogLine]:
-    """The persisted log, optionally after a seq or for one Step."""
     owned_run(db, member.org_id, run_id)
     conditions = [RunLogLine.run_id == run_id]
     if after_seq is not None:
@@ -629,7 +611,6 @@ def get_run_output(
     db: SessionDep,
     format: Literal["json", "csv"] = Query(default="json"),
 ) -> Any | Response:
-    """Assembled on read from extract Step Results. Nothing is stored twice."""
     run = owned_run(db, member.org_id, run_id)
     assembled, columns = assemble_output(db, run)
     if format == "csv":
@@ -642,7 +623,6 @@ def get_run_output(
 
 
 def presign_download(object_key: str, filename: str) -> str:
-    """A short-lived GET URL the user's browser can follow."""
     safe = filename.replace('"', "")
     return signing_store().generate_presigned_url(
         "get_object",
@@ -671,7 +651,6 @@ def download_run_artifact(
     member: ActiveMembership,
     db: SessionDep,
 ) -> RedirectResponse:
-    """Mint a presigned GET after the Organization gate; never leak existence."""
     owned_run(db, member.org_id, run_id)
     artifact = db.execute(
         select(Artifact).where(Artifact.id == artifact_id, Artifact.run_id == run_id)
@@ -691,7 +670,6 @@ def download_run_artifact(
     responses=errors(400, 401, 403, 404, 409),
 )
 def delete_run(run_id: UUID, member: ActiveMembership, db: SessionDep) -> Response:
-    """Purge a terminal Run, its rows, and its Garage objects."""
     run = owned_run(db, member.org_id, run_id)
     if run.status.value in NON_TERMINAL:
         raise ApiError(409, "run_active", "this Run is still active")
@@ -716,7 +694,6 @@ def delete_run(run_id: UUID, member: ActiveMembership, db: SessionDep) -> Respon
     responses=errors(400, 401, 403, 404, 409),
 )
 def cancel_run(run_id: UUID, member: ActiveMembership, db: SessionDep) -> Response:
-    """Cancel queued or waiting work now; stamp a request on a running Run."""
     run = owned_run(db, member.org_id, run_id)
     if run.status.value not in NON_TERMINAL:
         raise ApiError(409, "run_terminal", "this Run has already ended")
@@ -745,7 +722,6 @@ def cancel_run(run_id: UUID, member: ActiveMembership, db: SessionDep) -> Respon
     responses=errors(400, 401, 403, 404, 409),
 )
 def pause_run(run_id: UUID, member: ActiveMembership, db: SessionDep) -> Response:
-    """Request takeover at the next safe boundary. Status stays running."""
     run = owned_run(db, member.org_id, run_id)
     if run.status.value not in NON_TERMINAL:
         raise ApiError(409, "run_terminal", "this Run has already ended")
@@ -775,7 +751,6 @@ def vnc_url(run_id: UUID, ticket: str) -> str:
 def mint_stream_ticket(
     run_id: UUID, request: Request, member: ActiveMembership, db: SessionDep
 ) -> StreamTicket:
-    """Mint a view-only ticket for any non-terminal Run."""
     run = owned_run(db, member.org_id, run_id)
     if run.status.value not in NON_TERMINAL:
         raise ApiError(409, "run_terminal", "this Run has already ended")
@@ -796,7 +771,6 @@ def mint_stream_ticket(
 def take_over_run(
     run_id: UUID, request: Request, member: ActiveMembership, db: SessionDep
 ) -> TakeoverTicket:
-    """Mint a control ticket for a waiting Run. One session holds it at a time."""
     run = owned_run(db, member.org_id, run_id)
     if run.status is not RunStatus.WAITING_FOR_HUMAN:
         raise ApiError(409, "not_waiting", "this Run is not waiting for a person")
@@ -828,7 +802,6 @@ def hold_takeover(
     member: ActiveMembership,
     db: SessionDep,
 ) -> Response:
-    """Disable or re-enable auto hand-back for the rest of this takeover."""
     run = owned_run(db, member.org_id, run_id)
     if run.status is not RunStatus.WAITING_FOR_HUMAN:
         raise ApiError(409, "not_waiting", "this Run is not waiting for a person")
@@ -851,7 +824,6 @@ def hold_takeover(
 def hand_back_run(
     run_id: UUID, request: Request, member: ActiveMembership, db: SessionDep
 ) -> Response:
-    """Ask the Worker to resume after a manual hand-back."""
     run = owned_run(db, member.org_id, run_id)
     if run.status is not RunStatus.WAITING_FOR_HUMAN:
         raise ApiError(409, "not_waiting", "this Run is not waiting for a person")
@@ -873,7 +845,6 @@ def hand_back_run(
 def abandon_takeover(
     run_id: UUID, member: ActiveMembership, db: SessionDep
 ) -> Response:
-    """Give up during takeover: the Run fails and the browser can close."""
     run = owned_run(db, member.org_id, run_id)
     if run.status is not RunStatus.WAITING_FOR_HUMAN:
         raise ApiError(409, "not_waiting", "this Run is not waiting for a person")
@@ -891,7 +862,6 @@ def abandon_takeover(
 
 
 def advance_batch_after(run: Run) -> None:
-    """A terminal Batch Run must not wait for the minute loop to free the next row."""
     if run.batch_row_id is None or run.status.value in NON_TERMINAL:
         return
     from step_by_step_api.batches.advance import on_terminal_run
@@ -999,7 +969,6 @@ def candidate_record(row: RunAuthStateCandidate) -> AuthStateCandidateRecord:
 
 
 def assemble_output(db: SessionDep, run: Run) -> tuple[Any, list[str]]:
-    """Extracted values keyed by outputName; a lone list of records unwraps."""
     document = document_for(db, run)
     results = {
         str(row.step_id): row.extracted_value

@@ -1,21 +1,9 @@
-"""The Artifact store's two-endpoint rule.
-
-Workers read and write objects at the store's compose hostname. A presigned
-URL is followed by the *user's browser*, which cannot resolve that hostname —
-so URLs are signed against a separate public endpoint. Signing with the
-internal one passes every in-network test and breaks every real download,
-which is why the two endpoints are pinned here rather than left to a caller.
-
-Building a client and signing a URL both talk to nobody, so this is fast tier.
-"""
-
 import pytest
 from step_by_step_core.objects import artifact_bucket, object_store, signing_store
 
 
 @pytest.fixture(autouse=True)
 def two_endpoints(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The store as a Worker inside the stack sees it: the endpoints differ."""
     object_store.cache_clear()
     signing_store.cache_clear()
     monkeypatch.setenv("S3_ENDPOINT_URL", "http://garage:3900")

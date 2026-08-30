@@ -4,12 +4,6 @@ import { describe, expect, it } from "vitest";
 import { applyRunEvent, emptySnapshot, snapshotFromDetail, type CockpitSnapshot } from "./events";
 import { clock, stepRailBadges } from "./presentation";
 
-/**
- * A live Run's rail ticks from SSE without a reload: step.started opens a
- * Step, step.finished stamps its duration and badges. Reconnect is a REST
- * refetch; these events only advance what the refetch already holds.
- */
-
 const START = "2026-08-25T12:00:00.000Z";
 const T = (seconds: number) => new Date(Date.parse(START) + seconds * 1000).toISOString();
 

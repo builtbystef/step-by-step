@@ -1,16 +1,3 @@
-"""The mailer seam and its three adapters.
-
-Every email the product sends goes through one `send()`, and which adapter
-carries it is configuration — so this is where the choice is tested, and no
-caller ever has to know. The console adapter is also the test capture point
-for every later slice: the accounts seam tests read the Sign-in Code out of
-this outbox rather than out of a table.
-
-Nothing here talks to a mail server or to Resend. SMTP is driven through a
-connection the adapter is handed, Resend through a stubbed HTTP transport, so
-this is fast tier.
-"""
-
 import json
 import logging
 from collections.abc import Callable, Iterator
@@ -35,7 +22,6 @@ from step_by_step_api.mail import (
 
 @pytest.fixture(autouse=True)
 def unconfigured_mailer() -> Iterator[None]:
-    """No test here may inherit — or leave behind — a configured adapter."""
     mailer.cache_clear()
     yield
     mailer.cache_clear()
@@ -109,12 +95,6 @@ def test_smtp_without_a_host_is_a_configuration_failure_naming_it(
 
 @dataclass
 class RecordedSmtp:
-    """A mail server that records the conversation instead of holding a socket.
-
-    What matters about SMTP is the conversation — upgrade, authenticate,
-    send, hang up — so that is what this keeps.
-    """
-
     offers_starttls: bool = True
     fails_to_send: bool = False
     connected_to: tuple[str, int] | None = None
@@ -155,7 +135,6 @@ class RecordedSmtp:
 
 
 def smtp_talking_to(recorded: RecordedSmtp) -> SmtpMailer:
-    """The configured SMTP adapter, with `recorded` in the mail server's place."""
     adapter = mailer()
     assert isinstance(adapter, SmtpMailer)
     return replace(adapter, connect=recorded.connect)
@@ -163,7 +142,6 @@ def smtp_talking_to(recorded: RecordedSmtp) -> SmtpMailer:
 
 @pytest.fixture
 def smtp_configured(monkeypatch: pytest.MonkeyPatch) -> None:
-    """MAILER=smtp with a host and nothing else."""
     monkeypatch.setenv("MAILER", "smtp")
     monkeypatch.setenv("SMTP_HOST", "mail.example.com")
     for optional in ("SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD"):
@@ -205,14 +183,11 @@ def test_smtp_upgrades_to_tls_when_the_server_offers_it() -> None:
 
     smtp_talking_to(server).send(Message("ada@example.com", "Subject", "Body"))
 
-    # The second EHLO is not decoration: the extension list before the upgrade
-    # describes a different connection from the one the mail goes over.
     assert server.conversation == ["ehlo", "starttls", "ehlo", "send", "quit"]
 
 
 @pytest.mark.usefixtures("smtp_configured")
 def test_smtp_sends_anyway_to_a_server_that_offers_no_tls() -> None:
-    """A relay on the instance's own host commonly offers none."""
     server = RecordedSmtp(offers_starttls=False)
 
     smtp_talking_to(server).send(Message("ada@example.com", "Subject", "Body"))
@@ -264,7 +239,6 @@ def test_a_password_without_a_username_names_the_missing_variable(
 
 @pytest.mark.usefixtures("smtp_configured")
 def test_a_failed_send_still_hangs_up() -> None:
-    """A mail server that drops a message must not also cost a socket."""
     server = RecordedSmtp(fails_to_send=True)
 
     with pytest.raises(OSError, match="connection reset"):
@@ -291,7 +265,6 @@ def resend_configured(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def resend_answered_by(answer: Callable[[httpx.Request], httpx.Response]) -> Mailer:
-    """The configured Resend adapter, with `answer` in the API's place."""
     adapter = mailer()
     assert isinstance(adapter, ResendMailer)
     return replace(adapter, client=httpx.Client(transport=httpx.MockTransport(answer)))

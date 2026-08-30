@@ -1,5 +1,3 @@
-"""Registrable domains are Auth State's stable site identity."""
-
 from step_by_step_api.auth_states.domains import registrable_domain
 
 

@@ -15,13 +15,6 @@ import {
   submitBlockedByDrift,
 } from "./creation";
 
-/**
- * The Batch creation page's decisions, read back without a DOM: the default
- * name, the copy-from-a-past-Batch name, the incomplete-row flag on the
- * payload, the sequential ETA, the new-Variable banner, and where submit
- * navigates.
- */
-
 const CITY: Variable = { name: "city" };
 const PASSWORD: Variable = {
   name: "password",

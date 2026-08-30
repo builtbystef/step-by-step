@@ -10,12 +10,6 @@ import {
   type WorkflowSummary,
 } from "@step-by-step/api-client";
 
-/**
- * The cockpit's server state: the Run detail a reconnect refetches, the log
- * lines beside it, the assembled extract output, the Workflow's name, and the
- * Version document the rail reads labels and sentences from.
- */
-
 export function runKey(orgId: string, runId: string) {
   return ["run", orgId, runId] as const;
 }

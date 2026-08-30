@@ -4,11 +4,6 @@ import { OVERFLOW_ACTIONS, RUN, disabledReason } from "./actions";
 
 import { COPY } from "../../../lib/copy";
 
-/**
- * What a Workflow row and the Workflow header both offer, and which of those
- * a Workflow that has published nothing may not use.
- */
-
 describe("the actions a Workflow offers", () => {
   it("offers the overflow the spec names, in order", () => {
     expect(OVERFLOW_ACTIONS.map((action) => action.label)).toEqual([

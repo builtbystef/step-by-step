@@ -16,11 +16,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-/**
- * Old versus new, after the extension has computed a fresh candidate list
- * and before anyone writes the Draft. Confirm is the existing Re-pick
- * finalize; cancel never calls it.
- */
 export function RepickDialog({
   open,
   oldCandidates,

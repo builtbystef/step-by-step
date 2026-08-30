@@ -2,12 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { EDITOR, WORKFLOW_TABS, newBatchPath, newSchedulePath, tabAt, tabPath } from "./tabs";
 
-/**
- * The Workflow page's four tabs, read back as the addresses they are: each is
- * its own URL, which is what makes a tab linkable and the back button walk
- * them rather than leave the page.
- */
-
 const WORKFLOW = "3f1a";
 
 describe("the Workflow page's tabs", () => {

@@ -2,14 +2,6 @@ import { Button } from "@/components/ui/button";
 import { attentionMessage } from "@/lib/attention";
 import { cn } from "@/lib/utils";
 
-/**
- * The shell-level signal that a Run is waiting on the person reading the
- * screen. Amber, page-width across the content column, above the page title,
- * because the deadline it names fails the Run when it passes.
- *
- * Pure over props: the shell owns the poll and local tick. `countdown` is
- * already-formatted text, and it reads as a machine string in monospace.
- */
 export function AttentionBand({
   waitingCount,
   runLabel,

@@ -6,12 +6,6 @@ import { columnsOf, emptyRow, submittedVariables } from "../../../components/val
 
 import { needsValueGrid, startBody } from "./start-run";
 
-/**
- * Starting a Run from the list row or the Workflow header: immediate when
- * the Workflow declares no Variables, and the one-row value grid — secrets
- * locked, never sent — when it declares some.
- */
-
 const PLAIN: Variable = { name: "customer", secret: false };
 const SECRET: Variable = { name: "password", secret: true, secretName: "vault-password" };
 

@@ -12,13 +12,6 @@ import { PAGE_SIZE } from "@/lib/cursor-list";
 
 export { scheduleDetailKey, scheduleDetailQuery } from "../workflows/[id]/schedules/queries";
 
-/**
- * The Schedules list as server state: one key per Organization and per
- * filter, paged by the cursor the endpoint cuts. The path is the prefix a
- * mutation invalidates so the global list and the Workflow tab stay in
- * agreement.
- */
-
 export const SCHEDULES_PATH = "/api/schedules";
 
 export const SCHEDULES_KEY = [SCHEDULES_PATH] as const;

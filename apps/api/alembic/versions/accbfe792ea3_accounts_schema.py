@@ -1,23 +1,8 @@
-"""accounts schema
-
-The six tables the accounts area owns, in one revision: users, sessions,
-signin_codes, organizations, memberships, and invitations. The columns later
-slices animate are here too — the wrong-guess counter the throttling slice
-caps, and the expiry the Invitations slice enforces — because a column added
-now costs nothing and a migration written later costs a deployment.
-
-Revision ID: accbfe792ea3
-Revises: 14699da4a661
-Create Date: 2026-08-18 05:18:14.783192
-
-"""
-
 from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
 
-# revision identifiers, used by Alembic.
 revision: str = "accbfe792ea3"
 down_revision: str | Sequence[str] | None = "14699da4a661"
 branch_labels: str | Sequence[str] | None = None
@@ -25,7 +10,6 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """Upgrade schema."""
     op.create_table(
         "organizations",
         sa.Column("id", sa.Uuid(), nullable=False),
@@ -152,7 +136,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Downgrade schema."""
     op.drop_index(op.f("ix_sessions_user_id"), table_name="sessions")
     op.drop_table("sessions")
     op.drop_table("memberships")

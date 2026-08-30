@@ -2,15 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { readRefusal, saveRefusal } from "./messages";
 
-/**
- * What the editor says when the Draft API refuses a save.
- *
- * The document store validates the whole document, so a refusal is about one
- * Step among a hundred — and the only thing that says which one is the
- * message the backend wrote. A screen that swallowed it would leave the user
- * with a list to search by hand.
- */
-
 describe("a refused save", () => {
   it("names the Step the duplicate id is on, in the backend's own words", () => {
     const said = saveRefusal({

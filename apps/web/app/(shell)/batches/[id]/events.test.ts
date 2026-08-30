@@ -10,12 +10,6 @@ import { describe, expect, it } from "vitest";
 import { applyBatchEvent, snapshotFromDetail, type BatchSnapshot } from "./events";
 import { liveRowIndex, rowChipState, statsView } from "./presentation";
 
-/**
- * How a live Batch advances without a reload: batch.row moves the live
- * badge, skip marks the row and advances, re-run attaches a new attempt
- * whose chip the row then follows. Reconnect still refetches over REST.
- */
-
 const START = "2026-08-26T12:00:00.000Z";
 const T = (seconds: number) => new Date(Date.parse(START) + seconds * 1000).toISOString();
 

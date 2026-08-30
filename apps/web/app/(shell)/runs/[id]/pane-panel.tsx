@@ -31,11 +31,6 @@ import { Callout } from "@/components/primitives/callout";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-/**
- * The cockpit's main pane: the Worker's browser, the waiting card, the
- * control bar, the unmet choice, the challenge banner, and consent.
- */
-
 export function PanePanel({
   runId,
   status,

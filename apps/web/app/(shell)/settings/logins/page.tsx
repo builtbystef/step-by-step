@@ -18,7 +18,6 @@ async function loadAuthStates(): Promise<AuthStateSummary[]> {
   return answer.data;
 }
 
-/** Settings → Saved logins: browser state, never its bearer contents. */
 export default function SavedLoginsPage() {
   const authStates = useQuery({ queryKey: AUTH_STATES_KEY, queryFn: loadAuthStates });
 

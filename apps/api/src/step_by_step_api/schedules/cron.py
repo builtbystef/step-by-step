@@ -1,5 +1,3 @@
-"""Cron parsing and next-occurrence, in the Schedule's IANA timezone."""
-
 from datetime import datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -9,7 +7,6 @@ from step_by_step_api.errors import ApiError
 
 
 def require_timezone(name: str) -> ZoneInfo:
-    """The named zone, or 400 invalid_timezone if IANA does not know it."""
     try:
         return ZoneInfo(name)
     except (ZoneInfoNotFoundError, KeyError) as error:
@@ -19,7 +16,6 @@ def require_timezone(name: str) -> ZoneInfo:
 
 
 def require_cron(expression: str) -> None:
-    """Refuse a string croniter will not iterate."""
     if not croniter.is_valid(expression):
         raise ApiError(400, "invalid_cron", "that is not a cron expression")
 
@@ -31,21 +27,15 @@ def _aware(instant: datetime, zone: ZoneInfo) -> datetime:
 
 
 PREVIEW_COUNT = 5
-"""How many future Occurrences the preview (and the detail) return."""
 
 
 def next_occurrence(expression: str, timezone: str, after: datetime) -> datetime:
-    """The next instant the expression matches, strictly after `after`, in that zone.
-
-    `after` may be any aware datetime; the result is timezone-aware in `timezone`.
-    """
     return next_occurrences(expression, timezone, after, count=1)[0]
 
 
 def next_occurrences(
     expression: str, timezone: str, after: datetime, count: int = PREVIEW_COUNT
 ) -> list[datetime]:
-    """The next `count` instants the expression matches, strictly after `after`."""
     require_cron(expression)
     zone = require_timezone(timezone)
     local = after.astimezone(zone) if after.tzinfo else after.replace(tzinfo=zone)
@@ -64,7 +54,6 @@ def next_occurrences(
 def occurrences_through(
     expression: str, timezone: str, start: datetime, until: datetime
 ) -> list[datetime]:
-    """Each instant the expression matches, from `start` through `until` inclusive."""
     require_cron(expression)
     zone = require_timezone(timezone)
     start_local = start.astimezone(zone)

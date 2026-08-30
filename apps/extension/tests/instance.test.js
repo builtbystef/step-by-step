@@ -2,14 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { originPattern, readInstanceUrl } from "../src/lib/instance.js";
 
-/**
- * What the popup makes of the address a person types. The answer is an origin
- * and nothing else: it is what the permission is asked for, what the content
- * script may be injected into, and what the service worker may fetch — so a
- * path, a query, or a trailing slash must not make two connections out of one
- * instance.
- */
-
 describe("reading an instance address", () => {
   it.each([
     ["https://steps.example.com", "https://steps.example.com"],

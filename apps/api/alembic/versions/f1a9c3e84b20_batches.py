@@ -1,10 +1,3 @@
-"""Batches and batch rows
-
-Revision ID: f1a9c3e84b20
-Revises: e8b4c2a19f70
-Create Date: 2026-08-26 11:10:00.000000
-"""
-
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -28,7 +21,6 @@ def closed_enum(name: str, values: list[str], length: int) -> sa.Enum:
 
 
 def upgrade() -> None:
-    """Add Batches and point a Run's batch_row_id at a row."""
     op.create_table(
         "batches",
         sa.Column("id", sa.Uuid(), nullable=False),

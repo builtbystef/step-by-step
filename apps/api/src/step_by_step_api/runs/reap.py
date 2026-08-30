@@ -1,5 +1,3 @@
-"""Reap stale heartbeats and re-enqueue queued Runs the dispatch list dropped."""
-
 from datetime import datetime, timedelta
 from uuid import UUID
 
@@ -17,16 +15,13 @@ from step_by_step_api.runs.models import (
 from step_by_step_api.workflows.models import WorkflowVersion
 
 HEARTBEAT_STALE_AFTER = timedelta(seconds=90)
-"""A Worker beats every few seconds; two missed ticks is gone, not slow."""
 
 QUEUED_BACKSTOP_AFTER = timedelta(seconds=60)
-"""Longer than one loop interval, so a just-enqueued id is not pushed again."""
 
 LIVE = (RunStatus.RUNNING, RunStatus.WAITING_FOR_HUMAN)
 
 
 def reap_and_backstop(db: Session, now: datetime) -> list[UUID]:
-    """Fail lost Workers' Runs, time out takeovers, and return queued ids."""
     reap_lost_workers(db, now)
     reap_takeover_deadlines(db, now)
     return queued_without_a_worker(db, now)
@@ -97,7 +92,6 @@ def close_waiting_run(
     failure_reason: FailureReason | None = None,
     fail_paused: bool = False,
 ) -> None:
-    """End a waiting Run from the API: nothing is in flight, so this is immediate."""
     run.status = status
     run.failure_reason = failure_reason
     run.ended_at = now
@@ -110,7 +104,6 @@ def close_waiting_run(
 
 
 def fail_paused_and_skip_rest(db: Session, run: Run, now: datetime) -> None:
-    """The Step the Run parked on fails; every later Step is skipped."""
     written = set(
         db.execute(select(StepResult.position).where(StepResult.run_id == run.id))
         .scalars()
@@ -133,7 +126,6 @@ def fail_paused_and_skip_rest(db: Session, run: Run, now: datetime) -> None:
 
 
 def skip_unreached(db: Session, run: Run, now: datetime) -> None:
-    """Write a skipped Step Result for every Step the Run never reached."""
     written = set(
         db.execute(select(StepResult.position).where(StepResult.run_id == run.id))
         .scalars()

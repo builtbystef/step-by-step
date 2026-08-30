@@ -12,11 +12,6 @@ import {
   transferConsequence,
 } from "./messages";
 
-/**
- * The screen's decisions, tested where they are made: what a refusal says, and
- * which control each row of the member list offers whom.
- */
-
 const REFUSALS = [
   "not_a_member",
   "not_an_admin",

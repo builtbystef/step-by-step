@@ -7,14 +7,6 @@ import {
   installUnauthorizedRedirect,
 } from "./api";
 
-/**
- * The one rule the wrapper owns: a 401 is not an error a screen renders, it is
- * a visitor who has no session, and the gate says where that puts them.
- *
- * The seam is the shared client every generated call already goes through, so
- * these tests answer a real generated function with a real status code.
- */
-
 function answering(status: number, body: unknown = {}): typeof fetch {
   return () =>
     Promise.resolve(
@@ -25,7 +17,6 @@ function answering(status: number, body: unknown = {}): typeof fetch {
     );
 }
 
-/** An instance that answers every call with `status`, and a log of where it sent us. */
 function instanceAnswering(status: number): { went: string[] } {
   client.setConfig({ baseUrl: "http://api.test", fetch: answering(status) });
   return { went: [] };
@@ -101,12 +92,9 @@ describe("the fetch wrapper", () => {
   });
 });
 
-/** An instance that answers everything the same way, keeping what it was sent. */
 function recording(status: number, body: unknown = {}): { sent: Request[] } {
   const sent: Request[] = [];
   const keeping: typeof fetch = (asked) => {
-    // The client always builds a `Request` before it calls fetch, which is the
-    // only reason a header is observable here at all.
     if (asked instanceof Request) {
       sent.push(asked);
     }

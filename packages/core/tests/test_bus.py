@@ -1,10 +1,3 @@
-"""The Redis seam's configuration contract.
-
-Redis is the dispatch pipe and the event bus. Its URL comes from the
-environment on the same terms as the database's, and building the client opens
-no connection, so this belongs in the fast tier.
-"""
-
 from uuid import UUID
 
 import pytest
@@ -13,7 +6,6 @@ from step_by_step_core.bus import control_channel, get_redis
 
 @pytest.fixture(autouse=True)
 def unconfigured_client() -> None:
-    """No test here may inherit — or leave behind — a cached client."""
     get_redis.cache_clear()
 
 

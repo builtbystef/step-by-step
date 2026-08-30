@@ -1,12 +1,3 @@
-"""Leaving, at its seam: HTTP against the app, with a real Postgres.
-
-External behaviour only — an Organization ends, an account ends, and what a
-test reads afterwards is what a client can ask for. Two tests do look in a
-table, and both assert what a table must *not* hold: an absence is the one
-claim no HTTP answer can carry, and "nothing references the person who left"
-is the whole point of this slice.
-"""
-
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
 from uuid import UUID
@@ -38,7 +29,6 @@ NewAccount = Callable[[], Account]
 
 @pytest.fixture
 def owned_keys() -> Iterator[list[str]]:
-    """Garage keys this test owns, removed if the behavior under test leaves them."""
     from step_by_step_core.objects import artifact_bucket, object_store
 
     keys: list[str] = []
@@ -48,11 +38,6 @@ def owned_keys() -> Iterator[list[str]]:
 
 
 def end_organization(actor: Account, confirmation: str) -> Response:
-    """Delete the Organization the actor acts in, typing its name to mean it.
-
-    `request` rather than `delete`, because httpx's shorthand for this method
-    carries no body — and the confirmation is the body.
-    """
     return actor.client.request(
         "DELETE",
         f"/api/orgs/{actor.org_id}",
@@ -61,28 +46,24 @@ def end_organization(actor: Account, confirmation: str) -> Response:
 
 
 def end_account(actor: Account, confirmation: str) -> Response:
-    """Delete the actor's own account, typing its address to mean it."""
     return actor.client.request(
         "DELETE", "/api/account", json={"email_confirmation": confirmation}
     )
 
 
 def orgs_of(account: Account) -> dict[str, str]:
-    """Every Organization this account acts in, with the role it has there."""
     me = account.client.get("/api/auth/me")
     assert me.status_code == 200, me.text
     return {org["id"]: org["role"] for org in me.json()["orgs"]}
 
 
 def org_name_of(account: Account) -> str:
-    """What the Organization is called — the name its owner has to type."""
     me = account.client.get("/api/auth/me")
     assert me.status_code == 200, me.text
     return next(org["name"] for org in me.json()["orgs"] if org["id"] == account.org_id)
 
 
 def refusal_of(answer: Response) -> str:
-    """The machine-readable code a client acts on, and never the prose."""
     return str(answer.json()["code"])
 
 
@@ -134,8 +115,6 @@ def test_ending_an_organization_takes_its_memberships_and_invitations(
 
     assert ended.status_code == 204, ended.text
     assert orgs_of(owner) == {}
-    # The member kept their account, their session, and the Organization that
-    # is theirs — what ended is the team, and only for as far as it reached.
     assert orgs_of(member) == {own_org: "owner"}
     assert member.client.get(f"/api/orgs/{owner.org_id}/members").status_code == 403
     standing = invitee.client.get("/api/auth/me")
@@ -146,14 +125,6 @@ def test_ending_an_organization_takes_its_memberships_and_invitations(
 
 
 def references_to(table: str, gone: str) -> dict[str, int]:
-    """Every row, in any table, that still points at an id that is gone.
-
-    Read out of Postgres's own catalogue rather than out of a list of tables
-    kept here, because the claim this slice makes is about the convention and
-    not about today's six tables: whatever joins the cascade later is asked
-    about by the same test, and a table wired up without `ON DELETE CASCADE`
-    fails it the day it lands.
-    """
     with session_scope() as db:
         pointing = db.execute(
             text(
@@ -230,11 +201,6 @@ def test_ending_an_organization_cancels_runs_then_purges_rows_and_objects(
 
 
 def owning_nothing(host: Account, new_account: NewAccount) -> Account:
-    """An account in somebody else's team, and the owner of no Organization.
-
-    The state every account has to reach before it can be ended: it joined a
-    team, and it ended the Organization its own signup made.
-    """
     guest = new_account()
     own_org = guest.org_id
     join(host, guest)
@@ -265,14 +231,12 @@ def test_a_mistyped_address_ends_nothing(new_account: NewAccount) -> None:
 
 
 def user_id_of(account: Account) -> str:
-    """The account's own id, which is what a Membership is named by."""
     me = account.client.get("/api/auth/me")
     assert me.status_code == 200, me.text
     return str(me.json()["id"])
 
 
 def member_ids_of(account: Account, org_id: str) -> set[str]:
-    """Who the members screen of that Organization lists."""
     listed = account.client.get(f"/api/orgs/{org_id}/members")
     assert listed.status_code == 200, listed.text
     return {row["user_id"] for row in listed.json()}
@@ -437,7 +401,6 @@ def test_account_deletion_removes_overrides_from_every_membership_not_org_work(
 def test_the_address_can_sign_up_again_as_a_fresh_account(
     new_account: NewAccount,
 ) -> None:
-    """Hard means hard: what comes back is a stranger with the same address."""
     host = new_account()
     guest = owning_nothing(host, new_account)
     address = guest.email

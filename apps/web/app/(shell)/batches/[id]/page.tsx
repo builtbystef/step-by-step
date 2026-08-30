@@ -63,11 +63,6 @@ import { invalidateRunState } from "@/lib/attention";
 import { duration } from "@/lib/duration";
 import { cn } from "@/lib/utils";
 
-/**
- * `/batches/[id]` — the Batch as a screen: the table, the live badge, the
- * stalled callout, the new-Variable banner, and the uniform Output tab.
- */
-
 export default function BatchDetailPage() {
   const { active } = useActiveOrganization();
   const params = useParams<{ id: string }>();

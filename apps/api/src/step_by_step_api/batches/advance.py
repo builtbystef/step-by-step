@@ -1,10 +1,3 @@
-"""Advance a Batch when its current Run ends.
-
-The terminal-status event path calls `on_terminal_run` directly. The minute
-loop calls `advance_stalled_batches` as the backstop for a missed event.
-Exactly one Run of a Batch is non-terminal at a time.
-"""
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -39,7 +32,6 @@ class RowEvent:
 
 
 def on_terminal_run(run_id: UUID) -> list[UUID]:
-    """Reflect this Run onto its row and start the next queued row, if any."""
     with session_scope() as db:
         run = db.get(Run, run_id)
         if run is None or run.batch_row_id is None:
@@ -59,7 +51,6 @@ def on_terminal_run(run_id: UUID) -> list[UUID]:
 def advance_stalled_batches(
     db: Session, now: datetime
 ) -> tuple[list[UUID], list[RowEvent]]:
-    """The tick backstop: every Batch whose current row is done but not advanced."""
     batch_ids = list(
         db.execute(
             select(Batch.id)
@@ -81,7 +72,6 @@ def advance_stalled_batches(
 def reflect_and_advance(
     db: Session, batch_id: UUID, now: datetime | None = None
 ) -> tuple[list[UUID], list[RowEvent]]:
-    """Lock the Batch, fold latest Runs into rows, and start at most one next Run."""
     batch = db.execute(
         select(Batch).where(Batch.id == batch_id).with_for_update()
     ).scalar_one_or_none()
@@ -99,7 +89,6 @@ def reflect_and_advance(
 
 
 def reflect_running_rows(db: Session, batch_id: UUID, at: datetime) -> list[RowEvent]:
-    """A running row follows its latest attempt once that attempt is terminal."""
     events: list[RowEvent] = []
     running = db.execute(
         select(BatchRow)
@@ -129,7 +118,6 @@ def reflect_running_rows(db: Session, batch_id: UUID, at: datetime) -> list[RowE
 def start_next_queued(
     db: Session, batch: Batch, at: datetime
 ) -> tuple[UUID | None, RowEvent | None]:
-    """Enqueue the next queued row when the Batch is idle and not cancelled."""
     if batch.cancelled_at is not None:
         return None, None
     if open_run_id(db, batch.id) is not None:
@@ -204,7 +192,6 @@ def open_run_id(db: Session, batch_id: UUID) -> UUID | None:
 
 
 def status_from_run(run: Run, current: BatchRowStatus) -> BatchRowStatus:
-    """The row follows the latest attempt, unless a skip already decided it."""
     if current is BatchRowStatus.SKIPPED:
         return current
     if run.status is RunStatus.SUCCEEDED:

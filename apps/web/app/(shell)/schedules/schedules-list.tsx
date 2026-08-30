@@ -53,15 +53,6 @@ import { useCursorList } from "@/hooks/use-cursor-list";
 import { filtersFromSearch } from "@/lib/cursor-list";
 import { invalidateRunState } from "@/lib/attention";
 
-/**
- * One Schedules list.
- *
- * `workflowId` is the only prop, and it changes exactly three things: it
- * scopes the request, it hides the Workflow column, and it swaps the empty
- * state for the Workflow's own call to action. No second file renders
- * Schedule rows.
- */
-
 export function SchedulesList({ workflowId }: { workflowId?: string }) {
   const { active } = useActiveOrganization();
 

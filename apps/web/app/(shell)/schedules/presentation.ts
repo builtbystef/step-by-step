@@ -9,21 +9,6 @@ import { humanize } from "../../../lib/recurrence";
 
 import { editSchedulePath } from "../workflows/[id]/tabs";
 
-/**
- * The Schedules table's decisions: the row, the strip, the three hole
- * stories, the banners, the enabled patch, the next-Occurrence labels, and
- * what a Workflow id changes on the list.
- *
- * The page draws these. It does not re-decide them. Occurrence *times* come
- * from GET /api/schedules/{id}; this module only phrases the timestamps it is
- * given. Recurrence words come from `humanize`.
- *
- * A Workflow id is the only prop, and it changes exactly three things: it
- * scopes the request (the hook), it hides the Workflow column, and it swaps
- * the empty state. Everything else is identical, so it lives here rather
- * than in a second file of rows.
- */
-
 export const COLUMNS = [
   "enabled",
   "workflow",
@@ -35,7 +20,6 @@ export const COLUMNS = [
 
 export type Column = (typeof COLUMNS)[number];
 
-/** The columns this variant draws. `workflowId` hides the Workflow column. */
 export function columnsOf(workflowId: string | undefined): readonly Column[] {
   return workflowId === undefined ? COLUMNS : COLUMNS.filter((column) => column !== "workflow");
 }
@@ -55,7 +39,6 @@ export const WORKFLOW_EMPTY = {
 
 export const FILTERED_EMPTY = "No Schedule matches these filters.";
 
-/** A Workflow id is a route; anything else in the query is a filter. */
 export function hasListFilter(filters: Record<string, string>): boolean {
   return Object.entries(filters).some(([key, value]) => key !== "workflow_id" && value !== "");
 }
@@ -118,7 +101,6 @@ export function holeStory(reason: OccurrenceReason, variableNames: readonly stri
   }
 }
 
-/** The hatch HatchedOccurrence draws for a hole. Three reasons, three hatches. */
 export type HoleHatch = "prevented" | "missed" | "missing-values";
 
 export function hatchOf(reason: OccurrenceReason): HoleHatch {
@@ -170,7 +152,6 @@ export type HistoryItem =
       blockingRunId: string | null;
     };
 
-/** The API already interleaves; this only reshapes. */
 export function historyItems(
   history: readonly (RunHistoryEntry | OccurrenceHistoryEntry)[],
 ): HistoryItem[] {

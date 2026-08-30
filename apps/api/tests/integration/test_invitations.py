@@ -1,10 +1,3 @@
-"""Invitations at their seam: HTTP against the app, with a real Postgres.
-
-External behaviour only, and the console mailer is the capture point: a test
-asks for an Invitation over HTTP and reads the Organization's name out of the
-message that came back, rather than out of the table that holds the row.
-"""
-
 from collections.abc import Callable
 from datetime import timedelta
 from uuid import UUID, uuid4
@@ -27,14 +20,12 @@ NewAccount = Callable[[], Account]
 
 
 def invite(inviter: Account, email: str, role: str = "member") -> Response:
-    """Offer an address a place in the inviter's Organization."""
     return inviter.client.post(
         f"/api/orgs/{inviter.org_id}/invitations", json={"email": email, "role": role}
     )
 
 
 def mail_to(address: str) -> str:
-    """The newest message the console mailer captured for an address."""
     for message in reversed(outbox()):
         if message.to == address:
             return f"{message.subject}\n{message.text}"
@@ -56,7 +47,6 @@ def test_an_owner_invites_an_address_and_the_invitation_is_emailed(
 
 
 def offered_to(account: Account) -> list[dict[str, object]]:
-    """The Invitations this account can accept, as its own screen reads them."""
     me = account.client.get("/api/auth/me")
     assert me.status_code == 200, me.text
     offers: list[dict[str, object]] = me.json()["invitations"]
@@ -64,7 +54,6 @@ def offered_to(account: Account) -> list[dict[str, object]]:
 
 
 def organizations_of(account: Account) -> list[tuple[str, str]]:
-    """Every Organization this account acts in, with the role it has there."""
     me = account.client.get("/api/auth/me")
     assert me.status_code == 200, me.text
     return [(org["id"], org["role"]) for org in me.json()["orgs"]]
@@ -102,8 +91,6 @@ def test_accepting_an_invitation_joins_the_organization_with_its_role(
 def test_an_invitation_is_not_another_accounts_to_accept(
     new_account: NewAccount,
 ) -> None:
-    """404 rather than 403: an id somebody else holds is not a fact they may
-    confirm by guessing at it."""
     owner = new_account()
     invitee = new_account()
     invite(owner, invitee.email)
@@ -118,7 +105,6 @@ def test_an_invitation_is_not_another_accounts_to_accept(
 
 
 def an_address() -> str:
-    """An address nobody has been offered yet, for an offer to be made to."""
     return f"grace-{uuid4().hex[:12]}@example.com"
 
 
@@ -162,7 +148,6 @@ def test_inviting_needs_a_session(new_account: NewAccount) -> None:
 def test_an_address_already_in_the_organization_cannot_be_invited(
     new_account: NewAccount,
 ) -> None:
-    """Any casing: the address is the identity, and it is one identity."""
     owner = new_account()
     member = join(owner, new_account(), role="member")
 
@@ -187,7 +172,6 @@ def test_a_second_standing_invitation_for_one_address_is_refused(
 
 
 def pending_in(managing: Account) -> list[dict[str, object]]:
-    """The Organization's standing offers, as its Invitations panel lists them."""
     listed = managing.client.get(f"/api/orgs/{managing.org_id}/invitations")
     assert listed.status_code == 200, listed.text
     invitations: list[dict[str, object]] = listed.json()
@@ -246,14 +230,6 @@ def test_only_the_inviting_organization_revokes_its_invitation(
 
 
 def raced_duplicate_of(offer: dict[str, object]) -> str:
-    """A second Invitation row for the address one already stands for.
-
-    `offer()` refuses a second standing offer by reading the pending list
-    first, so two admins inviting one address in the same instant both pass
-    that check and both insert. No route makes the second row, which is why
-    this test writes it: the state is reachable, and accepting it must not be
-    a database error.
-    """
     with Session(get_engine()) as db:
         first = db.get_one(Invitation, UUID(str(offer["id"])))
         second = Invitation(
@@ -270,8 +246,6 @@ def raced_duplicate_of(offer: dict[str, object]) -> str:
 def test_accepting_a_second_invitation_you_have_already_taken_up_changes_nothing(
     new_account: NewAccount,
 ) -> None:
-    """The offer is spent rather than refused: two rows were one decision, and
-    the role of the one that was accepted stands."""
     owner = new_account()
     invitee = new_account()
     offered = invite(owner, invitee.email, role="member")
@@ -308,8 +282,6 @@ def test_an_invitation_older_than_fourteen_days_is_no_longer_an_offer(
 def test_an_invitation_is_the_signup_permit_on_an_invite_only_instance(
     new_account: NewAccount, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The whole invited path end to end: an address nobody knows becomes an
-    account with no Organization of its own, and the offer is what it joins."""
     owner = new_account()
     invited = an_address()
     invite(owner, invited, role="admin")
@@ -346,7 +318,6 @@ def test_an_invitation_is_the_signup_permit_on_an_invite_only_instance(
 def test_an_uninvited_address_still_meets_a_closed_instance(
     new_account: NewAccount, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """An Invitation is a permit for the address it was made to, and no other."""
     owner = new_account()
     invite(owner, an_address())
     monkeypatch.setenv(SIGNUP_MODE_VARIABLE, "invite_only")

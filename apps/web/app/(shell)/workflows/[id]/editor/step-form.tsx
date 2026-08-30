@@ -12,24 +12,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { duration } from "@/lib/duration";
 
-/**
- * A card, expanded: everything this Step holds, editable in place.
- *
- * Two halves. The payload is what this type of Step does, and it is the only
- * part that differs between the eight. The envelope is what every Step
- * carries whatever it does — optional, off, a timeout of its own, and whether
- * to keep a screenshot — and it reads the same on all eight, so that a person
- * learns it once.
- *
- * Each targeting Step carries a selector panel: the ranked candidate list,
- * hand-edits that save with the Draft, and Re-pick for a target the API can
- * patch (`payload.target`). A pause's success check is hand-editable only.
- *
- * The whole form is one `fieldset`, which is how a published Version opens
- * read-only: a disabled fieldset disables every control inside it, so a
- * Version cannot be edited by a control a later slice forgot to thread a flag
- * through. Immutability is the platform's here, not a prop's.
- */
 export function StepForm({
   step,
   workflowDefaultMs,
@@ -67,7 +49,6 @@ export function StepForm({
   );
 }
 
-/** What this Step does — the half of the form that differs between the eight. */
 function Payload({
   step,
   variables,
@@ -196,7 +177,6 @@ function Payload({
   }
 }
 
-/** An extraction: one named value, or a flat list of records. */
 function ExtractPayload({
   step,
   selectorOpen,
@@ -373,12 +353,6 @@ function ExtractPayload({
   );
 }
 
-/**
- * A wait: a fixed length of time, or an element to wait for.
- *
- * Switching to an element lands on the same selector panel a hand-added click
- * uses. Switching back drops the target and starts a one-second pause.
- */
 function WaitPayload({
   step,
   selectorOpen,
@@ -429,7 +403,6 @@ function WaitPayload({
   );
 }
 
-/** A pause: what the person is asked, how long it waits, and how it ends. */
 function TakeoverPayload({
   step,
   selectorOpen,
@@ -494,7 +467,6 @@ function TakeoverPayload({
   );
 }
 
-/** The envelope: what every Step carries, whatever type it is. */
 function Envelope({
   step,
   workflowDefaultMs,
@@ -538,13 +510,6 @@ function Envelope({
   );
 }
 
-/**
- * One thing to fill in: its name, the control, and the sentence under it.
- *
- * A `<label>` when there is one control to name, and a plain group when there
- * are several — a label wrapping a row of inputs and a button would hand
- * every click on that row to the first input.
- */
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label className="flex flex-col gap-1">
@@ -615,10 +580,6 @@ function Choice<Value extends string>({
   );
 }
 
-/**
- * A length of time, typed in seconds and stored in milliseconds — the unit
- * the document keeps and the unit a person thinks in are not the same one.
- */
 function Milliseconds({
   value,
   placeholder,
@@ -651,7 +612,6 @@ function Milliseconds({
   );
 }
 
-/** An empty field means absent, which is what every optional value here means. */
 function blankToNull(typed: string): string | null {
   return typed === "" ? null : typed;
 }

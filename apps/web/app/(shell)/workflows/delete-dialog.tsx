@@ -15,13 +15,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-/**
- * Deleting a Workflow: a plain confirm that names what goes with it.
- *
- * Plain, and not type-to-confirm. That ceremony is reserved for ending an
- * account (`ufnuvx`); spending it on housekeeping would spend it everywhere,
- * and a confirmation everybody has learned to type through confirms nothing.
- */
 export function DeleteDialog({
   workflow,
   pending,

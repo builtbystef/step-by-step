@@ -1,5 +1,3 @@
-"""Postgres persistence for claims and the rows produced by execution."""
-
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
@@ -45,8 +43,6 @@ CLAIM = text(
 
 
 class PostgresRunStore:
-    """Each call is one durable unit, so a later browser failure loses no result."""
-
     def claim(
         self,
         run_id: UUID,
@@ -300,7 +296,6 @@ class PostgresRunStore:
 
 
 def work_from_claim(claimed: Mapping[str, Any]) -> RunWork:
-    """Select the immutable execution document from one conditionally claimed row."""
     document = (
         claimed["draft_snapshot"] if claimed["is_test"] else claimed["version_document"]
     )

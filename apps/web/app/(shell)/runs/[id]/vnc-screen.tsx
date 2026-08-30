@@ -5,12 +5,6 @@ import { useEffect, useRef } from "react";
 
 import { vncSocketUrl } from "./pane";
 
-/**
- * The Worker's browser, streamed over the backend VNC pipe. View-only is
- * also set on the client so a second tab of the holding session cannot
- * type — the proxy authenticates that session with the control password.
- */
-
 export function VncScreen({
   runId,
   interactive,

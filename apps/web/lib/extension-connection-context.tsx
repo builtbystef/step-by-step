@@ -16,7 +16,6 @@ export type ExtensionConnection = {
 
 const ExtensionConnectionContext = createContext<ExtensionConnection | null>(null);
 
-/** One probe and one version request shared by every extension surface in the shell. */
 export function ExtensionConnectionProvider({ children }: { children: ReactNode }) {
   const [version, setVersion] = useState<string | null | undefined>(undefined);
   const latestProbe = useRef(0);

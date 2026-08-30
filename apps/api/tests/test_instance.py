@@ -1,10 +1,3 @@
-"""What an unauthenticated visitor may learn about this instance.
-
-Signup mode, so the sign-in screen does not hardcode either copy, and the
-instance default timezone, so a Schedule picker can apply the default rule.
-Nothing here needs a service.
-"""
-
 import pytest
 from fastapi.testclient import TestClient
 from step_by_step_api.accounts.service import (
@@ -44,8 +37,6 @@ def test_signup_mode_reflects_the_environment(monkeypatch: pytest.MonkeyPatch) -
 def test_the_spec_spelling_with_a_hyphen_is_the_same_mode(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """`invite-only` is how the spec's prose writes it, and a self-hoster
-    copying that word must not meet a boot failure."""
     monkeypatch.setenv(SIGNUP_MODE_VARIABLE, "invite-only")
     monkeypatch.delenv(DEFAULT_TIMEZONE_VARIABLE, raising=False)
 

@@ -1,3 +1,13 @@
 # Decision records
 
-One file for each decision that is hard to reverse: `NNNN-{{slug}}.md`, numbered up from the highest number that exists. A title plus 1–3 sentences — context, decision, reason — is a complete ADR. Add Status, Considered Options, or Consequences only when they earn their place. Write an ADR only when all three conditions are true: the decision is hard to reverse; it is surprising without context; and it is the result of a real trade-off.
+Create one file for each decision that is costly to reverse. Name it `NNNN-{{slug}}.md`, using the next number.
+
+A short ADR needs only:
+
+- the context
+- the decision
+- the reason
+
+Add status, options, or consequences only when they provide useful information.
+
+Write an ADR only when the decision is costly to reverse, surprising without context, and based on a real trade-off.

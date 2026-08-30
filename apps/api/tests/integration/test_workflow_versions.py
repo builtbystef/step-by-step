@@ -1,13 +1,3 @@
-"""Publishing at its seam: HTTP against the app, real Postgres.
-
-The Draft's other half. What a publish mints is immutable and self-contained,
-what a diff says is keyed on Step ids that outlive it, and the draft state a
-list screen and an editor header render is derived from the two, never stored.
-
-The Draft helpers come from the document store's own tests, because a Version
-is a Draft that stopped changing and every test here starts by writing one.
-"""
-
 from uuid import uuid4
 
 import pytest
@@ -26,7 +16,6 @@ pytestmark = pytest.mark.integration
 
 
 def publish(account: Account, workflow_id: str) -> Response:
-    """Mint the next Version, the way the publish modal's confirm does."""
     return account.client.post(f"/api/workflows/{workflow_id}/versions")
 
 
@@ -41,9 +30,6 @@ def version(account: Account, workflow_id: str, number: int) -> Response:
 def test_publishing_mints_a_version_holding_the_draft_as_it_stands(
     new_account: NewAccount,
 ) -> None:
-    """A Version is executable forever on its own, so it holds the document
-    itself — steps and the Variables their values reference — and not a
-    reference to a Draft that will have moved on by the time a Run reads it."""
     account = new_account()
     workflow_id = a_workflow(account)
     steps = [a_navigate_step(str(uuid4())), a_click_step(str(uuid4()))]
@@ -80,8 +66,6 @@ def test_versions_are_numbered_from_one_and_listed_with_their_times(
 def test_editing_the_draft_afterwards_leaves_the_version_alone(
     new_account: NewAccount,
 ) -> None:
-    """The whole point of publishing: a Schedule firing at 3 a.m. executes what
-    was published, and not what somebody was in the middle of editing."""
     account = new_account()
     workflow_id = a_workflow(account)
     save_draft(account, workflow_id, steps=[a_navigate_step(str(uuid4()))])
@@ -95,8 +79,6 @@ def test_editing_the_draft_afterwards_leaves_the_version_alone(
 
 
 def test_no_route_writes_to_a_version(new_account: NewAccount) -> None:
-    """Immutability is the absence of a way in, so this is what is asserted:
-    the document URL answers reads and refuses every method that would write."""
     account = new_account()
     workflow_id = a_workflow(account)
     save_draft(account, workflow_id, steps=[a_navigate_step(str(uuid4()))])
@@ -124,12 +106,10 @@ def test_a_version_that_was_never_minted_is_not_found(
 
 
 def diff(account: Account, workflow_id: str) -> Response:
-    """What publishing would change, as the publish modal asks it."""
     return account.client.get(f"/api/workflows/{workflow_id}/draft/diff")
 
 
 def a_typed_step(step_id: str, value: str) -> dict[str, object]:
-    """A Step whose payload is easy to edit into a different one."""
     return {
         "id": step_id,
         "type": "type",
@@ -144,9 +124,6 @@ def a_typed_step(step_id: str, value: str) -> dict[str, object]:
 def test_the_diff_is_keyed_on_step_ids_and_not_on_positions(
     new_account: NewAccount,
 ) -> None:
-    """The worked example: with v1 published, A's payload edited, D added, and
-    C removed, a publish changes exactly those three Steps. Ids are what make
-    that answerable — B and C moved up when A grew, and neither changed."""
     account = new_account()
     workflow_id = a_workflow(account)
     a, b, c, d = (str(uuid4()) for _ in range(4))
@@ -173,8 +150,6 @@ def test_the_diff_is_keyed_on_step_ids_and_not_on_positions(
 def test_the_diff_names_each_step_the_way_the_editor_does(
     new_account: NewAccount,
 ) -> None:
-    """A modal saying "3 steps change" tells nobody anything: the labels are
-    what the person confirming the publish reads."""
     account = new_account()
     workflow_id = a_workflow(account)
     removed, added = str(uuid4()), str(uuid4())
@@ -189,8 +164,6 @@ def test_the_diff_names_each_step_the_way_the_editor_does(
 
 
 def test_a_first_publish_shows_every_step_as_added(new_account: NewAccount) -> None:
-    """There is nothing to compare against, so the modal that opens over a
-    never-published Workflow shows the whole Workflow arriving."""
     account = new_account()
     workflow_id = a_workflow(account)
     steps = [a_navigate_step(str(uuid4())), a_click_step(str(uuid4()))]
@@ -204,14 +177,12 @@ def test_a_first_publish_shows_every_step_as_added(new_account: NewAccount) -> N
 
 
 def state(account: Account, workflow_id: str) -> str:
-    """The Draft chip's word, as the editor header derives it."""
     return str(diff(account, workflow_id).json()["state"])
 
 
 def test_the_draft_state_follows_publishing_and_editing(
     new_account: NewAccount,
 ) -> None:
-    """The three states in the order a Workflow lives through them."""
     account = new_account()
     workflow_id = a_workflow(account)
     save_draft(account, workflow_id, steps=[a_navigate_step(str(uuid4()))])
@@ -237,8 +208,6 @@ def test_the_draft_state_follows_publishing_and_editing(
 def test_a_draft_saved_back_unchanged_is_still_in_sync(
     new_account: NewAccount,
 ) -> None:
-    """A save is not an edit. An editor that opens a Workflow and writes the
-    same document back must not turn a green chip amber."""
     account = new_account()
     workflow_id = a_workflow(account)
     steps = [a_navigate_step(str(uuid4()))]
@@ -253,9 +222,6 @@ def test_a_draft_saved_back_unchanged_is_still_in_sync(
 def test_a_change_no_step_diff_can_show_is_still_unpublished_changes(
     new_account: NewAccount,
 ) -> None:
-    """Renaming nothing and reordering two Steps changes what a Run does — the
-    order it acts in, and which values are masked — so the chip says so even
-    though no Step was added, changed, or removed."""
     account = new_account()
     workflow_id = a_workflow(account)
     first, second = a_navigate_step(str(uuid4())), a_click_step(str(uuid4()))
@@ -275,7 +241,6 @@ def test_a_change_no_step_diff_can_show_is_still_unpublished_changes(
 
 
 def restore(account: Account, workflow_id: str, number: int) -> Response:
-    """Bring a past Version back into the Draft, as the editor's restore does."""
     return account.client.post(
         f"/api/workflows/{workflow_id}/versions/{number}/restore"
     )
@@ -284,8 +249,6 @@ def restore(account: Account, workflow_id: str, number: int) -> Response:
 def test_restoring_a_version_puts_its_document_back_in_the_draft(
     new_account: NewAccount,
 ) -> None:
-    """Ids come back as they went in: a restored Step is the same Step, so its
-    Step Results across the Versions in between are still its own history."""
     account = new_account()
     workflow_id = a_workflow(account)
     old, new = str(uuid4()), str(uuid4())
@@ -308,8 +271,6 @@ def test_restoring_a_version_puts_its_document_back_in_the_draft(
 def test_restoring_mints_nothing_and_changes_no_version(
     new_account: NewAccount,
 ) -> None:
-    """Restoring is an edit of the Draft. What executes is unchanged until the
-    user publishes what they restored, which is what the chip then asks for."""
     account = new_account()
     workflow_id = a_workflow(account)
     save_draft(account, workflow_id, steps=[a_navigate_step(str(uuid4()))])
@@ -333,8 +294,6 @@ def test_restoring_mints_nothing_and_changes_no_version(
 def test_restoring_the_latest_version_leaves_the_draft_in_sync(
     new_account: NewAccount,
 ) -> None:
-    """The state is a comparison and not a memory of what was done to get here:
-    a Draft that has been edited back to the latest Version is in sync."""
     account = new_account()
     workflow_id = a_workflow(account)
     save_draft(account, workflow_id, steps=[a_navigate_step(str(uuid4()))])
@@ -362,9 +321,6 @@ def test_restoring_a_version_that_does_not_exist_leaves_the_draft_alone(
 
 
 def test_another_organizations_versions_do_not_exist(new_account: NewAccount) -> None:
-    """Same rule as the Draft's, on every route that arrived with publishing:
-    a refusal that admitted the id exists would map another tenant's Workflows
-    one guess at a time."""
     owner = new_account()
     workflow_id = a_workflow(owner)
     save_draft(owner, workflow_id, steps=[a_navigate_step(str(uuid4()))])
@@ -385,16 +341,12 @@ def test_another_organizations_versions_do_not_exist(new_account: NewAccount) ->
 
 
 def a_schedule(account: Account, workflow_id: str, **body: object) -> Response:
-    """Create a Schedule of this Workflow, the way the form's save does."""
     return account.client.post(f"/api/workflows/{workflow_id}/schedules", json=body)
 
 
 def test_the_diff_names_schedules_a_new_variable_would_strand(
     new_account: NewAccount,
 ) -> None:
-    """The publish confirmation's read: the candidate Version's declared
-    Variables checked against each Schedule's value set, before anything is
-    minted. Confirming then leaves both Schedules reading needs_values."""
     account = new_account()
     workflow_id = a_workflow(account)
     save_draft(
@@ -456,8 +408,6 @@ def test_the_diff_names_schedules_a_new_variable_would_strand(
 def test_the_diff_names_no_schedule_when_none_would_be_stranded(
     new_account: NewAccount,
 ) -> None:
-    """A publish that does not leave any Schedule missing a value is the
-    ordinary confirmation: the read still answers, with an empty list."""
     account = new_account()
     workflow_id = a_workflow(account)
     save_draft(
@@ -493,8 +443,6 @@ def test_the_diff_names_no_schedule_when_none_would_be_stranded(
 def test_reading_which_schedules_would_be_stranded_mints_nothing(
     new_account: NewAccount,
 ) -> None:
-    """Cancelling at the warning is free because the confirmation is a read:
-    the Draft stays unpublished and every Schedule stays as it was."""
     account = new_account()
     workflow_id = a_workflow(account)
     save_draft(

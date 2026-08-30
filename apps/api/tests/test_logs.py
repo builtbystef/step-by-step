@@ -1,15 +1,3 @@
-"""Where the backend's own log records go.
-
-uvicorn configures handlers for its `uvicorn*` loggers and none for the root,
-so an application record at INFO is written to a logger with nothing attached
-and dropped. The console mailer's message is such a record, and on a default
-dev instance the Sign-in Code inside it is the only way in — so this is tested
-at the seam that broke: the app started the way uvicorn starts it, and a
-mailed message read off the process's own stdout.
-
-Nothing here needs a service; the lifespan is the one the test client runs.
-"""
-
 import logging
 import logging.config
 from base64 import b64encode
@@ -30,7 +18,6 @@ UVICORN_LOGGERS = ("uvicorn", "uvicorn.error", "uvicorn.access")
 
 @pytest.fixture(autouse=True)
 def a_bootable_instance(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """The environment a default dev instance boots with, and no cached boot."""
     monkeypatch.setenv("STEPBYSTEP_MASTER_KEY", VALID_KEY)
     monkeypatch.setenv("MAILER", "console")
     master_key.cache_clear()
@@ -42,11 +29,6 @@ def a_bootable_instance(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 
 @pytest.fixture(autouse=True)
 def uvicorns_logging_stays_in_its_test() -> Iterator[None]:
-    """One test configures uvicorn's loggers the way uvicorn does; only it.
-
-    The root logger is `conftest.py`'s to clean up, and it does that for every
-    test in the package — this is the one place that also touches uvicorn's.
-    """
     was = [
         (logging.getLogger(name), logging.getLogger(name).handlers[:])
         for name in UVICORN_LOGGERS
@@ -59,7 +41,6 @@ def uvicorns_logging_stays_in_its_test() -> Iterator[None]:
 def test_a_mailed_message_reaches_stdout_when_the_app_has_started(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """The bug: without a handler on the root, this went nowhere."""
     with TestClient(app):
         send(to="ada@example.com", subject="Your sign-in code", text="It is 123456.")
 
@@ -71,7 +52,6 @@ def test_a_mailed_message_reaches_stdout_when_the_app_has_started(
 def test_a_mailed_message_is_printed_once_however_often_the_app_starts(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """`--reload` and the test client both start the app more than once."""
     with TestClient(app):
         pass
     with TestClient(app):
@@ -83,12 +63,10 @@ def test_a_mailed_message_is_printed_once_however_often_the_app_starts(
 def test_uvicorns_own_records_are_neither_silenced_nor_doubled(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Production order: uvicorn configures its logging, then imports the app."""
     logging.config.dictConfig(uvicorn.config.LOGGING_CONFIG)
 
     with TestClient(app):
         logging.getLogger("uvicorn.error").info("Application startup complete.")
-        # The five arguments uvicorn's own access formatter reads.
         logging.getLogger("uvicorn.access").info(
             '%s - "%s %s HTTP/%s" %d',
             "127.0.0.1:57000",
@@ -105,7 +83,6 @@ def test_uvicorns_own_records_are_neither_silenced_nor_doubled(
 
 
 def test_the_application_handler_is_the_only_one_the_app_adds() -> None:
-    """One place configures logging, so one handler carries every call site."""
     with TestClient(app):
         pass
 

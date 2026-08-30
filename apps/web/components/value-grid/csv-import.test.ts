@@ -4,12 +4,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { beginImport, confirmImport, dismissSummary, parseCsv, reopenSummary } from "./csv-import";
 import { columnsOf, submittedVariables } from "./grid";
 
-/**
- * The import path's decisions, read back without a DOM: parse, reconcile,
- * land-or-strip, a dismissible summary, and a payload that never carries a
- * dropped column. Network is asserted over the requests actually made.
- */
-
 const CITY: Variable = { name: "city" };
 const ZIP_CODE: Variable = { name: "zipCode" };
 const PASSWORD: Variable = {

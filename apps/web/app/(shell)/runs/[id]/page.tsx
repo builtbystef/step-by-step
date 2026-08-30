@@ -64,13 +64,6 @@ import { invalidateRunState } from "@/lib/attention";
 import { duration } from "@/lib/duration";
 import { cn } from "@/lib/utils";
 
-/**
- * `/runs/[id]` — the cockpit where a Run is understood.
- *
- * The pane is the Worker's browser: view-only while automation runs,
- * amber and waiting when parked, interactive during takeover.
- */
-
 export default function RunDetailPage() {
   const { active } = useActiveOrganization();
   const params = useParams<{ id: string }>();

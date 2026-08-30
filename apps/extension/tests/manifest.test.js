@@ -4,12 +4,6 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-/**
- * The four promises the package itself makes, asserted against the file Chrome
- * reads. They are what distribution rests on: unpacked installs have no store
- * to enforce anything, so the manifest is the whole contract.
- */
-
 const PACKAGE = join(import.meta.dirname, "..", "src");
 const manifest = JSON.parse(readFileSync(join(PACKAGE, "manifest.json"), "utf8"));
 
@@ -25,9 +19,6 @@ describe("the extension package", () => {
   it("pins a key, so the extension id does not follow the install directory", () => {
     const key = Buffer.from(manifest.key, "base64");
 
-    // Chrome's own derivation: the first 16 bytes of the key's SHA-256, with
-    // each hex digit mapped into a-p. An id that moved would break an
-    // enterprise-policy install and any later Web Store continuity.
     const digest = createHash("sha256").update(key).digest("hex").slice(0, 32);
     const id = [...digest].map((digit) => "abcdefghijklmnop"[parseInt(digit, 16)]).join("");
 

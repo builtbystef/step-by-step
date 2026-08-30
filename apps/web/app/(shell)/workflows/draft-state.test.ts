@@ -4,13 +4,6 @@ import { draftStateBadge, refusalToRun } from "./draft-state";
 
 import { COPY } from "../../../lib/copy";
 
-/**
- * The Draft chip, and the one sentence a Workflow that has published nothing
- * is refused with. Both are read back here because both appear on two screens
- * — the list row and the Workflow header — and two screens phrasing the same
- * fact is exactly how they drift apart.
- */
-
 describe("the draft-state badge", () => {
   it("is neutral until a first publish, and says so plainly", () => {
     const badge = draftStateBadge("never-published", null);

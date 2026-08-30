@@ -1,10 +1,3 @@
-"""Auth State store
-
-Revision ID: e3a79b8c2410
-Revises: d2f648a719c3
-Create Date: 2026-08-24 07:30:00.000000
-"""
-
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -17,7 +10,6 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """Add Organization Auth State and member Personal Overrides."""
     op.create_table(
         "auth_states",
         sa.Column("id", sa.Uuid(), nullable=False),
@@ -69,7 +61,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Remove Auth State storage."""
     op.drop_index(op.f("ix_auth_states_user_id"), table_name="auth_states")
     op.drop_index(op.f("ix_auth_states_org_id"), table_name="auth_states")
     op.drop_index("auth_states_organization_domain_key", table_name="auth_states")

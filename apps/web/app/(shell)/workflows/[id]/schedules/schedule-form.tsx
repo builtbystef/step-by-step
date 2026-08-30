@@ -56,11 +56,6 @@ import { Input } from "@/components/ui/input";
 import { COPY } from "@/lib/copy";
 import { humanize, type Recurrence } from "@/lib/recurrence";
 
-/**
- * The creation and edit surface: preset chips, a sentence of dropdowns (or a
- * raw cron field), the preview, and the one-row value set.
- */
-
 export function ScheduleForm({
   orgId,
   workflowId,

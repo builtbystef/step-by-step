@@ -4,11 +4,6 @@ import { deletionConsequence, refusalMessage, scheduleIndicator } from "./messag
 
 import { COPY } from "../../../lib/copy";
 
-/**
- * What the Workflows screens say when a route refuses them, and what the
- * delete dialog names before it is agreed to.
- */
-
 const REFUSALS = [
   "workflow_not_found",
   "no_published_version",

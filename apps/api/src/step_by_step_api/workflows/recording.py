@@ -1,5 +1,3 @@
-"""Recording-session capabilities, checkpoints, and Draft finalization."""
-
 import hashlib
 import re
 import secrets
@@ -75,8 +73,6 @@ def require_supported_version(version: str | None) -> None:
 
 
 class MintRequest(BaseModel):
-    """A new scope, or the id of an expired scope whose buffer must survive."""
-
     session_id: UUID | None = None
     mode: RecordingMode = RecordingMode.RECORD
     step_id: UUID | None = None
@@ -112,7 +108,6 @@ def mint_session(
         str | None, Header(alias="X-Extension-Version")
     ] = None,
 ) -> MintedSession:
-    """Mint or rotate a one-hour token for this user and this Draft."""
     require_supported_version(extension_version)
     draft = draft_of(db, member, workflow_id)
     if asked.session_id is None:
@@ -201,7 +196,6 @@ def save_checkpoint(
     db: SessionDep,
     authorization: Annotated[str | None, Header()] = None,
 ) -> Response:
-    """Keep only the newest full buffer; repeating a sequence changes nothing."""
     session = authorized_session(db, session_id, authorization)
     if session.mode is not RecordingMode.RECORD:
         raise ApiError(
@@ -226,7 +220,6 @@ def create_recording_secret(
     db: SessionDep,
     authorization: Annotated[str | None, Header()] = None,
 ) -> SecretIdentity:
-    """Create an Organization Secret through this recording capability."""
     session = authorized_session(db, session_id, authorization)
     org_id = db.execute(
         select(Workflow.org_id).where(Workflow.id == session.workflow_id)
@@ -255,7 +248,6 @@ def auth_state_options(
     db: SessionDep,
     authorization: Annotated[str | None, Header()] = None,
 ) -> list[AuthStateOption]:
-    """Collapse visited hosts and describe both destinations for the checklist."""
     session = authorized_session(db, session_id, authorization)
     domains = sorted({registrable_domain(host) for host in asked.hosts})
     org_id = db.execute(
@@ -299,7 +291,6 @@ def capture_auth_states(
     db: SessionDep,
     authorization: Annotated[str | None, Header()] = None,
 ) -> Response:
-    """Store only the destinations explicitly selected at recording save."""
     session = authorized_session(db, session_id, authorization)
     org_id = db.execute(
         select(Workflow.org_id).where(Workflow.id == session.workflow_id)
@@ -355,7 +346,6 @@ def finalize_session(
     db: SessionDep,
     authorization: Annotated[str | None, Header()] = None,
 ) -> WorkflowDocument:
-    """Replace the Draft from a recording, or patch one Re-pick target."""
     session = authorized_session(db, session_id, authorization)
     draft = db.execute(
         select(WorkflowDraft)
