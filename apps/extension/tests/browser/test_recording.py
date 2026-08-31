@@ -598,6 +598,31 @@ def test_position_only_target_warns_while_the_recording_is_open(
     page.close()
 
 
+def test_a_warning_can_be_dismissed_without_recording_the_dismissal(
+    connected_browser: BrowserContext,
+    fixture_site: str,
+    recording_sink: RecordingSink,
+) -> None:
+    page = connected_browser.new_page()
+    page.goto(f"{fixture_site}/recording.html")
+    surface = start_recording(connected_browser, fixture_site, page)
+
+    page.click("#positional-control")
+    recording_sink.wait_for_steps_after_start(1)
+    warning = page.locator('[data-step-by-step-warning="unsupported"]')
+    warning.get_by_label("Dismiss this warning").click()
+    warning.wait_for(state="detached")
+
+    page.click('[data-testid="save"]')
+    steps = recording_sink.wait_for_steps_after_start(2)
+
+    assert len(steps) == 2
+    assert steps[1]["label"] == "Click Save"
+
+    surface.close()
+    page.close()
+
+
 def test_navigation_is_correlated_without_mixing_page_loads(
     connected_browser: BrowserContext,
     fixture_site: str,

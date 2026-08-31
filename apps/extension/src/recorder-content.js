@@ -118,6 +118,22 @@
     return labelText || element.placeholder || "field";
   }
 
+  function cross() {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 16 16");
+    svg.setAttribute("width", "14");
+    svg.setAttribute("height", "14");
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "1.5");
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("aria-hidden", "true");
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", "M4 4l8 8M12 4l-8 8");
+    svg.append(path);
+    return svg;
+  }
+
   function showWarning(unsupported) {
     if (
       unsupported === null ||
@@ -129,7 +145,6 @@
     const warning = document.createElement("div");
     warning.dataset.stepByStepWarning = "unsupported";
     warning.setAttribute("role", "alert");
-    warning.textContent = unsupported.warning;
     // The app's warn Callout, said in full here: this box lands in a page whose
     // own stylesheet it cannot borrow anything from.
     Object.assign(warning.style, {
@@ -137,6 +152,9 @@
       inset: "16px 16px auto 16px",
       zIndex: "2147483647",
       boxSizing: "border-box",
+      display: "flex",
+      alignItems: "flex-start",
+      gap: "12px",
       margin: "0",
       padding: "12px 16px",
       font: "600 13px/1.45 system-ui, sans-serif",
@@ -148,13 +166,39 @@
       borderRadius: "0",
       boxShadow: "0 6px 16px rgb(19 19 22 / 12%)",
     });
+
+    const said = document.createElement("span");
+    said.style.flex = "1";
+    said.textContent = unsupported.warning;
+
+    const dismiss = document.createElement("button");
+    dismiss.type = "button";
+    dismiss.setAttribute("aria-label", "Dismiss this warning");
+    // Drawn rather than written, so the box still reads as only its warning, and
+    // built node by node because a page with Trusted Types refuses innerHTML.
+    dismiss.append(cross());
+    Object.assign(dismiss.style, {
+      all: "unset",
+      cursor: "pointer",
+      flex: "none",
+      display: "flex",
+      margin: "-2px -4px 0 0",
+      padding: "2px",
+      color: "inherit",
+    });
+    dismiss.addEventListener("click", () => warning.remove());
+
+    warning.append(said, dismiss);
     document.documentElement.append(warning);
   }
 
   function actionable(target) {
-    return target instanceof Element
-      ? (target.closest("a,button,input,select,textarea,summary,[role],[onclick],label") ?? target)
-      : null;
+    if (!(target instanceof Element)) return null;
+    // The recorder's own warning box belongs to no Workflow, dismissing it least of all.
+    if (target.closest("[data-step-by-step-warning]")) return null;
+    return (
+      target.closest("a,button,input,select,textarea,summary,[role],[onclick],label") ?? target
+    );
   }
 
   function correlationFor(element) {
