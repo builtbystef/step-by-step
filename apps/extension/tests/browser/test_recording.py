@@ -104,7 +104,7 @@ def test_insecure_http_page_captures_steps_without_secure_context_apis(
     surface = start_recording(connected_browser, fixture_site, page)
 
     page.click('[data-testid="save"]')
-    steps = recording_sink.wait_for_steps(1)
+    steps = recording_sink.wait_for_steps_after_start(1)
 
     assert steps[0]["label"] == "Click Save"
     surface.close()
@@ -140,7 +140,7 @@ def test_clicks_emit_ranked_verified_steps_in_order_and_checkpoint_them(
     )
     page.fill('[data-testid="email"]', "person@example.test")
     page.press('[data-testid="email"]', "Tab")
-    steps = recording_sink.wait_for_steps(4)
+    steps = recording_sink.wait_for_steps_after_start(4)
 
     assert [step["label"] for step in steps] == [
         "Click Save",
@@ -185,7 +185,7 @@ def test_finished_recording_binds_password_and_finalizes_directly(
     page.click('[data-testid="save"]')
     page.fill('[data-testid="password"]', "not-in-the-document")
     page.press('[data-testid="password"]', "Tab")
-    recording_sink.wait_for_steps(2)
+    recording_sink.wait_for_steps_after_start(2)
     surface.evaluate("() => chrome.runtime.sendMessage({type: 'stop-recording'})")
     surface.locator("input[data-variable-name]").fill("site_password")
     surface.locator("select[data-secret-choice]").select_option("new")
@@ -198,8 +198,9 @@ def test_finished_recording_binds_password_and_finalizes_directly(
     assert recording_sink.secret_creations == [
         {"name": "Fixture password", "value": "one-request-only"}
     ]
-    assert saved["steps"][1]["payload"]["value"] == "{{site_password}}"
-    assert "needsSecret" not in saved["steps"][1]
+    assert [step["type"] for step in saved["steps"]] == ["navigate", "click", "type"]
+    assert saved["steps"][2]["payload"]["value"] == "{{site_password}}"
+    assert "needsSecret" not in saved["steps"][2]
     assert saved["variables"] == [
         {
             "name": "site_password",
@@ -227,7 +228,7 @@ def test_taken_recording_secret_name_can_switch_to_an_existing_secret(
 
     page.fill('[data-testid="password"]', "never-captured")
     page.press('[data-testid="password"]', "Tab")
-    step = recording_sink.wait_for_steps(1)[0]
+    step = recording_sink.wait_for_steps_after_start(1)[0]
     surface.evaluate("() => chrome.runtime.sendMessage({type: 'stop-recording'})")
     conflict = surface.evaluate(
         """(stepId) => chrome.runtime.sendMessage({
@@ -366,7 +367,7 @@ def test_password_value_never_crosses_the_extension_boundary(
     literal = "do-not-record-this"
     page.fill('[data-testid="password"]', literal)
     page.press('[data-testid="password"]', "Tab")
-    steps = recording_sink.wait_for_steps(1)
+    steps = recording_sink.wait_for_steps_after_start(1)
     stored = worker_of(connected_browser).evaluate(
         "() => chrome.storage.local.get('active-recording')"
     )
@@ -391,7 +392,7 @@ def test_option_selection_emits_a_select_step(
     surface = start_recording(connected_browser, fixture_site, page)
 
     page.select_option('[data-testid="country"]', "nl")
-    steps = recording_sink.wait_for_steps(1)
+    steps = recording_sink.wait_for_steps_after_start(1)
 
     assert steps[0]["type"] == "select"
     assert steps[0]["label"] == "Select Country"
@@ -423,7 +424,7 @@ def test_extract_toggle_makes_the_next_click_side_effect_free(
     )
     assert armed == {"armed": True}
     page.click('[data-testid="save"]')
-    steps = recording_sink.wait_for_steps(1)
+    steps = recording_sink.wait_for_steps_after_start(1)
 
     assert page.locator("body").get_attribute("data-last-click") is None
     assert steps[0]["type"] == "extract"
@@ -462,7 +463,7 @@ def test_list_extract_carries_flat_field_bindings(
     )
     assert armed == {"armed": True}
     page.click('[data-testid="save"]')
-    steps = recording_sink.wait_for_steps(1)
+    steps = recording_sink.wait_for_steps_after_start(1)
 
     assert steps[0]["payload"]["mode"] == "list"
     assert steps[0]["payload"]["fields"] == fields
@@ -481,7 +482,7 @@ def test_closed_shadow_target_is_recorded_with_an_immediate_warning(
     surface = start_recording(connected_browser, fixture_site, page)
 
     page.locator("#sealed-control").click()
-    steps = recording_sink.wait_for_steps(1)
+    steps = recording_sink.wait_for_steps_after_start(1)
     warning = page.locator('[data-step-by-step-warning="unsupported"]')
 
     assert warning.is_visible()
@@ -509,7 +510,7 @@ def test_unreachable_frame_target_is_recorded_with_a_warning(
     frame = page.frame_locator("#unreachable-frame")
 
     frame.locator('[data-testid="after-navigation"]').click()
-    steps = recording_sink.wait_for_steps(1)
+    steps = recording_sink.wait_for_steps_after_start(1)
 
     assert steps[0]["payload"]["target"]["unsupported"]["reason"] == (
         "cross-origin-frame"
@@ -519,6 +520,79 @@ def test_unreachable_frame_target_is_recorded_with_a_warning(
         in steps[0]["payload"]["target"]["unsupported"]["warning"]
     )
     assert page.locator('[data-step-by-step-warning="unsupported"]').is_visible()
+
+    surface.close()
+    page.close()
+
+
+def test_recording_opens_with_a_navigate_step_to_the_page_it_started_on(
+    connected_browser: BrowserContext,
+    fixture_site: str,
+    recording_sink: RecordingSink,
+) -> None:
+    page = connected_browser.new_page()
+    page.goto(f"{fixture_site}/recording.html")
+    surface = start_recording(connected_browser, fixture_site, page)
+
+    page.click('[data-testid="save"]')
+    steps = recording_sink.wait_for_steps(2)
+
+    assert steps[0] == {
+        "id": steps[0]["id"],
+        "type": "navigate",
+        "label": "Navigate to 127.0.0.1",
+        "optional": False,
+        "disabled": False,
+        "screenshot": False,
+        "payload": {"url": f"{fixture_site}/recording.html"},
+    }
+    assert steps[1]["label"] == "Click Save"
+
+    surface.close()
+    page.close()
+
+
+def test_aria_label_names_a_target_whose_own_text_is_unusable(
+    connected_browser: BrowserContext,
+    fixture_site: str,
+    recording_sink: RecordingSink,
+) -> None:
+    page = connected_browser.new_page()
+    page.goto(f"{fixture_site}/recording.html")
+    surface = start_recording(connected_browser, fixture_site, page)
+
+    page.click("#overlay-control")
+    steps = recording_sink.wait_for_steps_after_start(1)
+    candidates = steps[0]["payload"]["target"]["candidates"]
+
+    assert "text" not in {candidate["kind"] for candidate in candidates}
+    assert {"kind": "label", "value": "Play the video"} in candidates
+    assert page.locator('[data-step-by-step-warning="unsupported"]').count() == 0
+
+    surface.close()
+    page.close()
+
+
+def test_position_only_target_warns_while_the_recording_is_open(
+    connected_browser: BrowserContext,
+    fixture_site: str,
+    recording_sink: RecordingSink,
+) -> None:
+    page = connected_browser.new_page()
+    page.goto(f"{fixture_site}/recording.html")
+    surface = start_recording(connected_browser, fixture_site, page)
+
+    page.click("#positional-control")
+    steps = recording_sink.wait_for_steps_after_start(1)
+    warning = page.locator('[data-step-by-step-warning="unsupported"]')
+
+    assert [
+        candidate["kind"] for candidate in steps[0]["payload"]["target"]["candidates"]
+    ] == ["css"]
+    assert warning.text_content() == (
+        "Only where this element sits on the page could be recorded. A layout "
+        "change will lose it. The step was recorded anyway."
+    )
 
     surface.close()
     page.close()
@@ -536,7 +610,7 @@ def test_navigation_is_correlated_without_mixing_page_loads(
     page.click('[data-testid="next"]')
     page.wait_for_url(f"{fixture_site}/destination.html")
     page.click('[data-testid="after-navigation"]')
-    steps = recording_sink.wait_for_steps(2)
+    steps = recording_sink.wait_for_steps_after_start(2)
 
     assert [step["type"] for step in steps] == ["click", "click"]
     assert steps[0]["payload"]["assertedNavigation"] is True
@@ -559,7 +633,7 @@ def test_browser_navigation_emits_a_standalone_navigate_step(
     surface = start_recording(connected_browser, fixture_site, page)
 
     page.goto(f"{fixture_site}/destination.html")
-    steps = recording_sink.wait_for_steps(1)
+    steps = recording_sink.wait_for_steps_after_start(1)
 
     assert steps == [
         {

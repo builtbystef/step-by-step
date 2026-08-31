@@ -96,6 +96,12 @@ class RecordingSink:
             assert ready
             return deepcopy(self.auth_captures[-1])
 
+    def wait_for_steps_after_start(self, count: int) -> list[dict[str, Any]]:
+        """The Steps past the navigate Step that opens every recording."""
+        steps = self.wait_for_steps(count + 1)
+        assert steps[0]["type"] == "navigate"
+        return steps[1:]
+
     def wait_for_steps(self, count: int) -> list[dict[str, Any]]:
         with self.condition:
             ready = self.condition.wait_for(

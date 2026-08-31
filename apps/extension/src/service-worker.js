@@ -17,7 +17,13 @@ import {
 } from "./lib/handshake.js";
 import { originPattern, readInstanceUrl } from "./lib/instance.js";
 import { pageBridge } from "./lib/page-bridge.js";
-import { bindSecretSteps, captureChoices, readPendingRecording } from "./lib/recording.js";
+import {
+  bindSecretSteps,
+  captureChoices,
+  fragile,
+  navigateStep,
+  readPendingRecording,
+} from "./lib/recording.js";
 
 const CONNECTION_KEY = "connection";
 
@@ -498,6 +504,10 @@ const AX_WAIT_MS = 750;
 const DOWNLOAD_WINDOW_MS = 5000;
 const CLOSED_SHADOW_WARNING =
   "This part of the page is sealed off, so the workflow may not be able to use it later. The step was recorded anyway.";
+// The editor's fragile badge says this about a saved Step. Said here too, so the
+// recording is still open and the element still on screen to re-pick.
+const FRAGILE_TARGET_WARNING =
+  "Only where this element sits on the page could be recorded. A layout change will lose it. The step was recorded anyway.";
 let recordingQueue = Promise.resolve();
 const accessibilityQueries = new Map();
 
@@ -578,6 +588,9 @@ async function startRecording(message) {
   active.tabId = tab.id;
   active.state = "recording";
   active.visitedHosts = [new URL(message.targetUrl).hostname];
+  // The page is already loaded, so its commit fired before recordNavigation was
+  // listening. Without this the Workflow replays from a blank page.
+  if (active.mode === "record") active.steps = [navigateStep(message.targetUrl)];
   await chrome.storage.local.set({ [RECORDING_KEY]: active });
   await injectRecorder(tab.id);
   await captureOpenFrameStorage();
@@ -788,7 +801,7 @@ async function acceptRecorderMessage(message, sender) {
       queryAccessibility(active.tabId, sender.frameId, message.correlation),
     );
   } else {
-    void enqueueRecording(() => assembleInteraction(active.tabId, key, message));
+    void enqueueRecording(() => assembleInteraction(active.tabId, sender.frameId, key, message));
   }
   return { accepted: true };
 }
@@ -846,7 +859,7 @@ async function queryAccessibility(tabId, frameId, correlation) {
   }
 }
 
-async function assembleInteraction(tabId, key, message) {
+async function assembleInteraction(tabId, frameId, key, message) {
   const active = await activeRecording();
   if (active?.tabId !== tabId) return;
   const pending = accessibilityQueries.get(key);
@@ -860,6 +873,18 @@ async function assembleInteraction(tabId, key, message) {
   const candidates = Array.isArray(message.candidates) ? [...message.candidates] : [];
   if (prefetched?.role) {
     candidates.splice(candidates[0]?.kind === "testid" ? 1 : 0, 0, prefetched.role);
+  }
+  const unsupported = message.unsupported ?? prefetched?.unsupported ?? null;
+  // The role candidate arrives here rather than from the page, so this waits for it.
+  // A sealed or unreachable target already said something sharper than "fragile".
+  if (unsupported === null && fragile(candidates)) {
+    void chrome.tabs
+      .sendMessage(
+        tabId,
+        { type: "recorder-warning", unsupported: { warning: FRAGILE_TARGET_WARNING } },
+        { frameId },
+      )
+      .catch(() => {});
   }
   if (active.mode === "repick") {
     await completeRepick(active, candidates);
@@ -887,9 +912,7 @@ async function assembleInteraction(tabId, key, message) {
     payload: {
       target: {
         candidates,
-        ...(message.unsupported || prefetched?.unsupported
-          ? { unsupported: message.unsupported ?? prefetched.unsupported }
-          : {}),
+        ...(unsupported === null ? {} : { unsupported }),
       },
       ...(["type", "select"].includes(message.event) ? { value: message.value ?? "" } : {}),
       ...(message.event === "extract" && message.extract ? message.extract : {}),
@@ -1071,15 +1094,7 @@ async function recordNavigation(details) {
   if (previous?.type === "click" && ["link", "form_submit"].includes(details.transitionType)) {
     previous.payload.assertedNavigation = true;
   } else {
-    active.steps.push({
-      id: crypto.randomUUID(),
-      type: "navigate",
-      label: `Navigate to ${new URL(details.url).hostname}`,
-      optional: false,
-      disabled: false,
-      screenshot: false,
-      payload: { url: details.url },
-    });
+    active.steps.push(navigateStep(details.url));
   }
   await checkpoint(active);
   await injectRecorder(active.tabId);

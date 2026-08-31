@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   bindSecretSteps,
   captureChoices,
+  fragile,
+  navigateStep,
   readPendingRecording,
   replacementHint,
 } from "../src/lib/recording.js";
@@ -169,6 +171,44 @@ describe("binding password Steps before finalizing", () => {
         secretName: "Portal password",
       },
     ]);
+  });
+});
+
+describe("a target worth warning about while recording", () => {
+  it("is one that could only be placed by its position, or not at all", () => {
+    expect(fragile([])).toBe(true);
+    expect(fragile([{ kind: "css", value: "#media-container-link" }])).toBe(true);
+    expect(
+      fragile([
+        { kind: "css", value: "div > a" },
+        { kind: "css", value: "#one" },
+      ]),
+    ).toBe(true);
+  });
+
+  it("is not one a semantic candidate can find again", () => {
+    expect(
+      fragile([
+        { kind: "label", value: "Rick Astley - Never Gonna Give You Up" },
+        { kind: "css", value: "#media-container-link" },
+      ]),
+    ).toBe(false);
+    expect(fragile([{ kind: "role", value: 'button[name="Search"]' }])).toBe(false);
+  });
+});
+
+describe("the navigate Step", () => {
+  it("carries the whole URL and names its host", () => {
+    const step = navigateStep("https://www.youtube.com/results?search_query=rick+roll");
+    expect(step).toMatchObject({
+      type: "navigate",
+      label: "Navigate to www.youtube.com",
+      optional: false,
+      disabled: false,
+      screenshot: false,
+      payload: { url: "https://www.youtube.com/results?search_query=rick+roll" },
+    });
+    expect(step.id).toEqual(expect.any(String));
   });
 });
 

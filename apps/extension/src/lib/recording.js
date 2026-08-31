@@ -69,6 +69,23 @@ export function bindSecretSteps(steps, bindings, variables) {
   };
 }
 
+// The rule the editor's fragile badge draws on, applied while recording is still open.
+export function fragile(candidates) {
+  return candidates.length === 0 || candidates.every((candidate) => candidate.kind === "css");
+}
+
+export function navigateStep(url) {
+  return {
+    id: crypto.randomUUID(),
+    type: "navigate",
+    label: `Navigate to ${new URL(url).hostname}`,
+    optional: false,
+    disabled: false,
+    screenshot: false,
+    payload: { url },
+  };
+}
+
 export function readPendingRecording(message) {
   if (
     typeof message?.sessionId !== "string" ||

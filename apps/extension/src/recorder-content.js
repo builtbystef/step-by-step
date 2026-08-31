@@ -67,6 +67,13 @@
       }
     }
 
+    // Playwright's get_by_label reads aria-label too, so this rides the label kind.
+    // An element whose subtree text is an unusable blob often still names itself here.
+    const aria = element.getAttribute("aria-label");
+    if (aria && unique(`[aria-label="${selectorEscaped(aria)}"]`, element)) {
+      candidates.push({ kind: "label", value: normalized(aria) });
+    }
+
     const alt = element.getAttribute("alt");
     if (alt && unique(`[alt="${selectorEscaped(alt)}"]`, element)) {
       candidates.push({ kind: "alt", value: alt });
@@ -123,14 +130,23 @@
     warning.dataset.stepByStepWarning = "unsupported";
     warning.setAttribute("role", "alert");
     warning.textContent = unsupported.warning;
+    // The app's warn Callout, said in full here: this box lands in a page whose
+    // own stylesheet it cannot borrow anything from.
     Object.assign(warning.style, {
       position: "fixed",
       inset: "16px 16px auto 16px",
       zIndex: "2147483647",
-      padding: "12px",
-      background: "white",
-      color: "black",
-      border: "2px solid currentColor",
+      boxSizing: "border-box",
+      margin: "0",
+      padding: "12px 16px",
+      font: "600 13px/1.45 system-ui, sans-serif",
+      textAlign: "left",
+      background: "#fdf3e0",
+      color: "#9a6700",
+      border: "1px solid rgb(154 103 0 / 30%)",
+      borderLeftWidth: "3px",
+      borderRadius: "0",
+      boxShadow: "0 6px 16px rgb(19 19 22 / 12%)",
     });
     document.documentElement.append(warning);
   }
