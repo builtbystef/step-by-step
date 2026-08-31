@@ -274,9 +274,8 @@
       const element = actionable(event.target);
       if (!element) return;
       const correlation = correlationFor(element);
-      const primary = event.button === 0;
-      send({ type: "recorder-ax", correlation, pageLoad, press: primary });
-      if (!primary) return;
+      send({ type: "recorder-ax", correlation, pageLoad });
+      if (event.button !== 0) return;
       // A control that acts on the press rather than the click — a search suggestion,
       // say — moves the page out from under the pointer, so the release lands on
       // whatever replaced it and no click event is ever dispatched. What was pressed

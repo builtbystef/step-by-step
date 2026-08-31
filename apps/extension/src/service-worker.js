@@ -95,10 +95,7 @@ chrome.webNavigation.onCommitted.addListener((details) => {
 // Workflow recorded on one has no way back to the pages it moved through.
 chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
   void enqueueRecording(() => rememberVisitedHost(details));
-  if (details.frameId !== 0) return;
-  // Routing is reported before the press that caused it has crossed from the page,
-  // so the Step it belongs to has to be waited for.
-  void settlePresses().then(() => enqueueRecording(() => recordNavigation(details)));
+  if (details.frameId === 0) void enqueueRecording(() => recordNavigation(details, true));
 });
 
 chrome.debugger.onDetach.addListener((source) => {
@@ -184,12 +181,15 @@ async function acceptRecordingPageMessage(message, sender) {
     if (pending === null || pending.backendOrigin !== held.origin) {
       return { accepted: false };
     }
+    // The tab the app asked from, so the recording cannot be pointed back at it.
+    const appTabId = sender.tab?.id;
     await chrome.storage.local.set({
       [RECORDING_KEY]:
         pending.mode === "repick"
           ? {
               state: "pending",
               mode: "repick",
+              appTabId,
               sessionId: pending.sessionId,
               token: pending.token,
               backendOrigin: pending.backendOrigin,
@@ -202,6 +202,7 @@ async function acceptRecordingPageMessage(message, sender) {
           : {
               state: "pending",
               mode: "record",
+              appTabId,
               sessionId: pending.sessionId,
               token: pending.token,
               backendOrigin: pending.backendOrigin,
@@ -519,22 +520,10 @@ const CLOSED_SHADOW_WARNING =
 // recording is still open and the element still on screen to re-pick.
 const FRAGILE_TARGET_WARNING =
   "Only where this element sits on the page could be recorded. A layout change will lose it. The step was recorded anyway.";
-const PRESS_SETTLE_MS = 800;
+// How long a Step has to arrive and claim the routing it caused.
+const ROUTED_CLAIM_MS = 700;
 let recordingQueue = Promise.resolve();
 const accessibilityQueries = new Map();
-// The presses whose Step has not been assembled yet, by the same key.
-const pendingPresses = new Map();
-
-// Waits outside the recording queue, so the work being waited for can run.
-async function settlePresses() {
-  while (pendingPresses.size > 0) {
-    for (const [key, at] of pendingPresses) {
-      if (Date.now() - at > PRESS_SETTLE_MS) pendingPresses.delete(key);
-    }
-    if (pendingPresses.size === 0) return;
-    await new Promise((resolve) => setTimeout(resolve, 20));
-  }
-}
 
 function enqueueRecording(work) {
   recordingQueue = recordingQueue.then(work).catch((failure) => {
@@ -604,6 +593,9 @@ async function startRecording(message) {
   if (typeof tab?.id !== "number" || tab.url !== message.targetUrl) {
     return { started: false, reason: "target-gone" };
   }
+  // Recording the app's own tab captures nothing of the task and leaves a Workflow
+  // that opens the editor, which is what a confirmation on the wrong tab looks like.
+  if (tab.id === active.appTabId) return { started: false, reason: "instance-tab" };
   if (!(await permitted(new URL(message.targetUrl).origin))) {
     return { started: false, reason: "not-permitted" };
   }
@@ -651,7 +643,6 @@ async function stopRecording() {
       } catch {}
     }
     accessibilityQueries.clear();
-    pendingPresses.clear();
     await chrome.storage.local.remove(RECORDING_KEY);
     return { stopped: true };
   }
@@ -669,7 +660,6 @@ async function stopRecording() {
     } catch {}
   }
   accessibilityQueries.clear();
-  pendingPresses.clear();
   return { stopped: true };
 }
 
@@ -678,7 +668,6 @@ async function discardRecording() {
   await chrome.storage.local.remove(RECORDING_KEY);
   if (active?.state === "recording") void debuggerDetach(active.tabId);
   accessibilityQueries.clear();
-  pendingPresses.clear();
   return { discarded: true };
 }
 
@@ -781,7 +770,6 @@ async function endRecordingAfterDetach(tabId) {
   if (active?.tabId !== tabId || active.state !== "recording") return;
   if (active.mode === "repick") {
     accessibilityQueries.clear();
-    pendingPresses.clear();
     await chrome.storage.local.remove(RECORDING_KEY);
     return;
   }
@@ -791,7 +779,6 @@ async function endRecordingAfterDetach(tabId) {
   active.endedAt = new Date().toISOString();
   await chrome.storage.local.set({ [RECORDING_KEY]: active });
   accessibilityQueries.clear();
-  pendingPresses.clear();
 }
 
 async function activeRecording() {
@@ -826,7 +813,6 @@ async function acceptRecorderMessage(message, sender) {
   }
   const key = `${sender.frameId}:${message.correlation}`;
   if (message.type === "recorder-ax") {
-    if (message.press === true) pendingPresses.set(key, Date.now());
     accessibilityQueries.set(
       key,
       queryAccessibility(active.tabId, sender.frameId, message.correlation),
@@ -901,7 +887,6 @@ async function assembleInteraction(tabId, frameId, key, message) {
       ])
     : null;
   accessibilityQueries.delete(key);
-  pendingPresses.delete(key);
   const candidates = Array.isArray(message.candidates) ? [...message.candidates] : [];
   if (prefetched?.role) {
     candidates.splice(candidates[0]?.kind === "testid" ? 1 : 0, 0, prefetched.role);
@@ -951,6 +936,19 @@ async function assembleInteraction(tabId, frameId, key, message) {
     },
   };
   if (message.needsSecret === true) step.needsSecret = true;
+  // The routing this click caused was recorded ahead of it, so the click takes that
+  // Step's place: replayed the other way round it would look for a page it has left.
+  const routedAt = active.routedAt;
+  delete active.routedAt;
+  if (
+    message.event === "click" &&
+    typeof routedAt === "number" &&
+    Date.now() - routedAt < ROUTED_CLAIM_MS &&
+    active.steps.at(-1)?.type === "navigate"
+  ) {
+    active.steps.pop();
+    step.payload.assertedNavigation = true;
+  }
   active.steps.push(step);
   if (message.event === "click") {
     active.recentClick = { stepId: step.id, at: Date.now() };
@@ -967,7 +965,6 @@ async function completeRepick(active, candidates) {
     await debuggerDetach(active.tabId);
   } catch {}
   accessibilityQueries.clear();
-  pendingPresses.clear();
   await chrome.storage.local.remove(RECORDING_KEY);
 }
 
@@ -1121,7 +1118,7 @@ async function uploadAuthStates(active, selected) {
   }
 }
 
-async function recordNavigation(details) {
+async function recordNavigation(details, routed = false) {
   const active = await activeRecording();
   if (active === null || active.tabId !== details.tabId) return;
   if (active.mode === "repick") {
@@ -1129,10 +1126,14 @@ async function recordNavigation(details) {
     return;
   }
   const previous = active.steps.at(-1);
+  delete active.routedAt;
   if (previous?.type === "click" && ["link", "form_submit"].includes(details.transitionType)) {
     previous.payload.assertedNavigation = true;
   } else {
     active.steps.push(navigateStep(details.url));
+    // Routing is reported before the interaction that caused it has crossed from the
+    // page, so this leaves the Step behind it a moment to claim what it did.
+    if (routed) active.routedAt = Date.now();
   }
   await checkpoint(active);
   await injectRecorder(active.tabId);

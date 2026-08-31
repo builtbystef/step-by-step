@@ -93,6 +93,61 @@ def test_connected_app_hands_a_pending_recording_to_restartable_storage(
     page.close()
 
 
+def test_the_tab_that_asked_for_the_recording_cannot_be_the_one_recorded(
+    connected_browser: BrowserContext, fixture_site: str
+) -> None:
+    worker = worker_of(connected_browser)
+    worker.evaluate(
+        """(origin) => chrome.storage.local.set({connection: {origin}})
+          .then(() => chrome.storage.local.remove('active-recording'))""",
+        fixture_site,
+    )
+    app = connected_browser.new_page()
+    app.goto(f"{fixture_site}/bridge.html")
+    app.wait_for_timeout(100)
+    app.evaluate(
+        """(origin) => window.postMessage({
+          channel: "step-by-step",
+          type: "recording-pending",
+          sessionId: "own-tab-session",
+          token: "own-tab-token",
+          backendOrigin: origin,
+          workflowId: "fixture-workflow",
+          workflowName: "Fixture Workflow",
+          mode: "record",
+          variables: [],
+          secrets: [],
+        }, origin)""",
+        fixture_site,
+    )
+    app.wait_for_timeout(100)
+
+    surface = connected_browser.new_page()
+    surface.goto(f"chrome-extension://{worker.url.split('/')[2]}/popup.html")
+    answer = surface.evaluate(
+        """async (targetUrl) => {
+          const [tab] = await chrome.tabs.query({url: targetUrl});
+          await chrome.runtime.sendMessage({
+            type: "about-to-start-recording",
+            targetTabId: tab.id,
+            targetUrl,
+          });
+          return chrome.runtime.sendMessage({type: "finish-recording-start"});
+        }""",
+        app.url,
+    )
+    stored = worker.evaluate("() => chrome.storage.local.get('active-recording')")[
+        "active-recording"
+    ]
+
+    assert answer == {"started": False, "reason": "instance-tab"}
+    assert stored["state"] == "pending"
+    assert stored["steps"] == []
+
+    surface.close()
+    app.close()
+
+
 def test_insecure_http_page_captures_steps_without_secure_context_apis(
     connected_browser: BrowserContext,
     fixture_site: str,
@@ -767,11 +822,16 @@ def hand_repick(page: Page, fixture_site: str) -> None:
               .then(() => chrome.storage.local.remove('active-recording'))""",
             fixture_site,
         )
-        page.evaluate(
+        # From its own tab, the way the app asks: the page being re-picked is not it.
+        app = page.context.new_page()
+        app.goto(f"{fixture_site}/bridge.html")
+        app.wait_for_timeout(100)
+        app.evaluate(
             "([message, origin]) => window.postMessage(message, origin)",
             [pending, fixture_site],
         )
-        page.wait_for_timeout(50)
+        app.wait_for_timeout(50)
+        app.close()
         stored = worker.evaluate("() => chrome.storage.local.get('active-recording')")[
             "active-recording"
         ]

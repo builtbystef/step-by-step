@@ -13,6 +13,10 @@ const DECLINED =
 
 const REFUSALS = {
   "not-permitted": "Chrome did not allow this extension to work on that address.",
+  "instance-tab":
+    "This is the Step by Step tab. Open the first page of the task in another tab, " +
+    "then start recording from there.",
+  "target-gone": "That tab could not be recorded. Keep it open and try again.",
   "login-not-permitted":
     "Nothing was saved. Copying a login needs Chrome's permission for the whole site. " +
     "Save again, and choose Allow.",
@@ -276,7 +280,7 @@ function startPendingRecording() {
       await announced;
       const answer = await ask("finish-recording-start");
       if (answer.started !== true && answer.late !== true) {
-        say("That tab could not be recorded. Keep it open and try again.", "bad");
+        say(REFUSALS[answer.reason] ?? REFUSALS["target-gone"], "bad");
       }
       show(await ask("connection"));
     })
