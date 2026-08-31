@@ -1,5 +1,5 @@
 import { originPattern, readInstanceUrl } from "./lib/instance.js";
-import { replacementHint } from "./lib/recording.js";
+import { replacementHint, sitePattern } from "./lib/recording.js";
 
 const ADDRESS_PROBLEMS = {
   empty: "Enter the address of your Step by Step instance.",
@@ -13,6 +13,9 @@ const DECLINED =
 
 const REFUSALS = {
   "not-permitted": "Chrome did not allow this extension to work on that address.",
+  "login-not-permitted":
+    "Nothing was saved. Copying a login needs Chrome's permission for the whole site. " +
+    "Save again, and choose Allow.",
   "not-an-instance": "That does not look like a web address.",
   "bad-code": "That code is not valid any more. Show a new one in the app.",
   unreachable: "That address did not answer. Check it, and that the instance is running.",
@@ -119,13 +122,31 @@ document.querySelector("#save-button").addEventListener("click", () => {
       scope: row.querySelector("select").value,
     }),
   );
-  void ask("finalize-recording", { bindings, authSelections }).then((answer) => {
-    if (answer.saved === true) {
-      void ask("connection").then(show);
-    } else {
-      say(answer.message ?? REFUSALS[answer.reason] ?? "The recording could not be saved.", "bad");
-    }
-  });
+  const sites = authSelections
+    .filter((choice) => choice.checked === true)
+    .map((choice) => sitePattern(choice.domain));
+  // Asked before an await consumes the user gesture, and asked at all because
+  // Chrome shows a site's cookies only to an extension permitted across that site.
+  const permitted =
+    sites.length === 0 ? Promise.resolve(true) : chrome.permissions.request({ origins: sites });
+  void permitted
+    .then((granted) => {
+      if (!granted) {
+        say(REFUSALS["login-not-permitted"], "bad");
+        return;
+      }
+      void ask("finalize-recording", { bindings, authSelections }).then((answer) => {
+        if (answer.saved === true) {
+          void ask("connection").then(show);
+        } else {
+          say(
+            answer.message ?? REFUSALS[answer.reason] ?? "The recording could not be saved.",
+            "bad",
+          );
+        }
+      });
+    })
+    .catch(() => say(REFUSALS.failed, "bad"));
 });
 
 document.querySelector("#disconnect").addEventListener("click", () => {

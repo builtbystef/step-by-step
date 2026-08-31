@@ -7,6 +7,7 @@ import {
   navigateStep,
   readPendingRecording,
   replacementHint,
+  sitePattern,
 } from "../src/lib/recording.js";
 
 const password = (id) => ({
@@ -209,6 +210,18 @@ describe("the navigate Step", () => {
       payload: { url: "https://www.youtube.com/results?search_query=rick+roll" },
     });
     expect(step.id).toEqual(expect.any(String));
+  });
+});
+
+describe("the site a saved login needs permission for", () => {
+  it("covers a domain and everything under it", () => {
+    expect(sitePattern("youtube.com")).toBe("*://*.youtube.com/*");
+    expect(sitePattern("example.co.uk")).toBe("*://*.example.co.uk/*");
+  });
+
+  it("names an address or a bare host on its own", () => {
+    expect(sitePattern("127.0.0.1")).toBe("*://127.0.0.1/*");
+    expect(sitePattern("localhost")).toBe("*://localhost/*");
   });
 });
 

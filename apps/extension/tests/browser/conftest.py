@@ -6,6 +6,7 @@ from collections.abc import Iterator
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, cast
+from urllib.parse import urlsplit
 
 import pytest
 from playwright.sync_api import BrowserContext, Playwright, Worker, sync_playwright
@@ -249,9 +250,9 @@ def connected_browser(
     granted = tmp_path_factory.mktemp("granted-package")
     shutil.copytree(PACKAGE, granted, dirs_exist_ok=True)
     manifest = json.loads((granted / "manifest.json").read_text())
+    # Across both schemes, the way the popup asks for a site whose login is saved.
     manifest["host_permissions"] = [
-        f"{fixture_site.rsplit(':', 1)[0]}/*",
-        f"{insecure_site.rsplit(':', 1)[0]}/*",
+        f"*://{urlsplit(site).hostname}/*" for site in (fixture_site, insecure_site)
     ]
     (granted / "manifest.json").write_text(json.dumps(manifest, indent=2))
 

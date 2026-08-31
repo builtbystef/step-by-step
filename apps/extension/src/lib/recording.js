@@ -69,6 +69,19 @@ export function bindSecretSteps(steps, bindings, variables) {
   };
 }
 
+// Chrome hides a cookie from an extension that lacks permission for the URL the
+// cookie's own domain names, so reading a site's login needs the whole site, not
+// the one origin the recording began on: a `.example.com` cookie stays invisible to
+// an extension permitted only on `https://www.example.com/*`.
+export function sitePattern(domain) {
+  // An address, or a name with no dot in it, has no subdomains to reach — and Chrome
+  // refuses a wildcard in front of either.
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(domain) || !domain.includes(".")) {
+    return `*://${domain}/*`;
+  }
+  return `*://*.${domain}/*`;
+}
+
 // The rule the editor's fragile badge draws on, applied while recording is still open.
 export function fragile(candidates) {
   return candidates.length === 0 || candidates.every((candidate) => candidate.kind === "css");

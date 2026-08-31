@@ -1,4 +1,5 @@
 from typing import Any
+from urllib.parse import urlsplit
 
 import pytest
 from conftest import RecordingSink, worker_of
@@ -350,6 +351,35 @@ def test_checked_domain_captures_http_only_cookie_and_both_web_storages(
             "items": [{"name": "session-token", "value": "session-secret"}],
         }
     ]
+
+    surface.close()
+    page.close()
+
+
+def test_a_login_is_not_saved_for_a_site_chrome_does_not_allow(
+    connected_browser: BrowserContext,
+    fixture_site: str,
+    other_site: str,
+    recording_sink: RecordingSink,
+) -> None:
+    page = connected_browser.new_page()
+    page.goto(f"{fixture_site}/recording.html")
+    surface = start_recording(connected_browser, fixture_site, page)
+    surface.evaluate("() => chrome.runtime.sendMessage({type: 'stop-recording'})")
+
+    unpermitted = urlsplit(other_site).hostname
+    answer = surface.evaluate(
+        """(domain) => chrome.runtime.sendMessage({
+          type: 'finalize-recording',
+          bindings: [],
+          authSelections: [{domain, checked: true, scope: 'organization'}],
+        })""",
+        unpermitted,
+    )
+
+    assert answer == {"saved": False, "reason": "login-not-permitted"}
+    assert recording_sink.auth_captures == []
+    assert recording_sink.finalizations == []
 
     surface.close()
     page.close()

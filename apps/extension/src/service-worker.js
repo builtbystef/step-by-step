@@ -23,6 +23,7 @@ import {
   fragile,
   navigateStep,
   readPendingRecording,
+  sitePattern,
 } from "./lib/recording.js";
 
 const CONNECTION_KEY = "connection";
@@ -1032,6 +1033,11 @@ function chromeCookie(cookie) {
 async function uploadAuthStates(active, selected) {
   const captures = [];
   for (const choice of selected) {
+    // Without this Chrome answers every cookie query with an empty list, and a saved
+    // login of nothing would quietly replace one that works.
+    if (!(await chrome.permissions.contains({ origins: [sitePattern(choice.domain)] }))) {
+      return { ok: false, answer: { saved: false, reason: "login-not-permitted" } };
+    }
     const origins = Object.entries(active.storageByOrigin ?? {}).filter(([origin]) =>
       belongsToDomain(origin, choice.domain),
     );
