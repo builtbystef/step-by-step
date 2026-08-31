@@ -160,8 +160,8 @@ describe("the timeline strip", () => {
       { id: "i1", kind: "automation", started_at: T(0), ended_at: T(10) },
       { id: "i2", kind: "waiting", started_at: T(10), ended_at: T(16) },
       { id: "i3", kind: "human", started_at: T(16), ended_at: T(27) },
-      { id: "i4", kind: "verifying", started_at: T(27), ended_at: T(29) },
-      { id: "i5", kind: "automation", started_at: T(29), ended_at: T(39) },
+      { id: "i4", kind: "verifying", started_at: T(27), ended_at: T(31) },
+      { id: "i5", kind: "automation", started_at: T(31), ended_at: T(39) },
     ];
 
     const strip = timeline(intervals, new Date(T(39)));
@@ -174,7 +174,7 @@ describe("the timeline strip", () => {
       "automation",
     ]);
     expect(strip.segments.map((segment) => segment.durationMs)).toEqual([
-      10_000, 6_000, 11_000, 2_000, 10_000,
+      10_000, 6_000, 11_000, 4_000, 8_000,
     ]);
     const total = strip.segments.reduce((sum, segment) => sum + segment.flex, 0);
     expect(total).toBeCloseTo(1);
@@ -184,6 +184,23 @@ describe("the timeline strip", () => {
       "you took control",
       "handed back",
       "resumed",
+    ]);
+  });
+
+  it("keeps only the first label of a cluster of near-coincident markers", () => {
+    const intervals: ControlIntervalRecord[] = [
+      { id: "i1", kind: "automation", started_at: T(0), ended_at: T(30) },
+      { id: "i2", kind: "human", started_at: T(30), ended_at: T(38) },
+      { id: "i3", kind: "verifying", started_at: T(38), ended_at: T(38) },
+      { id: "i4", kind: "automation", started_at: T(38), ended_at: T(39) },
+    ];
+
+    const strip = timeline(intervals, new Date(T(39)));
+
+    // "handed back" and "resumed" land on the same spot; only the first stays.
+    expect(strip.markers.map((marker) => marker.label)).toEqual([
+      "you took control",
+      "handed back",
     ]);
   });
 });

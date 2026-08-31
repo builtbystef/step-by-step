@@ -21,11 +21,7 @@ export function StatusChip({ state, className }: { state: LifecycleState; classN
 
   return (
     <Badge
-      className={cn(
-        "rounded-full text-small font-semibold",
-        TONE_CLASSES[lifecycleTone(state)],
-        className,
-      )}
+      className={cn("text-small font-semibold", TONE_CLASSES[lifecycleTone(state)], className)}
     >
       {live ? (
         <span

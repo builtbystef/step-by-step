@@ -44,12 +44,19 @@ describe("the extension package", () => {
     ]);
   });
 
+  it("wears the mark at every size Chrome draws it at", () => {
+    expect(Object.keys(manifest.icons)).toEqual(["16", "32", "48", "128"]);
+    expect(manifest.action.default_icon).toEqual(manifest.icons);
+  });
+
   it("names only files that are in the package", () => {
     const named = [
       manifest.background.service_worker,
       manifest.action.default_popup,
+      ...Object.values(manifest.icons),
       "popup.js",
       "popup.css",
+      "brand/logo-icon.svg",
       "lib/handshake.js",
       "lib/instance.js",
       "lib/page-bridge.js",

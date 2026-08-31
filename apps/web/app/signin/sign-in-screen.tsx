@@ -2,6 +2,7 @@
 
 import { getInstance, requestSigninCode, verifySigninCode } from "@step-by-step/api-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
@@ -72,103 +73,109 @@ export function SignInScreen() {
 
   return (
     <Screen>
-      <Card className="w-full">
-        <CardContent>
-          {sent ? (
-            <form
-              className="flex flex-col gap-3"
-              onSubmit={(submitted) => {
-                submitted.preventDefault();
-                signIn.mutate();
-              }}
-            >
-              <Label htmlFor="code">Sign-in Code</Label>
-              <p className="text-small text-mut">
-                We sent a 6-digit code to <span className="text-ink">{email}</span>. It works once,
-                and it expires in 10 minutes.
-              </p>
-              <Input
-                id="code"
-                value={code}
-                autoFocus
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={6}
-                onChange={(typed) => setCode(typed.target.value.trim())}
-              />
-              {refused ? <Callout tone="bad">{refusalMessage(refused)}</Callout> : null}
-              <Button type="submit" disabled={signIn.isPending || code.length === 0}>
-                Sign in
-              </Button>
-              <div className="flex items-center justify-between">
-                <Button
-                  type="button"
-                  variant="link"
-                  size="sm"
-                  className="px-0 text-small"
-                  disabled={askForCode.isPending}
-                  onClick={() => {
-                    signIn.reset();
-                    askForCode.mutate();
-                  }}
-                >
-                  Send a new code
-                </Button>
-                <Button
-                  type="button"
-                  variant="link"
-                  size="sm"
-                  className="px-0 text-small"
-                  onClick={() => {
-                    signIn.reset();
-                    askForCode.reset();
-                    setCode("");
-                    setSent(false);
-                  }}
-                >
-                  Use a different email
-                </Button>
-              </div>
-            </form>
-          ) : (
-            <form
-              className="flex flex-col gap-3"
-              onSubmit={(submitted) => {
-                submitted.preventDefault();
+      {sent ? (
+        <form
+          className="flex flex-col gap-3"
+          onSubmit={(submitted) => {
+            submitted.preventDefault();
+            signIn.mutate();
+          }}
+        >
+          <Label htmlFor="code">Sign-in Code</Label>
+          <p className="text-small text-mut">
+            We sent a 6-digit code to <span className="text-ink">{email}</span>. It works once, and
+            it expires in 10 minutes.
+          </p>
+          <Input
+            id="code"
+            value={code}
+            autoFocus
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            onChange={(typed) => setCode(typed.target.value.trim())}
+          />
+          {refused ? <Callout tone="bad">{refusalMessage(refused)}</Callout> : null}
+          <Button type="submit" disabled={signIn.isPending || code.length === 0}>
+            Sign in
+          </Button>
+          <div className="flex items-center justify-between">
+            <Button
+              type="button"
+              variant="link"
+              size="sm"
+              className="px-0 text-small"
+              disabled={askForCode.isPending}
+              onClick={() => {
+                signIn.reset();
                 askForCode.mutate();
               }}
             >
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                autoFocus
-                autoComplete="email"
-                onChange={(typed) => setEmail(typed.target.value.trim())}
-              />
-              {note ? <p className="text-small text-mut">{note}</p> : null}
-              {askForCode.error ? (
-                <Callout tone="bad">{refusalMessage(askForCode.error)}</Callout>
-              ) : null}
-              <Button type="submit" disabled={askForCode.isPending || email.length === 0}>
-                Continue
-              </Button>
-            </form>
-          )}
-        </CardContent>
-      </Card>
+              Send a new code
+            </Button>
+            <Button
+              type="button"
+              variant="link"
+              size="sm"
+              className="px-0 text-small"
+              onClick={() => {
+                signIn.reset();
+                askForCode.reset();
+                setCode("");
+                setSent(false);
+              }}
+            >
+              Use a different email
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <form
+          className="flex flex-col gap-3"
+          onSubmit={(submitted) => {
+            submitted.preventDefault();
+            askForCode.mutate();
+          }}
+        >
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            autoFocus
+            autoComplete="email"
+            onChange={(typed) => setEmail(typed.target.value.trim())}
+          />
+          {note ? <p className="text-body text-mut">{note}</p> : null}
+          {askForCode.error ? (
+            <Callout tone="bad">{refusalMessage(askForCode.error)}</Callout>
+          ) : null}
+          <Button type="submit" disabled={askForCode.isPending || email.length === 0}>
+            Continue
+          </Button>
+        </form>
+      )}
     </Screen>
   );
 }
 
 function Screen({ children }: { children?: ReactNode }) {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 px-4 py-12">
-      <div className="flex w-full max-w-[400px] flex-col items-center gap-6">
-        <h1 className="text-page">Step by Step</h1>
-        {children}
-      </div>
+    <main className="flex min-h-screen items-center justify-center px-4 py-12">
+      <Card className="w-full max-w-[400px] [--card-spacing:--spacing(6)]">
+        <CardContent className="flex flex-col gap-6">
+          <h1 className="flex justify-center">
+            <Image
+              src="/brand/logo-vertical.svg"
+              alt="Step by Step"
+              width={196}
+              height={108}
+              priority
+            />
+          </h1>
+          {children}
+        </CardContent>
+      </Card>
     </main>
   );
 }

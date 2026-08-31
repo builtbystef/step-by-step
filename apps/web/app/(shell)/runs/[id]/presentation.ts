@@ -221,7 +221,24 @@ export function timeline(
     }
     elapsed += durations[index] ?? 0;
   }
-  return { segments, markers };
+  return { segments, markers: spacedOut(markers) };
+}
+
+/* Two boundaries can land within a hair of each other (a 0-second verifying
+   interval puts "handed back" and "resumed" on the same spot) and the labels
+   would overprint. Keep the first label of any cluster; the segments' own
+   titles still carry the detail. */
+const MARKER_GAP = 0.06;
+
+function spacedOut(markers: TimelineMarker[]): TimelineMarker[] {
+  const kept: TimelineMarker[] = [];
+  for (const marker of markers) {
+    const previous = kept[kept.length - 1];
+    if (previous === undefined || marker.at - previous.at >= MARKER_GAP) {
+      kept.push(marker);
+    }
+  }
+  return kept;
 }
 
 function markerFor(kind: RunControlKind): TimelineMarker["label"] | null {

@@ -2,53 +2,34 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/*
- * The visual language: the surfaces, the semantic ramp, and the type scale.
- *
- * THIS FILE IS THE ONLY PLACE A RAW HEX VALUE MAY APPEAR. Everything else
- * reaches a colour through a token, so that one hue keeps one meaning.
- *
- * `shadcn/tailwind.css` carries the generated components' own variants and
- * utilities (data-open, data-closed, scroll-fade, shimmer). It defines no
- * colours: the palette below is the only one in the app.
- */
-
-/*
- * There is no dark mode. Tailwind's `dark:` variant defaults to the viewer's
- * OS preference, which would half-apply a palette that does not exist, so it
- * is bound to a class this app never sets. The variants shadcn's generated
- * components carry are then inert rather than wrong.
- */
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
   /* Surfaces and ink. */
-  --bg: #f5f6f8;
+  --bg: #f4f4f5;
   --panel: #ffffff;
-  --ink: #1a2130;
-  --mut: #68738a;
-  --line: #e3e7ee;
+  --ink: #131316;
+  --mut: #6e6e78;
+  --line: #e4e4e7;
 
-  /* The semantic ramp — one hue, one meaning. There is no drift hue: selector
-     drift is "a human should look at this", which is --wait, told apart by its
-     words and its icon. */
-  --accent: #2f6fed; /* the machine is acting; informational; interactive */
-  --accent-bg: #e8effd;
-  --wait: #b97a08; /* a human is needed, or was */
+  /* The brand hues. */
+  --brand-blue: #3172f1;
+  --brand-mint: #2cd6a6;
+  --brand-amber: #fb9d1a;
+
+  /* The semantic ramp (one hue, one meaning). */
+  --accent: #3172f1; /* the machine is acting; informational; interactive */
+  --accent-bg: #eaf1fe;
+  --accent-strong: #245cd0; /* hover/active of the accent */
+  --wait: #9a6700; /* a human is needed, or was */
   --wait-bg: #fdf3e0;
   --human: #7c3aed; /* a secret, or a human-supplied value */
   --human-bg: #f1eafd;
-  --ok: #178a50; /* succeeded */
-  --ok-bg: #e2f5ea;
+  --ok: #12805f; /* succeeded */
+  --ok-bg: #ddf7ee;
   --bad: #c92f34; /* failed */
   --bad-bg: #fbe9e9;
 
-  /*
-   * shadcn's own token names, mapped onto the above so the generated
-   * components speak this palette and no second one exists. `--accent` is
-   * deliberately the same hue in both vocabularies: shadcn's hover surface is
-   * "interactive", which is exactly what our accent means.
-   */
   --background: var(--bg);
   --foreground: var(--ink);
   --card: var(--panel);
@@ -67,11 +48,6 @@
   --input: var(--line);
   --ring: var(--accent);
 
-  /*
-   * The generated Sidebar reaches for a vocabulary of its own. It is mapped
-   * onto the surfaces above rather than given values: the shell is a panel
-   * beside the work, and its highlight is "interactive", which is the accent.
-   */
   --sidebar: var(--panel);
   --sidebar-foreground: var(--ink);
   --sidebar-accent: var(--accent-bg);
@@ -87,8 +63,13 @@
   --color-mut: var(--mut);
   --color-line: var(--line);
 
+  --color-brand-blue: var(--brand-blue);
+  --color-brand-mint: var(--brand-mint);
+  --color-brand-amber: var(--brand-amber);
+
   --color-accent: var(--accent);
   --color-accent-bg: var(--accent-bg);
+  --color-accent-strong: var(--accent-strong);
   --color-wait: var(--wait);
   --color-wait-bg: var(--wait-bg);
   --color-human: var(--human);
@@ -123,26 +104,22 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  /* shadcn's CardTitle reaches for `font-heading`. There is one typeface. */
   --font-heading: var(--font-sans);
 }
 
 @theme {
   --font-sans: system-ui, sans-serif;
 
-  /*
-   * The type scale is exactly six sizes. Tailwind's default font-size
-   * namespace is cleared so a seventh is not reachable by accident; `xs`,
-   * `sm`, and `base` are kept as aliases onto three of the six, because
-   * shadcn's generated components are written against those names.
-   *
-   * Spacing and radius are Tailwind's defaults untouched: the language's
-   * 4/6/8/12/16/24 spacing is 1/1.5/2/3/4/6, and its 6/8/10/999 radii are
-   * md/lg/xl/full. shadcn's init writes its own `--radius` scale over the top
-   * of those; it is deliberately not kept.
-   */
-  --text-*: initial;
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+  --radius-4xl: 0px;
 
+  --text-*: initial;
   --text-micro: 11px; /* badges, column headers, section labels */
   --text-micro--line-height: 1.4;
   --text-small: 12px; /* meta lines, secondary controls */

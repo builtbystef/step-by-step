@@ -453,6 +453,7 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
               <Button
                 variant="ghost"
                 size="sm"
+                nativeButton={false}
                 render={<Link href={versionPath(workflowId, null)} />}
               >
                 Back to the Draft

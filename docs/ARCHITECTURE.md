@@ -193,6 +193,8 @@ The mail seam supports `console`, `smtp`, and `resend`. The API validates the ch
 
 `apps/extension/src` is plain MV3 JavaScript. There is no build step: the same files are loaded unpacked and packaged by the API as `/extension.zip`. `/extension` serves install instructions. The manifest requires Chrome 118 or newer.
 
+The popup wears the app's design system: `popup.css` repeats the tokens and the type scale from `apps/web/app/globals.css`, and a test fails if that copy drifts. The package carries the brand mark as its toolbar icon; the 16-pixel raster drops the cursor from the mark, which is a smudge at that size, and the larger ones keep it.
+
 The extension asks for site access per origin. It does not request access to every site during installation. Connection details and active recording state are kept in Chrome storage so service-worker restarts do not lose them.
 
 A recording session is a short-lived capability for one user and Workflow. The extension checkpoints the full Step buffer after changes. A password value never crosses the content-script boundary; it becomes a secret binding during save. Re-pick uses the same recording channel but replaces the Target for one Step only.

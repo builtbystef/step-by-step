@@ -354,10 +354,10 @@ function WaitingCard({
       actions={
         <>
           <Button size="sm" disabled={busy} onClick={onTakeOver}>
-            take over browser
+            Take over browser
           </Button>
           <Button size="sm" variant="destructive" onClick={onCancel}>
-            cancel run
+            Cancel run
           </Button>
         </>
       }
@@ -396,10 +396,17 @@ function ControlBar({
         <span className={cn("font-semibold", tick.low && "text-bad")}>{tick.label}</span>
       )}
       <Button size="sm" variant="secondary" disabled={busy} onClick={onHandBack}>
-        hand control back
+        Hand control back
       </Button>
-      <Button size="sm" variant="destructive" onClick={onCancel}>
-        cancel run
+      {/* The translucent destructive fill disappears against the purple bar;
+          a panel-backed red button keeps the same meaning and stays legible. */}
+      <Button
+        size="sm"
+        variant="destructive"
+        className="bg-panel hover:bg-panel/90"
+        onClick={onCancel}
+      >
+        Cancel run
       </Button>
     </div>
   );

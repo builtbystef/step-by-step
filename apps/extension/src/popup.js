@@ -19,6 +19,15 @@ const REFUSALS = {
   failed: "Something went wrong. Try again.",
 };
 
+// What the pill in the popup's header says, for each state the popup can be in.
+const STATUS = {
+  disconnected: { label: "Not connected", tone: "neutral", live: false },
+  connected: { label: "Connected", tone: "ok", live: false },
+  pending: { label: "Ready", tone: "wait", live: false },
+  recording: { label: "Recording", tone: "accent", live: true },
+  ended: { label: "Needs review", tone: "wait", live: false },
+};
+
 const view = {
   connected: document.querySelector("#connected"),
   connect: document.querySelector("#connect"),
@@ -28,13 +37,17 @@ const view = {
   fallback: document.querySelector("#code-fallback"),
   note: document.querySelector("#note"),
   version: document.querySelector("#version"),
+  status: document.querySelector("#status"),
+  statusDot: document.querySelector("#status .dot"),
+  statusLabel: document.querySelector("#status-label"),
   pending: document.querySelector("#recording-pending"),
   pendingWorkflow: document.querySelector("#pending-workflow"),
   pendingVerb: document.querySelector("#pending-verb"),
   pendingHint: document.querySelector("#pending-hint"),
   recordButton: document.querySelector("#record-button"),
   active: document.querySelector("#recording-active"),
-  activeCopy: document.querySelector("#active-copy"),
+  activeVerb: document.querySelector("#active-verb"),
+  activeWorkflow: document.querySelector("#active-workflow"),
   activeHint: document.querySelector("#active-hint"),
   stopButton: document.querySelector("#stop-button"),
   save: document.querySelector("#recording-save"),
@@ -110,7 +123,7 @@ document.querySelector("#save-button").addEventListener("click", () => {
     if (answer.saved === true) {
       void ask("connection").then(show);
     } else {
-      say(answer.message ?? REFUSALS[answer.reason] ?? "The recording could not be saved.");
+      say(answer.message ?? REFUSALS[answer.reason] ?? "The recording could not be saved.", "bad");
     }
   });
 });
@@ -137,7 +150,7 @@ void ask("connection").then((state) => {
 function connect(how) {
   const read = readInstanceUrl(view.address.value);
   if (read.origin === undefined) {
-    say(ADDRESS_PROBLEMS[read.problem]);
+    say(ADDRESS_PROBLEMS[read.problem], "bad");
     return;
   }
 
@@ -155,7 +168,7 @@ function connect(how) {
       await announced;
       return ask("finish-connect").then(landed);
     })
-    .catch(() => say(REFUSALS.failed));
+    .catch(() => say(REFUSALS.failed, "bad"));
 }
 
 function landed(answer) {
@@ -172,7 +185,7 @@ function landed(answer) {
     return;
   }
   view.fallback.open = answer.reason === "bad-code" || view.fallback.open;
-  say(REFUSALS[answer.reason] ?? REFUSALS.failed);
+  say(REFUSALS[answer.reason] ?? REFUSALS.failed, "bad");
 }
 
 function show(state) {
@@ -183,10 +196,11 @@ function show(state) {
   view.pending.hidden = recording?.state !== "pending";
   view.active.hidden = recording?.state !== "recording";
   view.save.hidden = recording?.state !== "ended";
+  wear(recording?.state ?? (connected ? "connected" : "disconnected"));
   const repick = recording?.mode === "repick";
   if (recording?.state === "pending") {
     view.pendingWorkflow.textContent = recording.workflowName;
-    view.pendingVerb.textContent = repick ? "is ready to re-pick" : "is ready to record";
+    view.pendingVerb.textContent = repick ? "Ready to re-pick" : "Ready to record";
     view.pendingHint.textContent = repick
       ? "Open the page that has the element in this window, then confirm here."
       : "Open the first page of the task in this window, then confirm here.";
@@ -195,11 +209,8 @@ function show(state) {
       : "Start recording this tab";
   }
   if (recording?.state === "recording") {
-    const name = document.createElement("strong");
-    name.textContent = recording.workflowName;
-    view.activeCopy.replaceChildren(
-      ...(repick ? ["Click the intended element on ", name, "."] : ["Recording ", name, "."]),
-    );
+    view.activeVerb.textContent = repick ? "Pick an element on" : "Recording";
+    view.activeWorkflow.textContent = recording.workflowName;
     view.activeHint.textContent = repick
       ? "The editor will show the new selectors beside the old ones."
       : "Complete the task in this tab, then stop to review every Step.";
@@ -209,7 +220,7 @@ function show(state) {
   view.version.textContent = state.version ?? "";
   if (connected) {
     view.instance.textContent = state.connection.origin;
-    say(recording?.tokenExpired === true ? "Open this Workflow in the app to resume." : "");
+    say(recording?.tokenExpired === true ? "Open this Workflow in the app to resume." : "", "wait");
     return;
   }
   if (state.unanswered === true) {
@@ -217,10 +228,19 @@ function show(state) {
   }
 }
 
+function wear(state) {
+  const badge = STATUS[state];
+  view.status.hidden = badge === undefined;
+  if (badge === undefined) return;
+  view.status.dataset.tone = badge.tone;
+  view.statusDot.dataset.live = String(badge.live);
+  view.statusLabel.textContent = badge.label;
+}
+
 function startPendingRecording() {
   const tab = targetTab;
   if (typeof tab?.id !== "number" || typeof tab.url !== "string" || !/^https?:/.test(tab.url)) {
-    say("Open the first web page you want to record, then try again.");
+    say("Open the first web page you want to record, then try again.", "wait");
     return;
   }
   const origin = new URL(tab.url).origin;
@@ -229,17 +249,17 @@ function startPendingRecording() {
     .request({ origins: [originPattern(origin)] })
     .then(async (granted) => {
       if (!granted) {
-        say("Nothing was recorded because Chrome did not grant access to this site.");
+        say("Nothing was recorded because Chrome did not grant access to this site.", "bad");
         return;
       }
       await announced;
       const answer = await ask("finish-recording-start");
       if (answer.started !== true && answer.late !== true) {
-        say("That tab could not be recorded. Keep it open and try again.");
+        say("That tab could not be recorded. Keep it open and try again.", "bad");
       }
       show(await ask("connection"));
     })
-    .catch(() => say(REFUSALS.failed));
+    .catch(() => say(REFUSALS.failed, "bad"));
 }
 
 function renderSave(recording) {
@@ -259,6 +279,7 @@ function renderSave(recording) {
     row.dataset.authDomain = choice.domain;
     row.className = "auth-state-choice";
     const consent = document.createElement("label");
+    consent.className = "consent";
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     consent.append(
@@ -285,8 +306,12 @@ function renderSave(recording) {
     row.className = "secret-binding";
     row.dataset.stepId = step.id;
 
+    const heading = document.createElement("p");
+    heading.className = "label";
+    heading.textContent = step.label;
+
     const variableLabel = document.createElement("label");
-    variableLabel.textContent = `${step.label} — Variable name`;
+    variableLabel.textContent = "Variable name";
     const variable = document.createElement("input");
     variable.dataset.variableName = "";
     variable.setAttribute("list", "secret-variables");
@@ -328,22 +353,24 @@ function renderSave(recording) {
       create.hidden = choice.value !== "new";
     });
 
-    row.append(variableLabel, secretLabel, create);
+    row.append(heading, variableLabel, secretLabel, create);
     view.bindings.append(row);
   }
 }
 
 function declined() {
   view.fallback.open = true;
-  say(DECLINED);
+  say(DECLINED, "wait");
 }
 
 function ask(type, payload = {}) {
   return chrome.runtime.sendMessage({ type, ...payload });
 }
 
-function say(sentence) {
+// The one sentence the popup says back, in the tone the app gives that meaning.
+function say(sentence, tone = "info") {
   view.note.textContent = sentence;
+  view.note.dataset.tone = tone;
 }
 
 function short(typed) {

@@ -102,7 +102,11 @@ function Schedules({ orgId, workflowId }: { orgId: string; workflowId?: string }
           <EmptyState
             absence={GLOBAL_EMPTY.absence}
             whatFillsIt={GLOBAL_EMPTY.whatFillsIt}
-            action={<Button render={<Link href="/workflows" />}>{GLOBAL_EMPTY.action}</Button>}
+            action={
+              <Button nativeButton={false} render={<Link href="/workflows" />}>
+                {GLOBAL_EMPTY.action}
+              </Button>
+            }
           />
         ) : (
           <EmptyState
@@ -124,38 +128,40 @@ function Schedules({ orgId, workflowId }: { orgId: string; workflowId?: string }
       ) : null}
 
       {kind === "filtered" || kind === "rows" ? (
-        <table className="w-full text-left text-half">
-          <thead>
-            <tr className="text-micro font-semibold tracking-wide text-mut uppercase">
-              <th className="w-8" />
-              {columns.map((column) => (
-                <th key={column} className="px-2 py-2">
-                  {columnHeader(column)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          {kind === "filtered" ? (
-            <tbody>
-              <tr>
-                <td colSpan={columnCount} className="px-2 py-4 text-mut">
-                  {FILTERED_EMPTY}
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-half">
+            <thead>
+              <tr className="text-micro font-semibold tracking-wide text-mut uppercase">
+                <th className="w-8" />
+                {columns.map((column) => (
+                  <th key={column} className="px-2 py-2">
+                    {columnHeader(column)}
+                  </th>
+                ))}
               </tr>
-            </tbody>
-          ) : (
-            list.items.map((schedule) => (
-              <ScheduleRow
-                key={schedule.id}
-                orgId={orgId}
-                schedule={schedule}
-                viewerTz={viewerTz}
-                showWorkflow={workflowId === undefined}
-                columnCount={columnCount}
-              />
-            ))
-          )}
-        </table>
+            </thead>
+            {kind === "filtered" ? (
+              <tbody>
+                <tr>
+                  <td colSpan={columnCount} className="px-2 py-4 text-mut">
+                    {FILTERED_EMPTY}
+                  </td>
+                </tr>
+              </tbody>
+            ) : (
+              list.items.map((schedule) => (
+                <ScheduleRow
+                  key={schedule.id}
+                  orgId={orgId}
+                  schedule={schedule}
+                  viewerTz={viewerTz}
+                  showWorkflow={workflowId === undefined}
+                  columnCount={columnCount}
+                />
+              ))
+            )}
+          </table>
+        </div>
       ) : null}
 
       {list.hasMore ? (
@@ -323,7 +329,12 @@ function ScheduleExpansion({
           tone={missing.tone}
           title="This Schedule cannot fire"
           actions={
-            <Button size="sm" variant="outline" render={<Link href={missing.setValuesHref} />}>
+            <Button
+              size="sm"
+              variant="outline"
+              nativeButton={false}
+              render={<Link href={missing.setValuesHref} />}
+            >
               {missing.setValuesLabel}
             </Button>
           }
@@ -338,7 +349,12 @@ function ScheduleExpansion({
           title={`${overlapAt} did not run`}
           actions={
             <>
-              <Button size="sm" variant="outline" render={<Link href={overlap.openHref} />}>
+              <Button
+                size="sm"
+                variant="outline"
+                nativeButton={false}
+                render={<Link href={overlap.openHref} />}
+              >
                 {overlap.openLabel}
               </Button>
               <Button

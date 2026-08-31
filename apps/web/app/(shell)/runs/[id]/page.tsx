@@ -48,6 +48,8 @@ import { RunAgainDialog } from "./run-again-dialog";
 import { useRunStream } from "./use-run-stream";
 import { useTakeoverLock } from "./use-takeover-lock";
 
+import { shortRunId } from "../presentation";
+
 import { Sentence } from "../../workflows/[id]/editor/sentence";
 import type { Step } from "../../workflows/[id]/editor/steps";
 import { summarize } from "../../workflows/[id]/editor/summary";
@@ -235,7 +237,9 @@ function Cockpit({ orgId, runId }: { orgId: string; runId: string }) {
       <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-page">{workflow.data?.name ?? "Run"}</h1>
-          <span className="font-mono text-small text-mut">{snapshot.run.id}</span>
+          <span className="font-mono text-small text-mut" title={snapshot.run.id}>
+            {shortRunId(snapshot.run.id)}
+          </span>
           <span className="text-small text-mut">{versionLabel(snapshot.run)}</span>
           <span className="text-small text-mut">{triggerLabel(snapshot.run.trigger)}</span>
           <StatusChip state={chipState(snapshot.run)} />
@@ -271,7 +275,7 @@ function Cockpit({ orgId, runId }: { orgId: string; runId: string }) {
           <Meta label="worker" value={snapshot.run.worker_id ?? "—"} />
           <Meta label="timeout" value={duration(snapshot.run.timeout_ms)} />
           {snapshot.run.failure_reason === null || !isTerminal(snapshot.run.status) ? null : (
-            <Meta label="failure_reason" value={snapshot.run.failure_reason} />
+            <Meta label="failure reason" value={snapshot.run.failure_reason} />
           )}
         </div>
       </header>
@@ -545,7 +549,10 @@ function TimelineStrip({ strip }: { strip: ReturnType<typeof timeline> }) {
         {strip.markers.map((marker) => (
           <span
             key={`${marker.label}-${String(marker.at)}`}
-            className="absolute -translate-x-1/2 text-micro text-mut"
+            className={cn(
+              "absolute text-micro whitespace-nowrap text-mut",
+              marker.at > 0.92 ? "-translate-x-full" : marker.at > 0.08 && "-translate-x-1/2",
+            )}
             style={{ left: `${String(marker.at * 100)}%` }}
           >
             {marker.label}

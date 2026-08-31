@@ -46,6 +46,7 @@ import {
   type CockpitSnapshot,
 } from "../../runs/[id]/events";
 import { chipState, clock, railItems } from "../../runs/[id]/presentation";
+import { shortRunId } from "../../runs/presentation";
 import { runQuery, runVersionQuery } from "../../runs/[id]/queries";
 import { useRunStream } from "../../runs/[id]/use-run-stream";
 import { versionDocumentQuery } from "../../workflows/[id]/editor/queries";
@@ -271,7 +272,9 @@ function BatchView({ orgId, batchId }: { orgId: string; batchId: string }) {
     <div className="flex flex-col gap-3">
       <header className="flex flex-wrap items-center gap-3">
         <h1 className="text-page">{snapshot.batch.name}</h1>
-        <span className="font-mono text-small text-mut">{snapshot.batch.id}</span>
+        <span className="font-mono text-small text-mut" title={snapshot.batch.id}>
+          {shortRunId(snapshot.batch.id)}
+        </span>
       </header>
 
       <div className="flex gap-1">
@@ -554,7 +557,12 @@ function FailedExpansion({
       <p>{failureReasonWords(latest?.failure_reason ?? null)}</p>
       <div className="flex gap-2">
         {runId === null ? null : (
-          <Button size="sm" variant="outline" render={<Link href={runHref(runId)} />}>
+          <Button
+            size="sm"
+            variant="outline"
+            nativeButton={false}
+            render={<Link href={runHref(runId)} />}
+          >
             Open the run
           </Button>
         )}

@@ -9,6 +9,22 @@ const SCANNED_EXTENSIONS = new Set([".ts", ".tsx", ".css"]);
 
 const TOKEN_FILE = "app/globals.css";
 
+// The extension popup cannot import this app's stylesheet, so it declares the
+// tokens it needs again. This test is what keeps that copy honest.
+const EXTENSION_STYLESHEET = join(WEB_ROOT, "..", "extension", "src", "popup.css");
+
+function declaredTokens(text: string): Map<string, string> {
+  const declared = new Map<string, string>();
+
+  for (const [, name, value] of text.matchAll(/^\s*(--[\w-]+):\s*([^;]+);/gm)) {
+    if (name !== undefined && value !== undefined) {
+      declared.set(name, value.trim());
+    }
+  }
+
+  return declared;
+}
+
 const STATUS_CHIP = "components/primitives/status-chip.tsx";
 
 function sourceFiles(directory: string): string[] {
@@ -46,6 +62,18 @@ describe("the visual language", () => {
     ).map((source) => source.path);
 
     expect(offenders).toEqual([]);
+  });
+
+  it("gives the extension popup the same value for every token it shares", () => {
+    const app = declaredTokens(readFileSync(join(WEB_ROOT, TOKEN_FILE), "utf8"));
+    const popup = declaredTokens(readFileSync(EXTENSION_STYLESHEET, "utf8"));
+
+    const shared = [...popup].filter(([name]) => app.has(name));
+    const drifted = shared.filter(([name, value]) => app.get(name) !== value);
+
+    expect(shared.map(([name]) => name)).toContain("--accent");
+    expect(shared.length).toBeGreaterThan(15);
+    expect(drifted).toEqual([]);
   });
 
   it("renders a lifecycle state only through StatusChip", () => {

@@ -20,7 +20,7 @@ export function refusalMessage(error: unknown): string {
 }
 
 const SIGNUP_NOTES: Record<SignupMode, string> = {
-  open: "No account yet? Entering the code creates one.",
+  open: "Don't have an account? Signing in creates one.",
   invite_only: "Sign-in only — new accounts join this instance by Invitation.",
 };
 

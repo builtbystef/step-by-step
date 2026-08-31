@@ -68,21 +68,23 @@ function Batches({ orgId, workflowId }: { orgId: string; workflowId: string }) {
       ) : null}
 
       {kind === "rows" ? (
-        <table className="w-full text-left text-half">
-          <thead>
-            <tr className="text-micro font-semibold tracking-wide text-mut uppercase">
-              <th className="px-2 py-2">Name</th>
-              <th className="px-2 py-2">Created</th>
-              <th className="px-2 py-2">Rows</th>
-              <th className="w-10" />
-            </tr>
-          </thead>
-          <tbody>
-            {list.items.map((batch) => (
-              <BatchRow key={batch.id} batch={batch} />
-            ))}
-          </tbody>
-        </table>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-half">
+            <thead>
+              <tr className="text-micro font-semibold tracking-wide text-mut uppercase">
+                <th className="px-2 py-2">Name</th>
+                <th className="px-2 py-2">Created</th>
+                <th className="px-2 py-2">Rows</th>
+                <th className="w-10" />
+              </tr>
+            </thead>
+            <tbody>
+              {list.items.map((batch) => (
+                <BatchRow key={batch.id} batch={batch} />
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : null}
 
       {list.hasMore ? (

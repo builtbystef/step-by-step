@@ -2,6 +2,7 @@
 
 import { createExtensionConnectCode } from "@step-by-step/api-client";
 import { useMutation } from "@tanstack/react-query";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -69,6 +70,13 @@ export function ConnectScreen() {
   return (
     <main className="mx-auto flex w-full max-w-[560px] flex-col gap-6 px-4 py-16">
       <div className="flex flex-col gap-2">
+        <Image
+          src="/brand/logo-icon.svg"
+          alt="Step by Step"
+          width={32}
+          height={32}
+          className="mb-2"
+        />
         <h1 className="text-page">{connectHeadline(state)}</h1>
         <p className="text-small text-mut">{connectDetail(state)}</p>
         {state.kind === "connected" ? (

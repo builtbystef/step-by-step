@@ -44,7 +44,7 @@ export function UserMenu({ me, active }: { me: Account; active: OrganizationMemb
         <DropdownMenuGroup>
           <DropdownMenuLabel className="flex flex-col">
             <span className="text-half text-ink">{name}</span>
-            <span className="text-micro text-mut">{me.email}</span>
+            {name === me.email ? null : <span className="text-micro text-mut">{me.email}</span>}
           </DropdownMenuLabel>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />

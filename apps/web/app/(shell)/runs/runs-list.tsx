@@ -17,6 +17,7 @@ import {
   rowAction,
   runDurationMs,
   runHref,
+  shortRunId,
   startedAt,
   triggerLabel,
   type Column,
@@ -121,7 +122,11 @@ function Runs({ orgId, workflowId }: { orgId: string; workflowId?: string }) {
           <EmptyState
             absence={GLOBAL_EMPTY.absence}
             whatFillsIt={GLOBAL_EMPTY.whatFillsIt}
-            action={<Button render={<Link href="/workflows" />}>{GLOBAL_EMPTY.action}</Button>}
+            action={
+              <Button nativeButton={false} render={<Link href="/workflows" />}>
+                {GLOBAL_EMPTY.action}
+              </Button>
+            }
           />
         ) : (
           <EmptyState
@@ -145,28 +150,30 @@ function Runs({ orgId, workflowId }: { orgId: string; workflowId?: string }) {
       ) : null}
 
       {kind === "filtered" || kind === "rows" ? (
-        <table className="w-full text-left text-half">
-          <thead>
-            <tr className="text-micro font-semibold tracking-wide text-mut uppercase">
-              {columns.map((column) => (
-                <th key={column} className={cn("px-2 py-2", column === "action" && "w-10")}>
-                  {columnHeader(column)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {kind === "filtered" ? (
-              <tr>
-                <td colSpan={columns.length} className="px-2 py-4 text-mut">
-                  {FILTERED_EMPTY}
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-half">
+            <thead>
+              <tr className="text-micro font-semibold tracking-wide text-mut uppercase">
+                {columns.map((column) => (
+                  <th key={column} className={cn("px-2 py-2", column === "action" && "w-10")}>
+                    {columnHeader(column)}
+                  </th>
+                ))}
               </tr>
-            ) : (
-              list.items.map((run) => <RunRow key={run.id} run={run} columns={columns} />)
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {kind === "filtered" ? (
+                <tr>
+                  <td colSpan={columns.length} className="px-2 py-4 text-mut">
+                    {FILTERED_EMPTY}
+                  </td>
+                </tr>
+              ) : (
+                list.items.map((run) => <RunRow key={run.id} run={run} columns={columns} />)
+              )}
+            </tbody>
+          </table>
+        </div>
       ) : null}
 
       {list.hasMore ? (
@@ -256,8 +263,8 @@ function RunRow({ run, columns }: { run: RunSummary; columns: readonly Column[] 
         }
         if (column === "id") {
           return (
-            <td key={column} className="px-2 py-2 font-mono text-micro text-mut">
-              {run.id}
+            <td key={column} className="px-2 py-2 font-mono text-micro text-mut" title={run.id}>
+              {shortRunId(run.id)}
             </td>
           );
         }

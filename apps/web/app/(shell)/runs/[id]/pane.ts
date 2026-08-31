@@ -226,7 +226,7 @@ export function consentPrompts(
     .filter((candidate) => candidate.consent === null)
     .map((candidate) => ({
       domain: candidate.domain,
-      question: `keep this login for ${candidate.domain}?`,
+      question: `Keep this login for ${candidate.domain}?`,
       scopes: personal ? ["organization", "personal"] : ["organization"],
     }));
 }

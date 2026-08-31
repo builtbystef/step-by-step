@@ -257,7 +257,7 @@ describe("the challenge banner and consent prompt", () => {
       "site.com",
     ]);
     expect(consentPrompts(candidates, "manual")[0]).toMatchObject({
-      question: "keep this login for site.com?",
+      question: "Keep this login for site.com?",
       scopes: ["organization", "personal"],
     });
     expect(consentPrompts(candidates, "schedule")[0]?.scopes).toEqual(["organization"]);

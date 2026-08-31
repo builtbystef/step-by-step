@@ -6,60 +6,74 @@
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
-    <main>
-      <h1>Step by Step</h1>
+    <header class="chrome">
+      <img class="mark" src="brand/logo-icon.svg" alt="" />
+      <span class="wordmark">Step by Step</span>
+      <span id="status" class="pill" hidden>
+        <span class="dot" aria-hidden="true"></span>
+        <span id="status-label"></span>
+      </span>
+    </header>
 
-      <section id="connected" hidden>
-        <p>Connected to <strong id="instance"></strong>.</p>
-        <p id="connected-note" class="quiet">
+    <main>
+      <section id="connected" class="panel" hidden>
+        <p class="label">Connected to</p>
+        <p class="instance" id="instance"></p>
+        <p class="quiet" id="connected-note">
           Recording happens in the app: open a Workflow there and start recording.
         </p>
-        <button id="disconnect" type="button">Disconnect</button>
+        <button id="disconnect" class="small" type="button">Disconnect</button>
       </section>
 
-      <section id="recording-pending" hidden>
-        <p>
-          <strong id="pending-workflow"></strong> <span id="pending-verb">is ready to record</span>.
-        </p>
+      <section id="recording-pending" class="panel" hidden>
+        <p class="label" id="pending-verb">Ready to record</p>
+        <p class="panel-title" id="pending-workflow"></p>
         <p class="quiet" id="pending-hint">
           Open the first page of the task in this window, then confirm here.
         </p>
-        <button id="record-button" type="button">Start recording this tab</button>
+        <button id="record-button" class="primary wide" type="button">
+          Start recording this tab
+        </button>
       </section>
 
-      <section id="recording-active" hidden>
-        <p id="active-copy">Recording <strong id="active-workflow"></strong>.</p>
+      <section id="recording-active" class="panel" hidden>
+        <p class="label" id="active-verb">Recording</p>
+        <p class="panel-title" id="active-workflow"></p>
         <p class="quiet" id="active-hint">
           Complete the task in this tab, then stop to review every Step.
         </p>
-        <button id="stop-button" type="button">Stop and review</button>
+        <button id="stop-button" class="primary wide" type="button">Stop and review</button>
       </section>
 
-      <section id="recording-save" hidden>
-        <p>Save <strong id="save-workflow"></strong></p>
-        <p id="save-summary" class="quiet"></p>
+      <section id="recording-save" class="panel" hidden>
+        <p class="label">Review and save</p>
+        <p class="panel-title" id="save-workflow"></p>
+        <p class="quiet" id="save-summary"></p>
         <div id="secret-bindings"></div>
         <div id="auth-state-choices"></div>
         <datalist id="secret-variables"></datalist>
         <div class="button-row">
-          <button id="discard-button" type="button">Discard</button>
-          <button id="save-button" type="button">Save to Draft</button>
+          <button id="discard-button" class="danger" type="button">Discard</button>
+          <button id="save-button" class="primary" type="button">Save to Draft</button>
         </div>
       </section>
 
-      <section id="connect" hidden>
+      <section id="connect" class="panel" hidden>
+        <p class="panel-title">Connect this browser</p>
         <p class="quiet">
           Enter the address of your Step by Step instance. Chrome will ask whether this extension
           may work on that site — it needs that access to record.
         </p>
-        <label for="address">Instance address</label>
-        <input
-          id="address"
-          type="text"
-          placeholder="https://steps.example.com"
-          spellcheck="false"
-        />
-        <button id="connect-button" type="button">Connect</button>
+        <label>
+          Instance address
+          <input
+            id="address"
+            type="text"
+            placeholder="https://steps.example.com"
+            spellcheck="false"
+          />
+        </label>
+        <button id="connect-button" class="primary wide" type="button">Connect</button>
 
         <details id="code-fallback">
           <summary>Connect with a code instead</summary>
@@ -68,15 +82,20 @@
             instance&rsquo;s address followed by <code>/connect</code> — show a connect code there,
             and paste it here.
           </p>
-          <label for="code">Connect code</label>
-          <input id="code" type="text" spellcheck="false" autocomplete="off" />
-          <button id="code-button" type="button">Connect with code</button>
+          <label>
+            Connect code
+            <input id="code" type="text" spellcheck="false" autocomplete="off" />
+          </label>
+          <button id="code-button" class="wide" type="button">Connect with code</button>
         </details>
       </section>
 
       <p id="note" role="status"></p>
-      <p class="quiet version">Version <span id="version"></span></p>
     </main>
+
+    <footer>
+      <span>Version <span id="version"></span></span>
+    </footer>
     <script type="module" src="popup.js"></script>
   </body>
 </html>

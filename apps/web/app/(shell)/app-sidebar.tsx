@@ -1,6 +1,7 @@
 "use client";
 
 import type { Account, OrganizationMembership } from "@step-by-step/api-client";
+import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -36,12 +37,14 @@ export function AppSidebar({
           href={NAV_DESTINATIONS[0]?.path ?? "/"}
           className="flex items-center gap-2 rounded-md p-2 outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:p-1"
         >
-          <span
+          <Image
+            src="/brand/logo-icon.svg"
+            alt=""
             aria-hidden
-            className="flex size-6 shrink-0 items-center justify-center rounded-md bg-accent text-micro font-bold text-primary-foreground"
-          >
-            S
-          </span>
+            width={36}
+            height={36}
+            className="size-9 shrink-0 group-data-[collapsible=icon]:size-6"
+          />
           <span className="truncate text-title font-semibold text-ink group-data-[collapsible=icon]:hidden">
             Step by Step
           </span>

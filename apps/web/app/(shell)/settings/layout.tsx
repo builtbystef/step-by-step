@@ -43,7 +43,7 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
             </div>
           ))}
         </nav>
-        <div className="flex min-w-0 flex-1 flex-col gap-6">{children}</div>
+        <div className="flex min-w-0 max-w-3xl flex-1 flex-col gap-6">{children}</div>
       </div>
     </>
   );

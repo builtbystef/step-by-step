@@ -72,7 +72,14 @@ export function runDurationMs(
     return null;
   }
   const end = run.ended_at === null ? now.getTime() : Date.parse(run.ended_at);
-  return Math.max(0, end - Date.parse(run.started_at));
+  const elapsed = end - Date.parse(run.started_at);
+  return Number.isNaN(elapsed) ? null : Math.max(0, elapsed);
+}
+
+/* The first UUID group is plenty to tell Runs apart at a glance; the full id
+   stays available as the cell's title. */
+export function shortRunId(id: string): string {
+  return id.split("-")[0] ?? id;
 }
 
 export function triggerLabel(trigger: RunTrigger): string {

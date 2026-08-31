@@ -19,7 +19,7 @@ export function ConnectionPill({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-small font-semibold",
+        "inline-flex items-center gap-1.5 px-2 py-0.5 text-small font-semibold",
         STATE_CLASSES[state],
         className,
       )}

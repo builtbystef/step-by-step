@@ -24,7 +24,7 @@ export function CountBadge({
   return (
     <span
       className={cn(
-        "inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-micro font-semibold tabular-nums",
+        "inline-flex min-w-5 items-center justify-center px-1.5 py-0.5 text-micro font-semibold tabular-nums",
         TONE_CLASSES[tone],
         className,
       )}
