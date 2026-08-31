@@ -23,6 +23,8 @@
   Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)Tap to unmute2xInfoShoppingIf
   playback doesn't begin shortly, try restarting your device
 </div>
+<div id="suggestions"><div id="suggestion">Rick roll</div></div>
+<button id="routing-control">Go to the video</button>
 <div id="sealed-control"></div>
 <iframe id="unreachable-frame" title="Embedded actions"></iframe>
 <script>
@@ -32,6 +34,15 @@
   const sealedButton = document.createElement("button");
   sealedButton.textContent = "Sealed action";
   sealed.append(sealedButton);
+  // A search suggestion: it acts on the press, routes in the page, and takes itself
+  // off screen, so the release lands elsewhere and no click is ever dispatched.
+  document.querySelector("#suggestion").addEventListener("mousedown", () => {
+    history.pushState({}, "", "/recording.html?picked=rick+roll");
+    document.querySelector("#suggestions").remove();
+  });
+  document.querySelector("#routing-control").addEventListener("click", () => {
+    history.pushState({}, "", "/recording.html?watch=video");
+  });
   for (const button of document.querySelectorAll("button")) {
     button.addEventListener("click", () => {
       document.body.dataset.lastClick = button.textContent;

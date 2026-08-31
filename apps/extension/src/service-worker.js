@@ -91,6 +91,16 @@ chrome.webNavigation.onCommitted.addListener((details) => {
   if (details.frameId === 0) void enqueueRecording(() => recordNavigation(details));
 });
 
+// A site that routes in the page never commits a navigation, so without this a
+// Workflow recorded on one has no way back to the pages it moved through.
+chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
+  void enqueueRecording(() => rememberVisitedHost(details));
+  if (details.frameId !== 0) return;
+  // Routing is reported before the press that caused it has crossed from the page,
+  // so the Step it belongs to has to be waited for.
+  void settlePresses().then(() => enqueueRecording(() => recordNavigation(details)));
+});
+
 chrome.debugger.onDetach.addListener((source) => {
   void endRecordingAfterDetach(source.tabId);
 });
@@ -509,8 +519,22 @@ const CLOSED_SHADOW_WARNING =
 // recording is still open and the element still on screen to re-pick.
 const FRAGILE_TARGET_WARNING =
   "Only where this element sits on the page could be recorded. A layout change will lose it. The step was recorded anyway.";
+const PRESS_SETTLE_MS = 800;
 let recordingQueue = Promise.resolve();
 const accessibilityQueries = new Map();
+// The presses whose Step has not been assembled yet, by the same key.
+const pendingPresses = new Map();
+
+// Waits outside the recording queue, so the work being waited for can run.
+async function settlePresses() {
+  while (pendingPresses.size > 0) {
+    for (const [key, at] of pendingPresses) {
+      if (Date.now() - at > PRESS_SETTLE_MS) pendingPresses.delete(key);
+    }
+    if (pendingPresses.size === 0) return;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+}
 
 function enqueueRecording(work) {
   recordingQueue = recordingQueue.then(work).catch((failure) => {
@@ -627,6 +651,7 @@ async function stopRecording() {
       } catch {}
     }
     accessibilityQueries.clear();
+    pendingPresses.clear();
     await chrome.storage.local.remove(RECORDING_KEY);
     return { stopped: true };
   }
@@ -644,6 +669,7 @@ async function stopRecording() {
     } catch {}
   }
   accessibilityQueries.clear();
+  pendingPresses.clear();
   return { stopped: true };
 }
 
@@ -652,6 +678,7 @@ async function discardRecording() {
   await chrome.storage.local.remove(RECORDING_KEY);
   if (active?.state === "recording") void debuggerDetach(active.tabId);
   accessibilityQueries.clear();
+  pendingPresses.clear();
   return { discarded: true };
 }
 
@@ -754,6 +781,7 @@ async function endRecordingAfterDetach(tabId) {
   if (active?.tabId !== tabId || active.state !== "recording") return;
   if (active.mode === "repick") {
     accessibilityQueries.clear();
+    pendingPresses.clear();
     await chrome.storage.local.remove(RECORDING_KEY);
     return;
   }
@@ -763,6 +791,7 @@ async function endRecordingAfterDetach(tabId) {
   active.endedAt = new Date().toISOString();
   await chrome.storage.local.set({ [RECORDING_KEY]: active });
   accessibilityQueries.clear();
+  pendingPresses.clear();
 }
 
 async function activeRecording() {
@@ -797,6 +826,7 @@ async function acceptRecorderMessage(message, sender) {
   }
   const key = `${sender.frameId}:${message.correlation}`;
   if (message.type === "recorder-ax") {
+    if (message.press === true) pendingPresses.set(key, Date.now());
     accessibilityQueries.set(
       key,
       queryAccessibility(active.tabId, sender.frameId, message.correlation),
@@ -871,6 +901,7 @@ async function assembleInteraction(tabId, frameId, key, message) {
       ])
     : null;
   accessibilityQueries.delete(key);
+  pendingPresses.delete(key);
   const candidates = Array.isArray(message.candidates) ? [...message.candidates] : [];
   if (prefetched?.role) {
     candidates.splice(candidates[0]?.kind === "testid" ? 1 : 0, 0, prefetched.role);
@@ -936,6 +967,7 @@ async function completeRepick(active, candidates) {
     await debuggerDetach(active.tabId);
   } catch {}
   accessibilityQueries.clear();
+  pendingPresses.clear();
   await chrome.storage.local.remove(RECORDING_KEY);
 }
 

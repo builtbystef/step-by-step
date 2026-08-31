@@ -628,6 +628,48 @@ def test_position_only_target_warns_while_the_recording_is_open(
     page.close()
 
 
+def test_a_press_that_routes_before_any_click_is_still_recorded(
+    connected_browser: BrowserContext,
+    fixture_site: str,
+    recording_sink: RecordingSink,
+) -> None:
+    page = connected_browser.new_page()
+    page.goto(f"{fixture_site}/recording.html")
+    surface = start_recording(connected_browser, fixture_site, page)
+
+    page.click("#suggestion")
+    page.wait_for_timeout(600)
+    steps = recording_sink.wait_for_steps_after_start(1)
+
+    assert [step["type"] for step in steps] == ["click"]
+    assert steps[0]["label"] == "Click Rick roll"
+    assert steps[0]["payload"]["assertedNavigation"] is True
+
+    surface.close()
+    page.close()
+
+
+def test_routing_inside_the_page_marks_the_click_that_caused_it(
+    connected_browser: BrowserContext,
+    fixture_site: str,
+    recording_sink: RecordingSink,
+) -> None:
+    page = connected_browser.new_page()
+    page.goto(f"{fixture_site}/recording.html")
+    surface = start_recording(connected_browser, fixture_site, page)
+
+    page.click("#routing-control")
+    page.wait_for_timeout(600)
+    steps = recording_sink.wait_for_steps_after_start(1)
+
+    assert [step["type"] for step in steps] == ["click"]
+    assert steps[0]["label"] == "Click Go to the video"
+    assert steps[0]["payload"]["assertedNavigation"] is True
+
+    surface.close()
+    page.close()
+
+
 def test_a_warning_can_be_dismissed_without_recording_the_dismissal(
     connected_browser: BrowserContext,
     fixture_site: str,

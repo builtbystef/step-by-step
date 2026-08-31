@@ -7,6 +7,9 @@
     .join("");
   let sequence = 0;
   let extract = null;
+  // Long enough for the click a press usually becomes to arrive first.
+  const PRESS_WITHOUT_CLICK_MS = 300;
+  let press = null;
   const normalized = (value) => (value ?? "").replace(/\s+/g, " ").trim();
 
   function selectorEscaped(value) {
@@ -270,7 +273,37 @@
     (event) => {
       const element = actionable(event.target);
       if (!element) return;
-      send({ type: "recorder-ax", correlation: correlationFor(element), pageLoad });
+      const correlation = correlationFor(element);
+      const primary = event.button === 0;
+      send({ type: "recorder-ax", correlation, pageLoad, press: primary });
+      if (!primary) return;
+      // A control that acts on the press rather than the click — a search suggestion,
+      // say — moves the page out from under the pointer, so the release lands on
+      // whatever replaced it and no click event is ever dispatched. What was pressed
+      // has to be described now, while it is still on the page.
+      const pressed = {
+        correlation,
+        element,
+        url: location.href,
+        candidates: candidatesFor(element),
+        description: normalized(element.textContent).slice(0, 120),
+      };
+      press = pressed;
+      setTimeout(() => {
+        if (press !== pressed) return;
+        press = null;
+        // Only a press that visibly did something: one that changed the page, or took
+        // what was pressed off it. Anything else is a drag, or a press thought better of.
+        if (location.href === pressed.url && pressed.element.isConnected) return;
+        send({
+          type: "recorder-event",
+          event: "click",
+          correlation: pressed.correlation,
+          pageLoad,
+          candidates: pressed.candidates,
+          description: pressed.description,
+        });
+      }, PRESS_WITHOUT_CLICK_MS);
     },
     true,
   );
@@ -288,6 +321,7 @@
   addEventListener(
     "click",
     (event) => {
+      press = null;
       const element = actionable(event.target);
       if (!element) return;
       const armed = extract;
