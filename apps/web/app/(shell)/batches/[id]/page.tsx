@@ -373,7 +373,7 @@ function BatchView({ orgId, batchId }: { orgId: string; batchId: string }) {
               <p>{callout.sequential}</p>
               <p>
                 <span className="font-mono">{callout.countdown}</span>
-                {" — "}
+                {" · "}
                 {callout.timeout}
               </p>
             </Callout>

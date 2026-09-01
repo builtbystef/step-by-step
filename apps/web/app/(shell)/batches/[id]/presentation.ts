@@ -109,7 +109,7 @@ export function runHref(runId: string): string {
 }
 
 const FAILURE_WORDS: Record<string, string> = {
-  step_failed: "A Step failed — a selector missed, an action errored, or the Step timed out.",
+  step_failed: "A Step failed. A selector missed, an action errored, or the Step timed out.",
   takeover_timeout: "The waiting-for-you deadline passed.",
   auth_challenge: "A Step failed while an authentication challenge was on the page.",
   takeover_abandoned: "Control was abandoned.",
@@ -153,7 +153,7 @@ export function stalledCallout(input: StalledInput | null): StalledCallout | nul
   const display = input.rowIndex + 1;
   return {
     title: `Row ${String(display)} is waiting for you`,
-    sequential: `Rows run one at a time — the other ${String(input.queuedCount)} rows stay queued until this one is dealt with.`,
+    sequential: `Rows run one at a time. The other ${String(input.queuedCount)} rows stay queued until this one is dealt with.`,
     timeout: "If the deadline passes, this row fails and the Batch moves on.",
     countdown: countdownLabel(input.deadlineAt, input.now),
     takeOver: takeOverLabel(display),

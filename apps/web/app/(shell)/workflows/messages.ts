@@ -3,7 +3,7 @@ import type { DraftState } from "@step-by-step/api-client";
 import { COPY } from "../../../lib/copy";
 
 const REFUSALS: Record<string, string> = {
-  workflow_not_found: "That Workflow is gone — somebody deleted it, or it was never here.",
+  workflow_not_found: "That Workflow is gone. Somebody deleted it, or it was never here.",
   no_published_version: COPY.noPublishedVersion,
   missing_secret: "A Secret this Workflow needs is missing.",
   bad_cursor: "That page is no longer where it was. Reload the list.",

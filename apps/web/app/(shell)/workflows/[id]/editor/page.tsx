@@ -27,7 +27,7 @@ import { StepCard } from "./step-card";
 import { TestRunDialog } from "./test-run-dialog";
 import { testRunFields, testRunRefusal } from "./test-run";
 import { ADDABLE_STEP_TYPES, STEP_TYPE_LABELS, blankStep, targetsOf, type Step } from "./steps";
-import { VariablesDrawer } from "./variables-drawer";
+import { VariablesDialog } from "./variables-dialog";
 import {
   secretNames,
   undeclaredRows,
@@ -98,7 +98,7 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
   const [expanded, setExpanded] = useState<string | null>(null);
   const [repairing, setRepairing] = useState<string | null>(null);
   const [testing, setTesting] = useState(false);
-  const [drawer, setDrawer] = useState(false);
+  const [variablesOpen, setVariablesOpen] = useState(false);
   const [highlighted, setHighlighted] = useState<string | null>(null);
   const [restoring, setRestoring] = useState<number | null>(null);
   const [recordingNote, setRecordingNote] = useState<string | null>(null);
@@ -417,7 +417,7 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
     <Button
       variant="secondary"
       onClick={() => {
-        setDrawer(true);
+        setVariablesOpen(true);
       }}
     >
       <Braces className="size-3.5" />
@@ -515,12 +515,12 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
         </Callout>
       )}
 
-      <VariablesDrawer
-        open={drawer}
+      <VariablesDialog
+        open={variablesOpen}
         document={document}
         vault={(vault.data ?? []).map((secret) => ({ id: secret.id, name: secret.name }))}
         readOnly={readOnly}
-        onOpenChange={setDrawer}
+        onOpenChange={setVariablesOpen}
         onChange={setEdited}
         onShowUsages={setHighlighted}
       />
@@ -612,7 +612,7 @@ function DraftEditor({ orgId, workflowId }: { orgId: string; workflowId: string 
       {unsaved && !readOnly ? (
         <StickyActionFooter>
           <p className="mr-auto text-small text-mut">
-            Unsaved changes — nothing runs from this Draft until you save it.
+            Unsaved changes. Nothing runs from this Draft until you save it.
           </p>
           <Button
             variant="ghost"

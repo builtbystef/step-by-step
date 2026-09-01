@@ -69,7 +69,7 @@ function Payload({
       return (
         <ValueField
           label="URL"
-          hint="Literal text and Variables mix freely — {{name}} is filled in per Run."
+          hint="Literal text and Variables mix freely. {{name}} is filled in per Run."
           placeholder="https://example.com/invoices"
           value={step.payload.url}
           variables={variables}
@@ -112,7 +112,7 @@ function Payload({
           />
           <ValueField
             label="Value"
-            hint="A secret Variable never lands here — {{name}} is all the Step keeps."
+            hint="A secret Variable never lands here. {{name}} is all the Step keeps."
             value={step.payload.value}
             variables={variables}
             onChange={(value) => {
@@ -460,7 +460,7 @@ function TakeoverPayload({
             </Button>
           </div>
         ) : (
-          <p className="text-half text-mut">Nothing — this pause ends when the person says so.</p>
+          <p className="text-half text-mut">Nothing. This pause ends when the person says so.</p>
         )}
       </Group>
     </>
@@ -492,14 +492,14 @@ function Envelope({
       </Field>
       <div className="flex flex-wrap gap-4">
         <Check
-          label="Optional — skip it rather than fail the Run"
+          label="Optional: skip it rather than fail the Run"
           checked={step.optional === true}
           onChange={(optional) => {
             onChange({ ...step, optional });
           }}
         />
         <Check
-          label="Off — keep it here, do not run it"
+          label="Off: keep it here, do not run it"
           checked={step.disabled === true}
           onChange={(disabled) => {
             onChange({ ...step, disabled });

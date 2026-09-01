@@ -496,6 +496,6 @@ function StripSlot({
   }
   const shown = occurrenceLabel(mark.at, timezone, viewerTz);
   return (
-    <HatchedOccurrence kind={hatchOf(mark.kind)} label={`${shown.at} — ${holeStory(mark.kind)}`} />
+    <HatchedOccurrence kind={hatchOf(mark.kind)} label={`${shown.at} · ${holeStory(mark.kind)}`} />
   );
 }

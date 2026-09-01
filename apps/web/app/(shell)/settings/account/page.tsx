@@ -111,7 +111,7 @@ function EverySession() {
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="text-small text-mut">
-          Signing out everywhere ends every session on every browser you are signed in on — this one
+          Signing out everywhere ends every session on every browser you are signed in on, this one
           included. Use it when you have lost a device.
         </p>
         <Button
@@ -155,24 +155,20 @@ function DangerZone({ me }: { me: Account }) {
         <Callout tone="bad">{endingConsequence()}</Callout>
         {end.error ? <Callout tone="bad">{refusalMessage(end.error)}</Callout> : null}
         {owned.length > 0 ? (
-          <Callout
-            tone="warn"
-            title="Hand your Organizations on first"
-            actions={
-              <Button
-                size="sm"
-                variant="ghost"
-                className="text-small"
-                onClick={() => {
-                  router.push("/settings/organization/members");
-                }}
-              >
-                Go to Members
-              </Button>
-            }
-          >
-            {soleOwnerExplanation(owned)}
-          </Callout>
+          <>
+            <Callout tone="warn" title="Hand your Organizations on first">
+              {soleOwnerExplanation(owned)}
+            </Callout>
+            <Button
+              variant="secondary"
+              className="self-start"
+              onClick={() => {
+                router.push("/settings/organization/members");
+              }}
+            >
+              Go to Members
+            </Button>
+          </>
         ) : (
           <form
             className="flex flex-col gap-3"

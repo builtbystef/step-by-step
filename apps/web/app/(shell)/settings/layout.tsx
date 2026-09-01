@@ -23,9 +23,7 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
           {groups.map((group, index) => (
             <div key={group.label ?? `group-${String(index)}`} className="flex flex-col gap-0.5">
               {group.label ? (
-                <span className="px-2 py-1 text-micro font-semibold text-mut uppercase">
-                  {group.label}
-                </span>
+                <span className="px-2 py-1 text-micro font-semibold text-mut">{group.label}</span>
               ) : null}
               {group.sections.map((section) => (
                 <Link

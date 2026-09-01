@@ -42,7 +42,7 @@ export type PaneView = {
 };
 
 const UNMET_KEEP = "keep control and finish it";
-const UNMET_GIVE_UP = "give up — fail the run";
+const UNMET_GIVE_UP = "give up: fail the run";
 const HELD_NOTE = "Control is held in another tab.";
 
 export function paneView(input: PaneInput): PaneView {
@@ -63,13 +63,13 @@ export function paneView(input: PaneInput): PaneView {
   };
 
   if (cancelling && !isTerminal(status)) {
-    return { ...base, caption: "cancelling — waiting for a Step boundary" };
+    return { ...base, caption: "cancelling: waiting for a Step boundary" };
   }
   if (isTerminal(status)) {
-    return { ...base, frame: "ended", caption: "session ended — the browser closed" };
+    return { ...base, frame: "ended", caption: "session ended: the browser closed" };
   }
   if (status === "queued") {
-    return { ...base, caption: "queued — waiting for a Worker" };
+    return { ...base, caption: "queued: waiting for a Worker" };
   }
 
   if (status === "waiting_for_human" && unmetHandback) {
@@ -114,7 +114,7 @@ export function paneView(input: PaneInput): PaneView {
   return {
     ...base,
     frame: "view_only",
-    caption: "view only — automation in control",
+    caption: "view only: automation in control",
   };
 }
 

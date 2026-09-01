@@ -3,7 +3,10 @@
 import type { Account, OrganizationMembership } from "@step-by-step/api-client";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronsUpDown } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+
+import { SETTINGS_DESTINATION } from "./nav";
 
 import {
   DropdownMenu,
@@ -49,26 +52,31 @@ export function UserMenu({ me, active }: { me: Account; active: OrganizationMemb
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
 
-        {offersASwitcher(me) ? (
-          <DropdownMenuRadioGroup
-            value={active?.id ?? ""}
-            onValueChange={(chosen) => {
-              chooseOrganization(chosen);
-              void cache.invalidateQueries();
-            }}
-          >
-            <DropdownMenuLabel>Organization</DropdownMenuLabel>
-            {me.orgs.map((org) => (
-              <DropdownMenuRadioItem key={org.id} value={org.id}>
-                {org.name}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-        ) : (
-          <p className="px-1.5 py-1 text-half text-ink">{active?.name}</p>
-        )}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Organizations</DropdownMenuLabel>
+          {offersASwitcher(me) ? (
+            <DropdownMenuRadioGroup
+              value={active?.id ?? ""}
+              onValueChange={(chosen) => {
+                chooseOrganization(chosen);
+                void cache.invalidateQueries();
+              }}
+            >
+              {me.orgs.map((org) => (
+                <DropdownMenuRadioItem key={org.id} value={org.id}>
+                  {org.name}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          ) : (
+            <p className="px-1.5 py-1 text-half text-ink">{active?.name}</p>
+          )}
+        </DropdownMenuGroup>
 
         <DropdownMenuSeparator />
+        <DropdownMenuItem render={<Link href={SETTINGS_DESTINATION.path} />}>
+          {SETTINGS_DESTINATION.label}
+        </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => {
             void signOutAndLeave(cache, (to) => {

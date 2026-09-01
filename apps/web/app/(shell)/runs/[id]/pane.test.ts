@@ -80,7 +80,7 @@ describe("the pane's three states", () => {
     });
     expect(view.frame).toBe("view_only");
     expect(view.highlight).toBe("none");
-    expect(view.caption).toBe("view only — automation in control");
+    expect(view.caption).toBe("view only: automation in control");
     expect(view.showWaitingCard).toBe(false);
     expect(view.showControlBar).toBe(false);
   });
@@ -143,7 +143,7 @@ describe("the pane's three states", () => {
       unmetHandback: false,
     });
     expect(view.frame).toBe("ended");
-    expect(view.caption).toBe("session ended — the browser closed");
+    expect(view.caption).toBe("session ended: the browser closed");
     expect(
       terminalBanner({
         run: run({
@@ -234,7 +234,7 @@ describe("the unmet hand-back choice", () => {
     expect(view.showUnmetChoice).toBe(true);
     expect(view.showWaitingCard).toBe(false);
     expect(view.unmetKeep).toBe("keep control and finish it");
-    expect(view.unmetGiveUp).toBe("give up — fail the run");
+    expect(view.unmetGiveUp).toBe("give up: fail the run");
   });
 });
 

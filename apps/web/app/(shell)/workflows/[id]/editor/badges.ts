@@ -44,10 +44,10 @@ export function targetHealth(step: Step): TargetHealth {
 }
 
 const FRAGILE_WARNING =
-  "Only where this element sat on the page was recorded. A layout change will lose it — " +
-  "re-pick it to record a better way of finding it.";
+  "Only where this element sat on the page was recorded. A layout change will lose it. " +
+  "Re-pick it to record a better way of finding it.";
 
-export const EMPTY_WARNING = "no selectors — pick an element";
+export const EMPTY_WARNING = "no selectors: pick an element";
 
 export function stepBadges(step: Step, workflowDefaultMs: number, drifted = false): StepBadge[] {
   const badges: StepBadge[] = [];

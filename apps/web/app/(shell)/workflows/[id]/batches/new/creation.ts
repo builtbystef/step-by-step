@@ -23,11 +23,11 @@ const MONTHS = [
 ] as const;
 
 export function defaultBatchName(workflowName: string, now: Date): string {
-  return `${workflowName} — ${calendarDate(now)}`;
+  return `${workflowName} · ${calendarDate(now)}`;
 }
 
 export function rerunBatchName(workflowName: string, batchName: string): string {
-  return `${workflowName} — rerun of ${batchName}`;
+  return `${workflowName} · rerun of ${batchName}`;
 }
 
 export function sequentialEta(rowCount: number, medianMs: number | null | undefined): string {

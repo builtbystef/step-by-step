@@ -23,10 +23,10 @@ export function selectorHealthCopy(health: TargetHealth, count: number): string 
     return EMPTY_WARNING;
   }
   if (health.state === "fragile") {
-    return "fragile — only position-based selectors";
+    return "fragile: only position-based selectors";
   }
   const noun = count === 1 ? "way" : "ways";
-  return `${String(count)} ${noun} to find it — verified when recorded`;
+  return `${String(count)} ${noun} to find it, verified when recorded`;
 }
 
 export function selectorHealthTone(health: TargetHealth, count: number): AttributeTone {

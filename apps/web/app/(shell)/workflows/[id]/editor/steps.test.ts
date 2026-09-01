@@ -109,7 +109,7 @@ describe("a Step added in the editor", () => {
 
       expect(target?.candidates).toEqual([]);
       expect(targetHealth(step).state).not.toBe("ok");
-      expect(selectorHealthCopy(targetHealth(step), 0)).toBe("no selectors — pick an element");
+      expect(selectorHealthCopy(targetHealth(step), 0)).toBe("no selectors: pick an element");
     }
   });
 });
@@ -121,7 +121,7 @@ describe("switching a wait", () => {
     expect(waiting.type).toBe("wait");
     expect(waiting.payload).toEqual({ mode: "element", target: { candidates: [] } });
     expect(targetHealth(waiting).state).not.toBe("ok");
-    expect(selectorHealthCopy(targetHealth(waiting), 0)).toBe("no selectors — pick an element");
+    expect(selectorHealthCopy(targetHealth(waiting), 0)).toBe("no selectors: pick an element");
   });
 
   it("keeps the Step's id when the mode changes", () => {

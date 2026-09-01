@@ -2,7 +2,7 @@ import type { OfferedMembership, Role } from "@step-by-step/api-client";
 
 const REFUSALS: Record<string, string> = {
   invitation_not_found:
-    "That Invitation is no longer standing — it was revoked, taken, or it expired.",
+    "That Invitation is no longer standing. It was revoked, taken, or it expired.",
   already_member: "You are already in that Organization.",
 };
 

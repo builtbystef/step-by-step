@@ -107,7 +107,7 @@ describe("the badge column", () => {
         key: "fragile",
         label: "no selectors",
         tone: "wait",
-        title: "no selectors — pick an element",
+        title: "no selectors: pick an element",
       },
     ]);
   });

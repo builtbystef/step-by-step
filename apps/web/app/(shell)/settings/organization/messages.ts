@@ -4,7 +4,7 @@ const REFUSALS: Record<string, string> = {
   not_a_member: "You are no longer a member of that Organization.",
   not_an_admin: "Only an owner or an admin can do that.",
   not_the_owner: "Only the owner can hand the Organization on.",
-  is_owner: "The owner's place cannot be changed or ended — hand it on first.",
+  is_owner: "The owner's place cannot be changed or ended. Hand it on first.",
   member_not_found: "That person is no longer in this Organization.",
   confirmation_mismatch: "That is not this Organization's name.",
 };

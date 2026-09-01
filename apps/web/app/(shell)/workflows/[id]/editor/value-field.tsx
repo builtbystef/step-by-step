@@ -189,7 +189,7 @@ function ConvertForm({
             setSecret(ticked.target.checked);
           }}
         />
-        Secret — supplied per Run, never stored in a Step
+        Secret: supplied per Run, never stored in a Step
       </label>
       {refusal === null ? null : <Callout tone="warn">{refusal}</Callout>}
     </form>

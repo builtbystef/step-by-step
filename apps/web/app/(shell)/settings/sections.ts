@@ -13,7 +13,13 @@ export type SettingsGroup = {
 const INVITATIONS_PATH = "/settings/organization/invitations";
 
 export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
-  { label: null, sections: [{ label: "Account", path: "/settings/account" }] },
+  {
+    label: "Account",
+    sections: [
+      { label: "Account", path: "/settings/account" },
+      { label: "Browser extension", path: "/settings/extension" },
+    ],
+  },
   {
     label: "Organization",
     sections: [
@@ -23,11 +29,10 @@ export const SETTINGS_GROUPS: readonly SettingsGroup[] = [
     ],
   },
   {
-    label: null,
+    label: "Vault",
     sections: [
       { label: "Secrets", path: "/settings/secrets" },
       { label: "Saved logins", path: "/settings/logins" },
-      { label: "Browser extension", path: "/settings/extension" },
     ],
   },
 ];

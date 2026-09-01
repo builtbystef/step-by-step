@@ -7,7 +7,7 @@ const REFUSALS: Record<string, string> = {
     "A Step here is of a type this instance cannot run, so the Draft was not saved.",
   malformed_payload:
     "A Step here is not filled in the way its type needs, so the Draft was not saved.",
-  workflow_not_found: "That Workflow is gone — somebody deleted it, or it was never here.",
+  workflow_not_found: "That Workflow is gone. Somebody deleted it, or it was never here.",
 };
 
 const UNKNOWN_REFUSAL = "The Draft was not saved. Try again in a moment.";
@@ -18,12 +18,12 @@ export function saveRefusal(error: unknown): string {
     typeof said?.code === "string" ? (REFUSALS[said.code] ?? UNKNOWN_REFUSAL) : UNKNOWN_REFUSAL;
   const detail =
     sentence === UNKNOWN_REFUSAL || typeof said?.message !== "string" ? "" : said.message;
-  return detail === "" ? sentence : `${sentence} — ${detail}`;
+  return detail === "" ? sentence : `${sentence}: ${detail}`;
 }
 
 const READ_REFUSALS: Record<string, string> = {
   version_not_found: "That Version is not here. The version dropdown lists the ones that are.",
-  workflow_not_found: "That Workflow is gone — somebody deleted it, or it was never here.",
+  workflow_not_found: "That Workflow is gone. Somebody deleted it, or it was never here.",
 };
 
 const UNKNOWN_READ_REFUSAL = "This document could not be loaded. Try again in a moment.";

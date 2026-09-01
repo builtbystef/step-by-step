@@ -257,7 +257,7 @@ function RunRow({ run, columns }: { run: RunSummary; columns: readonly Column[] 
         if (column === "duration") {
           return (
             <td key={column} className="px-2 py-2 text-mut">
-              {length === null ? "—" : duration(length)}
+              {length === null ? "–" : duration(length)}
             </td>
           );
         }

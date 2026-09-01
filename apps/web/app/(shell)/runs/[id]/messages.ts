@@ -1,7 +1,7 @@
 import { COPY } from "../../../../lib/copy";
 
 const REFUSALS: Record<string, string> = {
-  run_not_found: "That Run is gone — somebody deleted it, or it was never here.",
+  run_not_found: "That Run is gone. Somebody deleted it, or it was never here.",
   run_terminal: "That Run has already finished.",
   run_active: "A Run that is still going cannot be deleted.",
   missing_secret: "A Secret this Workflow needs is missing.",

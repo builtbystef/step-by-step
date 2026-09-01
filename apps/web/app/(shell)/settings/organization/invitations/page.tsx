@@ -101,7 +101,7 @@ function Invitations({ org }: { org: OrganizationMembership }) {
             />
             <select
               aria-label="Role"
-              className="h-9 rounded-md border border-line bg-panel px-2 text-half text-ink"
+              className="h-8 rounded-md border border-line bg-panel px-2 text-half text-ink"
               value={role}
               onChange={(chosen) => {
                 setRole(chosen.target.value as AssignableRole);

@@ -146,10 +146,10 @@ function hasTargetFailure(result: StepResultRecord): boolean {
 }
 
 export const CANCEL_CONFIRM =
-  "The Worker finishes the action it is on, then stops at the next Step boundary — it never stops mid-click.";
+  "The Worker finishes the action it is on, then stops at the next Step boundary. It never stops mid-click.";
 
 export function cancellingBand(stepNumber: number): string {
-  return `cancelling — waiting for step ${String(stepNumber)} to reach a boundary`;
+  return `cancelling: waiting for step ${String(stepNumber)} to reach a boundary`;
 }
 
 export type PrefillVariable = {
@@ -493,30 +493,30 @@ export function controlBandLabel(
 ): string {
   const time = clock(durationMs);
   if (kind === "waiting") {
-    return `waiting for you — ${time}`;
+    return `waiting for you: ${time}`;
   }
   if (kind === "human") {
-    return `you were in control — ${time}`;
+    return `you were in control: ${time}`;
   }
   return closed
-    ? `verifying the success check — ${time} · passed, automation resumed`
-    : `verifying the success check — ${time}`;
+    ? `verifying the success check: ${time} · passed, automation resumed`
+    : `verifying the success check: ${time}`;
 }
 
 export function panePlaceholder(status: RunStatus, cancelling: boolean): string {
   if (cancelling && !TERMINAL.has(status)) {
-    return "cancelling — waiting for a Step boundary";
+    return "cancelling: waiting for a Step boundary";
   }
   if (status === "queued") {
-    return "queued — waiting for a Worker";
+    return "queued: waiting for a Worker";
   }
   if (status === "waiting_for_human") {
-    return "waiting for you — the browser is held";
+    return "waiting for you: the browser is held";
   }
   if (TERMINAL.has(status)) {
-    return "session ended — the browser closed";
+    return "session ended: the browser closed";
   }
-  return "view only — automation in control";
+  return "view only: automation in control";
 }
 
 export function triggerLabel(trigger: RunRecord["trigger"]): string {

@@ -77,7 +77,7 @@ export function TestRunDialog({
           <DialogHeader>
             <DialogTitle>Test run</DialogTitle>
             <DialogDescription>
-              Runs this Draft as it is saved. No Version is minted — Schedules and Batches keep
+              Runs this Draft as it is saved. No Version is minted. Schedules and Batches keep
               executing the latest published Version.
             </DialogDescription>
           </DialogHeader>

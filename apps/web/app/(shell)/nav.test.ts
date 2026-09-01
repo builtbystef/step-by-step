@@ -11,7 +11,7 @@ describe("the nav", () => {
     ]);
   });
 
-  it("keeps Settings apart, below the separator", () => {
+  it("keeps Settings out of the sidebar destinations", () => {
     expect(NAV_DESTINATIONS).not.toContain(SETTINGS_DESTINATION);
     expect(SETTINGS_DESTINATION.path).toBe("/settings");
   });

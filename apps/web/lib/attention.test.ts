@@ -16,7 +16,7 @@ describe("shell attention", () => {
       "Invoice download — AcmeBank is waiting for you",
     );
     expect(attentionMessage(3, "Invoice download — AcmeBank")).toBe(
-      "3 Runs are waiting for you — the soonest is Invoice download — AcmeBank",
+      "3 Runs are waiting for you. The soonest is Invoice download — AcmeBank",
     );
   });
 

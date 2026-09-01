@@ -33,7 +33,7 @@ describe("the collapsed health badge", () => {
     const target: Target = { candidates: [TESTID, ROLE, CSS] };
 
     expect(selectorHealthCopy(targetHealth(clicking(target)), target.candidates.length)).toBe(
-      "3 ways to find it — verified when recorded",
+      "3 ways to find it, verified when recorded",
     );
     expect(selectorHealthTone(targetHealth(clicking(target)), target.candidates.length)).toBe("ok");
   });
@@ -42,7 +42,7 @@ describe("the collapsed health badge", () => {
     const target: Target = { candidates: [TESTID] };
 
     expect(selectorHealthCopy(targetHealth(clicking(target)), 1)).toBe(
-      "1 way to find it — verified when recorded",
+      "1 way to find it, verified when recorded",
     );
   });
 
@@ -50,7 +50,7 @@ describe("the collapsed health badge", () => {
     const target: Target = { candidates: [CSS] };
 
     expect(selectorHealthCopy(targetHealth(clicking(target)), 1)).toBe(
-      "fragile — only position-based selectors",
+      "fragile: only position-based selectors",
     );
     expect(selectorHealthTone(targetHealth(clicking(target)), 1)).toBe("wait");
   });
@@ -69,7 +69,7 @@ describe("the collapsed health badge", () => {
     const target: Target = { candidates: [] };
 
     expect(selectorHealthCopy(targetHealth(clicking(target)), 0)).toBe(
-      "no selectors — pick an element",
+      "no selectors: pick an element",
     );
     expect(selectorHealthTone(targetHealth(clicking(target)), 0)).toBe("wait");
   });

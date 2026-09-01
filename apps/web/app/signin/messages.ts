@@ -7,7 +7,7 @@ const REFUSALS: Record<string, string> = {
     "That code has had too many wrong tries and no longer works. Send yourself a new Sign-in Code.",
   rate_limited: "Too many codes have been asked for. Wait a few minutes, then try again.",
   signup_closed:
-    "This instance does not create accounts on its own — new accounts join by Invitation. " +
+    "This instance does not create accounts on its own. New accounts join by Invitation. " +
     "Ask an owner or admin of an Organization to invite this address.",
 };
 
@@ -21,7 +21,7 @@ export function refusalMessage(error: unknown): string {
 
 const SIGNUP_NOTES: Record<SignupMode, string> = {
   open: "Don't have an account? Signing in creates one.",
-  invite_only: "Sign-in only — new accounts join this instance by Invitation.",
+  invite_only: "Sign-in only. New accounts join this instance by Invitation.",
 };
 
 export function emailStepNote(mode: SignupMode | undefined): string {

@@ -63,9 +63,9 @@ export const CONNECTION_STATES = ["connected", "not_connected", "out_of_date"] a
 export type ConnectionState = (typeof CONNECTION_STATES)[number];
 
 const CONNECTION_LABELS: Record<ConnectionState, string> = {
-  connected: "connected",
-  not_connected: "not connected",
-  out_of_date: "out of date",
+  connected: "extension connected",
+  not_connected: "extension not connected",
+  out_of_date: "extension out of date",
 };
 
 export function connectionLabel(state: ConnectionState): string {

@@ -5,8 +5,8 @@ const REFUSALS: Record<string, string> = {
   invalid_cron: "That is not a cron expression.",
   invalid_timezone: "That is not an IANA timezone.",
   missing_variable_values: "Every non-secret Variable needs a value.",
-  workflow_not_found: "That Workflow is gone — somebody deleted it, or it was never here.",
-  schedule_not_found: "That Schedule is gone — somebody deleted it, or it was never here.",
+  workflow_not_found: "That Workflow is gone. Somebody deleted it, or it was never here.",
+  schedule_not_found: "That Schedule is gone. Somebody deleted it, or it was never here.",
   not_a_member: "You are no longer a member of that Organization.",
 };
 

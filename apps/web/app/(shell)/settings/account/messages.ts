@@ -26,7 +26,7 @@ export function soleOwnerExplanation(owned: OrganizationMembership[]): string {
   const names = owned.map((org) => org.name).join(", ");
   return (
     `You are the owner of ${names}. An Organization has exactly one owner, so hand each one ` +
-    "on to another member — or delete it — before deleting this account."
+    "on to another member, or delete it, before deleting this account."
   );
 }
 

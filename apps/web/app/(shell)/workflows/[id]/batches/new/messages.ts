@@ -4,8 +4,8 @@ const REFUSALS: Record<string, string> = {
   no_published_version: COPY.noPublishedVersion,
   unknown_variable: "A row names a Variable this Workflow does not declare.",
   too_many_rows: "A Batch can hold at most 1 000 rows.",
-  workflow_not_found: "That Workflow is gone — somebody deleted it, or it was never here.",
-  batch_not_found: "That Batch is gone — somebody deleted it, or it was never here.",
+  workflow_not_found: "That Workflow is gone. Somebody deleted it, or it was never here.",
+  batch_not_found: "That Batch is gone. Somebody deleted it, or it was never here.",
   not_a_member: "You are no longer a member of that Organization.",
 };
 

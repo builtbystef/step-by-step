@@ -1,5 +1,5 @@
 const REFUSALS: Record<string, string> = {
-  batch_not_found: "That Batch is gone — somebody deleted it, or it was never here.",
+  batch_not_found: "That Batch is gone. Somebody deleted it, or it was never here.",
   not_a_member: "You are no longer a member of that Organization.",
   not_waiting: "This row is not waiting for a person.",
   run_terminal: "That Run has already finished.",

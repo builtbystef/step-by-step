@@ -334,9 +334,9 @@ describe("the terminal banner", () => {
 describe("cancel", () => {
   it("states the boundary rule, then the cancelling band for the in-flight Step", () => {
     expect(CANCEL_CONFIRM).toBe(
-      "The Worker finishes the action it is on, then stops at the next Step boundary — it never stops mid-click.",
+      "The Worker finishes the action it is on, then stops at the next Step boundary. It never stops mid-click.",
     );
-    expect(cancellingBand(4)).toBe("cancelling — waiting for step 4 to reach a boundary");
+    expect(cancellingBand(4)).toBe("cancelling: waiting for step 4 to reach a boundary");
   });
 
   it("drops the cancelling band once the terminal banner is the outcome", () => {
@@ -442,12 +442,12 @@ describe("meta and pane placeholders", () => {
   });
 
   it("holds a placeholder in the pane until the VNC slice arrives", () => {
-    expect(panePlaceholder("running", false)).toBe("view only — automation in control");
+    expect(panePlaceholder("running", false)).toBe("view only: automation in control");
     expect(panePlaceholder("waiting_for_human", false)).toBe(
-      "waiting for you — the browser is held",
+      "waiting for you: the browser is held",
     );
-    expect(panePlaceholder("succeeded", false)).toBe("session ended — the browser closed");
-    expect(panePlaceholder("running", true)).toBe("cancelling — waiting for a Step boundary");
+    expect(panePlaceholder("succeeded", false)).toBe("session ended: the browser closed");
+    expect(panePlaceholder("running", true)).toBe("cancelling: waiting for a Step boundary");
   });
 });
 

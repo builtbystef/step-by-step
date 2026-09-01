@@ -14,7 +14,7 @@ export type AttentionCounts = {
 export function attentionMessage(waitingCount: number, runLabel: string): string {
   return waitingCount === 1
     ? `${runLabel} is waiting for you`
-    : `${String(waitingCount)} Runs are waiting for you — the soonest is ${runLabel}`;
+    : `${String(waitingCount)} Runs are waiting for you. The soonest is ${runLabel}`;
 }
 
 export function formatDeadline(deadline: string, now = Date.now()): string {

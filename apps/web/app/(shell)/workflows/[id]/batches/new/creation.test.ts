@@ -27,13 +27,13 @@ const REGION: Variable = { name: "region" };
 describe("the Batch name", () => {
   it("defaults to the Workflow name and the date", () => {
     expect(defaultBatchName("Invoice scraper", new Date(2026, 7, 26))).toBe(
-      "Invoice scraper — 26 Aug 2026",
+      "Invoice scraper · 26 Aug 2026",
     );
   });
 
   it("becomes a rerun name when the rows were copied from a past Batch", () => {
     expect(rerunBatchName("Invoice scraper", "July invoices")).toBe(
-      "Invoice scraper — rerun of July invoices",
+      "Invoice scraper · rerun of July invoices",
     );
   });
 });

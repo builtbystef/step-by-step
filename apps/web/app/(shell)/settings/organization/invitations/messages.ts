@@ -5,7 +5,7 @@ const REFUSALS: Record<string, string> = {
   not_an_admin: "Only an owner or an admin can manage Invitations.",
   not_a_member: "You are no longer a member of that Organization.",
   invitation_not_found:
-    "That Invitation is no longer standing — it was revoked, taken, or it expired.",
+    "That Invitation is no longer standing. It was revoked, taken, or it expired.",
 };
 
 const UNKNOWN_REFUSAL = "Something went wrong. Try again in a moment.";

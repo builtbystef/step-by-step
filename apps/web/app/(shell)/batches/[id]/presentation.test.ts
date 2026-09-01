@@ -206,7 +206,7 @@ describe("opening a Run from a row", () => {
 describe("a failed row's expansion", () => {
   it("words the failure_reason and offers open-the-run and re-run", () => {
     expect(failureReasonWords("step_failed")).toBe(
-      "A Step failed — a selector missed, an action errored, or the Step timed out.",
+      "A Step failed. A selector missed, an action errored, or the Step timed out.",
     );
     expect(failureReasonWords("takeover_timeout")).toBe("The waiting-for-you deadline passed.");
     expect(failureReasonWords("auth_challenge")).toBe(
@@ -228,7 +228,7 @@ describe("the stalled callout", () => {
     expect(callout).not.toBeNull();
     expect(callout?.title).toBe("Row 2 is waiting for you");
     expect(callout?.sequential).toBe(
-      "Rows run one at a time — the other 3 rows stay queued until this one is dealt with.",
+      "Rows run one at a time. The other 3 rows stay queued until this one is dealt with.",
     );
     expect(callout?.timeout).toBe("If the deadline passes, this row fails and the Batch moves on.");
     expect(callout?.countdown).toBe("29:00 left");

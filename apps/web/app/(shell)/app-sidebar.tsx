@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { isCurrentSection, NAV_DESTINATIONS, SETTINGS_DESTINATION, type Destination } from "./nav";
+import { isCurrentSection, NAV_DESTINATIONS, type Destination } from "./nav";
 import { ConnectionPillSlot, RunsCountSlot } from "./slots";
 import { UserMenu } from "./user-menu";
 
@@ -18,7 +18,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarSeparator,
 } from "@/components/ui/sidebar";
 
 export function AppSidebar({
@@ -32,22 +31,28 @@ export function AppSidebar({
 }) {
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader>
+      <SidebarHeader className="border-b border-sidebar-border">
         <Link
           href={NAV_DESTINATIONS[0]?.path ?? "/"}
-          className="flex items-center gap-2 rounded-md p-2 outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:p-1"
+          aria-label="Step by Step"
+          className="flex items-center gap-2.5 rounded-md p-2 outline-hidden focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:p-1"
         >
           <Image
             src="/brand/logo-icon.svg"
             alt=""
             aria-hidden
-            width={36}
-            height={36}
-            className="size-9 shrink-0 group-data-[collapsible=icon]:size-6"
+            width={28}
+            height={28}
+            className="size-7 shrink-0"
           />
-          <span className="truncate text-title font-semibold text-ink group-data-[collapsible=icon]:hidden">
-            Step by Step
-          </span>
+          <Image
+            src="/brand/logo-wordmark.svg"
+            alt=""
+            aria-hidden
+            width={94}
+            height={16}
+            className="h-4 w-auto group-data-[collapsible=icon]:hidden"
+          />
         </Link>
       </SidebarHeader>
 
@@ -61,18 +66,12 @@ export function AppSidebar({
             ))}
           </SidebarMenu>
         </SidebarGroup>
-
-        <SidebarSeparator />
-
-        <SidebarGroup>
-          <SidebarMenu>
-            <NavItem destination={SETTINGS_DESTINATION} here={here} />
-          </SidebarMenu>
-        </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter>
-        <ConnectionPillSlot />
+      <SidebarFooter className="border-t border-sidebar-border">
+        <div className="px-2 group-data-[collapsible=icon]:hidden">
+          <ConnectionPillSlot />
+        </div>
         <UserMenu me={me} active={active} />
       </SidebarFooter>
     </Sidebar>

@@ -272,7 +272,7 @@ function Cockpit({ orgId, runId }: { orgId: string; runId: string }) {
           <Meta label="automation" value={clock(snapshot.run.automation_ms)} />
           <Meta label="time with you" value={clock(timeWithYouMs(snapshot.intervals, now))} />
           <Meta label="steps done" value={stepsDoneLabel(snapshot.stepResults, steps.length)} />
-          <Meta label="worker" value={snapshot.run.worker_id ?? "—"} />
+          <Meta label="worker" value={snapshot.run.worker_id ?? "–"} />
           <Meta label="timeout" value={duration(snapshot.run.timeout_ms)} />
           {snapshot.run.failure_reason === null || !isTerminal(snapshot.run.status) ? null : (
             <Meta label="failure reason" value={snapshot.run.failure_reason} />

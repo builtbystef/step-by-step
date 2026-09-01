@@ -23,18 +23,18 @@ import {
 import { AttributeBadge } from "@/components/primitives/attribute-badge";
 import { Callout } from "@/components/primitives/callout";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 
-export function VariablesDrawer({
+export function VariablesDialog({
   open,
   document,
   vault,
@@ -54,21 +54,26 @@ export function VariablesDrawer({
   const rows = variableRows(document);
   const undeclared = undeclaredRows(document);
 
+  const showUsages = (name: string) => {
+    onOpenChange(false);
+    onShowUsages(name);
+  };
+
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="gap-0">
-        <SheetHeader>
-          <SheetTitle>Variables</SheetTitle>
-          <SheetDescription>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[85vh] flex-col gap-0 overflow-hidden sm:max-w-lg">
+        <DialogHeader className="pr-8">
+          <DialogTitle>Variables</DialogTitle>
+          <DialogDescription>
             The inputs this Workflow takes. A Step value reaches for one as{" "}
             <code className="font-mono">{"{{name}}"}</code>, and a secret one is supplied per Run
             and never stored in a Step.
-          </SheetDescription>
-        </SheetHeader>
+          </DialogDescription>
+        </DialogHeader>
 
         <fieldset
           disabled={readOnly}
-          className="flex min-w-0 flex-1 flex-col gap-2 overflow-y-auto px-4 pb-4"
+          className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-y-auto py-3"
         >
           {rows.length === 0 ? (
             <p className="text-half text-mut">
@@ -84,10 +89,7 @@ export function VariablesDrawer({
                 document={document}
                 vault={vault}
                 onChange={onChange}
-                onShowUsages={(name) => {
-                  onOpenChange(false);
-                  onShowUsages(name);
-                }}
+                onShowUsages={showUsages}
               />
             ))
           )}
@@ -100,10 +102,7 @@ export function VariablesDrawer({
                   row={row}
                   document={document}
                   onChange={onChange}
-                  onShowUsages={(name) => {
-                    onOpenChange(false);
-                    onShowUsages(name);
-                  }}
+                  onShowUsages={showUsages}
                 />
               ))}
             </div>
@@ -111,12 +110,12 @@ export function VariablesDrawer({
         </fieldset>
 
         {readOnly ? null : (
-          <SheetFooter className="border-t border-line">
+          <DialogFooter className="flex-col sm:flex-col sm:items-stretch">
             <DeclareForm document={document} onChange={onChange} />
-          </SheetFooter>
+          </DialogFooter>
         )}
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -314,7 +313,7 @@ function VaultPicker({
       Vault Secret
       <select
         aria-label={label}
-        className="h-9 rounded-md border border-line bg-panel px-2 text-half text-ink"
+        className="h-8 rounded-md border border-line bg-panel px-2 text-half text-ink"
         value={live ? (row.secretId ?? "") : ""}
         onChange={(chosen) => {
           const picked = vault.find((entry) => entry.id === chosen.target.value);
@@ -392,7 +391,7 @@ function DeclareForm({
             setSecret(ticked.target.checked);
           }}
         />
-        Secret — supplied per Run, never stored in a Step
+        Secret: supplied per Run, never stored in a Step
       </label>
       {refusal === null ? null : <Callout tone="warn">{refusal}</Callout>}
     </form>

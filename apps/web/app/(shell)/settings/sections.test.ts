@@ -20,9 +20,15 @@ function paths(role: Role): string[] {
 }
 
 describe("the section nav", () => {
-  it("opens with Account, groups the Organization's three, and ends with the vault and the extension", () => {
+  it("groups Account with the extension, the Organization's three, and the vault", () => {
     expect(settingsNav("owner")).toEqual([
-      { label: null, sections: [{ label: "Account", path: "/settings/account" }] },
+      {
+        label: "Account",
+        sections: [
+          { label: "Account", path: "/settings/account" },
+          { label: "Browser extension", path: "/settings/extension" },
+        ],
+      },
       {
         label: "Organization",
         sections: [
@@ -32,11 +38,10 @@ describe("the section nav", () => {
         ],
       },
       {
-        label: null,
+        label: "Vault",
         sections: [
           { label: "Secrets", path: "/settings/secrets" },
           { label: "Saved logins", path: "/settings/logins" },
-          { label: "Browser extension", path: "/settings/extension" },
         ],
       },
     ]);
