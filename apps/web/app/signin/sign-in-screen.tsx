@@ -2,6 +2,7 @@
 
 import { getInstance, requestSigninCode, verifySigninCode } from "@step-by-step/api-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { REGEXP_ONLY_DIGITS } from "input-otp";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
@@ -12,6 +13,7 @@ import { Callout } from "@/components/primitives/callout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Label } from "@/components/ui/label";
 import { landingAfterSignIn, resolveGate, SIGN_IN_PATH } from "@/lib/gate";
 import { IDENTITY_KEY, identityQuery } from "@/lib/identity";
@@ -86,17 +88,29 @@ export function SignInScreen() {
             We sent a 6-digit code to <span className="text-ink">{email}</span>. It works once, and
             it expires in 10 minutes.
           </p>
-          <Input
+          <InputOTP
             id="code"
+            maxLength={6}
             value={code}
             autoFocus
             inputMode="numeric"
             autoComplete="one-time-code"
-            maxLength={6}
-            onChange={(typed) => setCode(typed.target.value.trim())}
-          />
+            pattern={REGEXP_ONLY_DIGITS}
+            containerClassName="justify-center"
+            disabled={signIn.isPending}
+            onChange={setCode}
+          >
+            <InputOTPGroup>
+              <InputOTPSlot index={0} aria-invalid={Boolean(refused)} />
+              <InputOTPSlot index={1} aria-invalid={Boolean(refused)} />
+              <InputOTPSlot index={2} aria-invalid={Boolean(refused)} />
+              <InputOTPSlot index={3} aria-invalid={Boolean(refused)} />
+              <InputOTPSlot index={4} aria-invalid={Boolean(refused)} />
+              <InputOTPSlot index={5} aria-invalid={Boolean(refused)} />
+            </InputOTPGroup>
+          </InputOTP>
           {refused ? <Callout tone="bad">{refusalMessage(refused)}</Callout> : null}
-          <Button type="submit" disabled={signIn.isPending || code.length === 0}>
+          <Button type="submit" disabled={signIn.isPending || code.length !== 6}>
             Sign in
           </Button>
           <div className="flex items-center justify-between">
