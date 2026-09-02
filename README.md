@@ -2,7 +2,7 @@
 
 Step by Step is an open-source, self-hosted browser automation tool. Its Chrome extension records semantic actions such as navigation, clicks, typing, selection, downloads, extraction, waits, and human takeover points. The web app lets you edit and version those Workflows, provide Variables, and inspect every Run.
 
-When automation reaches something that requires a person—such as MFA, a CAPTCHA, or an unexpected page—you can take control of the Worker's browser and then hand it back. Screenshots, downloads, traces, logs, and extracted data are retained with the Run.
+When automation reaches something that requires a person, such as MFA, a CAPTCHA, or an unexpected page, you can take control of the Worker's browser and then hand it back. Screenshots, downloads, traces, logs, and extracted data are retained with the Run.
 
 > [!WARNING]
 > Step by Step is under active development and has not reached a stable release. APIs, configuration, and stored data may change without a migration path.
@@ -22,7 +22,7 @@ When automation reaches something that requires a person—such as MFA, a CAPTCH
 
 ## Screenshots
 
-Light and dark captures of every screen — including Schedules, Secrets, saved logins, the recorder, and settings — are in [`docs/screenshots`](docs/screenshots).
+Light and dark captures of every screen, including Schedules, Secrets, saved logins, the recorder, and settings, are in [`docs/screenshots`](docs/screenshots).
 
 ### Workflows
 
@@ -201,24 +201,24 @@ docs/           Architecture, glossary, standards, ADRs, and screenshots
 
 ## Project docs
 
-- [`AGENTS.md`](AGENTS.md) — repository commands and agent instructions
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system parts and their boundaries
-- [`docs/GLOSSARY.md`](docs/GLOSSARY.md) — shared product terms
-- [`docs/CODING_STANDARDS.md`](docs/CODING_STANDARDS.md) — rules not enforced by formatters or linters
-- [`docs/adr/`](docs/adr/) — decisions that are costly to reverse
-- [`docs/TRACKER.md`](docs/TRACKER.md) — Beaver Backlog commands used by this project
-- [`docs/screenshots`](docs/screenshots) — light and dark captures of the web app
+- [`AGENTS.md`](AGENTS.md): repository commands and agent instructions
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): system parts and their boundaries
+- [`docs/GLOSSARY.md`](docs/GLOSSARY.md): shared product terms
+- [`docs/CODING_STANDARDS.md`](docs/CODING_STANDARDS.md): rules not enforced by formatters or linters
+- [`docs/adr/`](docs/adr/): decisions that are costly to reverse
+- [`docs/TRACKER.md`](docs/TRACKER.md): Beaver Backlog commands used by this project
+- [`docs/screenshots`](docs/screenshots): light and dark captures of the web app
 
 ## Configuration
 
 Copy [`.env.example`](.env.example) for application settings, development service URLs, and documented defaults. Important production-facing settings include:
 
-- `STEPBYSTEP_MASTER_KEY` — encrypts Secrets and Auth State; losing it makes those values unrecoverable
-- `INTERNAL_TOKEN` — authenticates Worker-to-API requests
-- `VNC_CONTROL_PASSWORD` and `VNC_VIEW_PASSWORD` — protect Worker browser access
-- `SIGNUP_MODE` — use `invite_only` for a private instance
-- `MAILER` — `console`, `smtp`, or `resend`
-- `S3_*` — Artifact storage credentials and endpoints
+- `STEPBYSTEP_MASTER_KEY`: encrypts Secrets and Auth State; losing it makes those values unrecoverable
+- `INTERNAL_TOKEN`: authenticates Worker-to-API requests
+- `VNC_CONTROL_PASSWORD` and `VNC_VIEW_PASSWORD`: protect Worker browser access
+- `SIGNUP_MODE`: use `invite_only` for a private instance
+- `MAILER`: `console`, `smtp`, or `resend`
+- `S3_*`: Artifact storage credentials and endpoints
 
 Before operating an internet-facing instance, replace every development credential, configure real email delivery, put the application behind TLS, and arrange backups for PostgreSQL and Artifact storage.
 
