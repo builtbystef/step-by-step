@@ -1,4 +1,32 @@
-# Step by Step
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-full-dark.svg">
+    <img src="docs/assets/logo-full.svg" alt="Step by Step" width="380">
+  </picture>
+</p>
+
+<p align="center">
+  <b>An open-source, self-hosted browser automation tool.</b><br>
+  Record semantic Workflows with a Chrome extension, run them on isolated Workers,<br>
+  and take over the browser yourself when a step needs a person.
+</p>
+
+<p align="center">
+  <a href="https://github.com/builtbystef/step-by-step/actions/workflows/ci.yml"><img src="https://github.com/builtbystef/step-by-step/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
+</p>
+
+<p align="center">
+  <a href="#features">Features</a> ·
+  <a href="#screenshots">Screenshots</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#development">Development</a> ·
+  <a href="#configuration">Configuration</a> ·
+  <a href="#project-docs">Docs</a>
+</p>
+
+---
 
 Step by Step is an open-source, self-hosted browser automation tool. Its Chrome extension records semantic actions such as navigation, clicks, typing, selection, downloads, extraction, waits, and human takeover points. The web app lets you edit and version those Workflows, provide Variables, and inspect every Run.
 
