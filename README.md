@@ -56,55 +56,67 @@ Light and dark captures of every screen, including Schedules, Secrets, saved log
 
 The home list: each Workflow shows its latest Run, any Schedule, and whether the Draft is in sync with a Version.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/v2/dark/02-workflows.png">
-  <img alt="Workflows list with recent Run status, Schedules, and publish state" src="docs/screenshots/v2/light/02-workflows.png">
-</picture>
+<a href="docs/screenshots/v2/light/02-workflows.png">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/v2/dark/02-workflows.png">
+    <img alt="Workflows list with recent Run status, Schedules, and publish state" src="docs/screenshots/v2/light/02-workflows.png">
+  </picture>
+</a>
 
 ### Editor
 
 A Draft of semantic Steps. Values can reference Variables; a pause-for-takeover Step hands the Worker's browser to a person.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/v2/dark/15-editor-human-review.png">
-  <img alt="Workflow editor showing a catering order Draft with Variables and a pause-for-takeover Step" src="docs/screenshots/v2/light/15-editor-human-review.png">
-</picture>
+<a href="docs/screenshots/v2/light/15-editor-human-review.png">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/v2/dark/15-editor-human-review.png">
+    <img alt="Workflow editor showing a catering order Draft with Variables and a pause-for-takeover Step" src="docs/screenshots/v2/light/15-editor-human-review.png">
+  </picture>
+</a>
 
 ### Human takeover
 
 When a Run waits, you take control of the Worker's browser and hand it back. The timeline records waiting, control, and verification.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/v2/dark/29-run-human-review.png">
-  <img alt="Succeeded Run whose timeline shows waiting for a person, control, and handing the browser back" src="docs/screenshots/v2/light/29-run-human-review.png">
-</picture>
+<a href="docs/screenshots/v2/light/29-run-human-review.png">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/v2/dark/29-run-human-review.png">
+    <img alt="Succeeded Run whose timeline shows waiting for a person, control, and handing the browser back" src="docs/screenshots/v2/light/29-run-human-review.png">
+  </picture>
+</a>
 
 ### Run history
 
 Each Step Result keeps the selector that matched, extracted records, screenshots, and drift against the recorded candidates.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/v2/dark/50-run-expanded-records.png">
-  <img alt="Expanded Step Result with selector drift, a screenshot, and extracted quote records" src="docs/screenshots/v2/light/50-run-expanded-records.png">
-</picture>
+<a href="docs/screenshots/v2/light/50-run-expanded-records.png">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/v2/dark/50-run-expanded-records.png">
+    <img alt="Expanded Step Result with selector drift, a screenshot, and extracted quote records" src="docs/screenshots/v2/light/50-run-expanded-records.png">
+  </picture>
+</a>
 
 ### Selector drift
 
 When a page changes, the Run shows which candidates died and keeps a screenshot of the failure.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/v2/dark/54-run-failed-step-and-screenshot.png">
-  <img alt="Failed Run with selector failure details, drift, and a screenshot of the page" src="docs/screenshots/v2/light/54-run-failed-step-and-screenshot.png">
-</picture>
+<a href="docs/screenshots/v2/light/54-run-failed-step-and-screenshot.png">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/v2/dark/54-run-failed-step-and-screenshot.png">
+    <img alt="Failed Run with selector failure details, drift, and a screenshot of the page" src="docs/screenshots/v2/light/54-run-failed-step-and-screenshot.png">
+  </picture>
+</a>
 
 ### Batches
 
 A Batch runs one Workflow across a list of input rows, one at a time, and lets you re-run a failed row.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/v2/dark/22-batch-books.png">
-  <img alt="Batch of book-catalogue rows with succeeded, skipped, and failed status" src="docs/screenshots/v2/light/22-batch-books.png">
-</picture>
+<a href="docs/screenshots/v2/light/22-batch-books.png">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/v2/dark/22-batch-books.png">
+    <img alt="Batch of book-catalogue rows with succeeded, skipped, and failed status" src="docs/screenshots/v2/light/22-batch-books.png">
+  </picture>
+</a>
 
 ## How it works
 
