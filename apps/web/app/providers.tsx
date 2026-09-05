@@ -13,10 +13,13 @@ import {
 } from "@/lib/api";
 import { IDENTITY_KEY } from "@/lib/identity";
 import { createQueryClient } from "@/lib/query-client";
+import { followTheme } from "@/lib/theme";
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(createQueryClient);
   const router = useRouter();
+
+  useEffect(followTheme, []);
 
   useEffect(() => {
     const stops = [

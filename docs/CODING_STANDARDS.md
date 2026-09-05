@@ -12,9 +12,10 @@ The conventions that this project holds, beyond what linters and formatters enfo
 Reviews enforce these rules:
 
 - **Use color tokens.** Raw hex colors belong only in `apps/web/app/globals.css`. Other files use the tokens defined there, so each color keeps one meaning.
+- **Every color token has a light value and a dark value.** The light value sits in `:root` and the dark value in `.dark`, under the same name. A component never picks a theme with `dark:`; it names the token, and the palette does the rest. The app applies `.dark` from the person's choice in `apps/web/lib/theme.ts`.
 - **Render lifecycle states with `StatusChip`.** State labels come from `apps/web/lib/labels.ts`. Use `AttributeBadge` only for properties, not for a Run, Occurrence, or Batch Row state.
 - **Share list components.** Run rows have one component, and Schedule rows have one component. The global page and Workflow tab pass an optional `workflowId` to the same list.
-- **The surfaces outside the app repeat the tokens, and do not invent any.** The extension popup and the served install page cannot import `globals.css`, so each declares the tokens it needs with the same values and the same names.
+- **The surfaces outside the app repeat the tokens, and do not invent any.** The extension popup and the served install page cannot import `globals.css`, so each declares the tokens it needs with the same values and the same names, in both palettes. They have no theme control of their own, so they follow the browser's `prefers-color-scheme`.
 
 Tests enforce the color and lifecycle-state rules, and that the extension popup's copy of the tokens still matches the token file.
 

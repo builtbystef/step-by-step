@@ -5,6 +5,8 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
+  color-scheme: light;
+
   /* Surfaces and ink. */
   --bg: #f4f4f5;
   --panel: #ffffff;
@@ -54,6 +56,33 @@
   --sidebar-accent-foreground: var(--accent);
   --sidebar-border: var(--line);
   --sidebar-ring: var(--accent);
+}
+
+/*
+ * The dark palette. Every colour above has its counterpart here, under the same
+ * name, so components keep speaking in tokens and never in a theme. The shadcn
+ * aliases below `--bad` point at these names, so they need no second copy.
+ */
+.dark {
+  color-scheme: dark;
+
+  --bg: #131316;
+  --panel: #1b1b20;
+  --ink: #f4f4f5;
+  --mut: #9d9da8;
+  --line: #2b2b33;
+
+  --accent: #6d9cf6;
+  --accent-bg: #1c2a47;
+  --accent-strong: #8fb4f9;
+  --wait: #e8b654;
+  --wait-bg: #3a2d10;
+  --human: #b193f7;
+  --human-bg: #2c2148;
+  --ok: #3ecf9b;
+  --ok-bg: #10322a;
+  --bad: #f07176;
+  --bad-bg: #421c1f;
 }
 
 @theme inline {

@@ -21,11 +21,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { chooseOrganization, offersASwitcher } from "@/lib/active-org";
 import { signOutAndLeave } from "@/lib/identity";
+import { chooseTheme, isThemeChoice, THEME_CHOICES } from "@/lib/theme";
+import { useThemeChoice } from "@/lib/use-theme-choice";
 
 export function UserMenu({ me, active }: { me: Account; active: OrganizationMembership | null }) {
   const router = useRouter();
   const cache = useQueryClient();
   const name = me.display_name ?? me.email;
+  const theme = useThemeChoice();
 
   return (
     <DropdownMenu>
@@ -71,6 +74,25 @@ export function UserMenu({ me, active }: { me: Account; active: OrganizationMemb
           ) : (
             <p className="px-1.5 py-1 text-half text-ink">{active?.name}</p>
           )}
+        </DropdownMenuGroup>
+
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Appearance</DropdownMenuLabel>
+          <DropdownMenuRadioGroup
+            value={theme}
+            onValueChange={(chosen) => {
+              if (isThemeChoice(chosen)) {
+                chooseTheme(chosen);
+              }
+            }}
+          >
+            {THEME_CHOICES.map((choice) => (
+              <DropdownMenuRadioItem key={choice.value} value={choice.value}>
+                {choice.label}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
         </DropdownMenuGroup>
 
         <DropdownMenuSeparator />

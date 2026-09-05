@@ -2,8 +2,8 @@
  * The popup wears the app's design system. The tokens, the type scale, and the
  * square corners below are the ones in `apps/web/app/globals.css`; keep them in
  * step with that file, so one colour keeps one meaning across both surfaces.
- * The app is a light-only design, and so is this: nothing here follows the
- * browser's theme.
+ * The app lets a person pick a theme; the popup has no such control, so it
+ * follows the browser's own preference with the app's dark values.
  */
 
 :root {
@@ -35,6 +35,30 @@
   --text-half: 13px;
   --text-body: 14px;
   --text-title: 16px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --bg: #131316;
+    --panel: #1b1b20;
+    --ink: #f4f4f5;
+    --mut: #9d9da8;
+    --line: #2b2b33;
+
+    --accent: #6d9cf6;
+    --accent-bg: #1c2a47;
+    --accent-strong: #8fb4f9;
+    --wait: #e8b654;
+    --wait-bg: #3a2d10;
+    --human: #b193f7;
+    --human-bg: #2c2148;
+    --ok: #3ecf9b;
+    --ok-bg: #10322a;
+    --bad: #f07176;
+    --bad-bg: #421c1f;
+  }
 }
 
 body {
