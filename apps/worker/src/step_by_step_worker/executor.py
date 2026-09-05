@@ -229,9 +229,8 @@ def execute(
     failure_detail: str | None = None
     stop = Event()
     lost = Event()
-    context_holder: list[Any] = []
     traces: list[TraceCapture | None] = [None]
-    watcher = start_heartbeat(heartbeat, heartbeat_every, stop, lost, context_holder)
+    watcher = start_heartbeat(heartbeat, heartbeat_every, stop, lost)
 
     def close_open(at: datetime) -> None:
         handle = interval[0]
@@ -380,6 +379,8 @@ def execute(
         return "lost"
 
     def check_control(*_: object) -> None:
+        if lost.is_set():
+            raise RunTerminal
         if control is None:
             return
         flags = control()
@@ -416,7 +417,6 @@ def execute(
                 context = browser_type.launch_persistent_context(
                     profile, headless=headless
                 )
-                context_holder.append(context)
                 if loaded is not None:
                     inject(context, loaded.auth_states)
             except PlaywrightError as error:
@@ -574,9 +574,12 @@ def execute(
                         failure_detail = "the Run exhausted its automation timeout"
                         _skip_remaining(work, store, position + 1)
                         break
+            except RunTerminal:
+                pass
             finally:
                 if (
-                    credentials is not None
+                    not lost.is_set()
+                    and credentials is not None
                     and loaded is not None
                     and terminal_status == "succeeded"
                 ):
@@ -647,7 +650,6 @@ def start_heartbeat(
     every: float,
     stop: Event,
     lost: Event,
-    context_holder: list[Any],
 ) -> Thread | None:
     if heartbeat is None:
         return None
@@ -657,9 +659,9 @@ def start_heartbeat(
             try:
                 heartbeat()
             except RunTerminal:
+                # Sync Playwright objects belong to the executor thread. Closing
+                # here can poison context.close() and race profile deletion.
                 lost.set()
-                if context_holder:
-                    close_quietly(context_holder[0])
                 return
             except Exception:
                 log.exception("heartbeat failed")

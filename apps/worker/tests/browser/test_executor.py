@@ -524,7 +524,9 @@ def test_a_terminal_heartbeat_abandons_the_run_and_closes_the_browser(
     def beat() -> None:
         nonlocal beats
         beats += 1
-        raise RunTerminal
+        # Lose the Run during a Step, not before Chromium has even launched.
+        if any(kind == "step.started" for kind, _ in recorded.events):
+            raise RunTerminal
 
     run = work(
         {
@@ -533,7 +535,7 @@ def test_a_terminal_heartbeat_abandons_the_run_and_closes_the_browser(
                 step(
                     "wait",
                     "Hold the browser",
-                    {"mode": "duration", "durationMs": 5_000},
+                    {"mode": "element", "target": target(("testid", "never-appears"))},
                 ),
                 step(
                     "navigate",
@@ -557,6 +559,7 @@ def test_a_terminal_heartbeat_abandons_the_run_and_closes_the_browser(
 
     assert monotonic() - started < 2
     assert beats >= 1
+    assert recorded.terminal is None
     assert all(result.status != "passed" for result in recorded.results)
     assert list(tmp_path.iterdir()) == []
 
