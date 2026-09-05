@@ -2,7 +2,12 @@
 <html>
   <body>
     <p>A challenge page whose target arrives after a stall.</p>
-    <iframe title="recaptcha" src="https://www.recaptcha.net/recaptcha/api2/anchor"></iframe>
+    <!-- Keep the provider URL for detection, but never wait on its network. -->
+    <iframe
+      title="recaptcha"
+      src="https://www.recaptcha.net/recaptcha/api2/anchor"
+      srcdoc="<p>Challenge fixture</p>"
+    ></iframe>
     <script>
       setTimeout(() => {
         const button = document.createElement("button");

@@ -9,7 +9,7 @@ from typing import Any, cast
 from urllib.parse import urlsplit
 
 import pytest
-from playwright.sync_api import BrowserContext, Playwright, Worker, sync_playwright
+from playwright.sync_api import BrowserContext, Playwright, Worker
 
 PACKAGE = Path(__file__).parents[2] / "src"
 
@@ -208,12 +208,6 @@ class SiteHandler(http.server.SimpleHTTPRequestHandler):
 @pytest.fixture(scope="session")
 def package() -> Path:
     return PACKAGE
-
-
-@pytest.fixture(scope="session")
-def playwright_driver() -> Iterator[Playwright]:
-    with sync_playwright() as driver:
-        yield driver
 
 
 @pytest.fixture(scope="session")

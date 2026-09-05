@@ -5,7 +5,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import Browser, Page, Playwright, sync_playwright
+from playwright.sync_api import Browser, Page, Playwright
 
 PAGES = Path(__file__).parent / "pages"
 
@@ -37,12 +37,6 @@ def other_site() -> Iterator[str]:
 class QuietHandler(SimpleHTTPRequestHandler):
     def log_message(self, format: str, *args: object) -> None:
         return
-
-
-@pytest.fixture(scope="session")
-def playwright_driver() -> Iterator[Playwright]:
-    with sync_playwright() as driver:
-        yield driver
 
 
 @pytest.fixture(scope="session")

@@ -74,6 +74,8 @@ jobs:
       S3_SECRET_ACCESS_KEY: stepbystepstepbystepstepbystep
       S3_BUCKET: artifacts
       S3_REGION: garage
+      # Public dev-only key from .env.example, for the Auth State store tests.
+      STEPBYSTEP_MASTER_KEY: ZGV2LW9ubHkgbWFzdGVyIGtleSAtIG5ldmVyIHNoaXA=
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -86,11 +88,20 @@ jobs:
 
       - run: uv sync --locked --all-packages
 
+      # Docker otherwise creates these bind sources as root-owned 0755
+      # directories; the unprivileged services cannot create their sockets.
+      - name: Prepare socket directories
+        run: install -d -m 1777 .dev/run/pg .dev/run/redis
+
       # Only the backing services: the api and worker images are not built
       # here, and nothing in this tier needs them.
       - run: docker compose up -d --wait postgres redis garage
 
       - run: uv run pytest -m integration
+
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose logs postgres redis garage
 
   # The browser tier: the selector-resolution tests, which need a real browser
   # and nothing else. Playwright's Chromium is not part of `uv sync`, so this
