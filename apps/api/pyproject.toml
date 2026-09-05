@@ -26,5 +26,5 @@ rotate-master-key = "step_by_step_api.cli:main"
 step-by-step-core = { workspace = true }
 
 [build-system]
-requires = ["uv_build>=0.12.3,<1"]
+requires = ["uv_build>=0.12.8,<1"]
 build-backend = "uv_build"
