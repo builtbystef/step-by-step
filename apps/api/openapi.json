@@ -8,7 +8,6 @@
     "/api/instance": {
       "get": {
         "summary": "Get Instance",
-        "description": "Signup mode for the sign-in screen, and a new Schedule's default timezone.",
         "operationId": "getInstance",
         "responses": {
           "200": {
@@ -27,7 +26,6 @@
     "/api/auth/request-code": {
       "post": {
         "summary": "Request Signin Code",
-        "description": "Mail a Sign-in Code to an address \u2014 202 whether or not it is anybody.\n\nThe answer must not vary with whether an account exists, or it becomes a\nway to ask which addresses are on this instance. So there is nothing in\nthe body to differ, and the caller learns what happened by entering a code.\nThe issuance limit is the one refusal this route has, and it is about how\noften the caller has asked rather than about who the address is.",
         "operationId": "requestSigninCode",
         "requestBody": {
           "content": {
@@ -69,7 +67,6 @@
     "/api/auth/verify-code": {
       "post": {
         "summary": "Verify Signin Code",
-        "description": "Prove control of an address, which signs in \u2014 and signs up if it is new.",
         "operationId": "verifySigninCode",
         "requestBody": {
           "content": {
@@ -138,7 +135,6 @@
     "/api/auth/me": {
       "get": {
         "summary": "Get Current Account",
-        "description": "Who the caller is, and which Organizations they can act in.",
         "operationId": "getCurrentAccount",
         "responses": {
           "200": {
@@ -167,7 +163,6 @@
     "/api/account": {
       "delete": {
         "summary": "Delete Account",
-        "description": "End this account, behind typing its address \u2014 hard, and for good.\n\nEvery session goes with it, so the browser asking is signed out by the\nanswer it gets, and the cookie it still carries is taken back here. An\naccount that owns an Organization is refused: leaving must not leave a\nteam with nobody who can act for it.",
         "operationId": "deleteAccount",
         "requestBody": {
           "content": {
@@ -227,7 +222,6 @@
       },
       "patch": {
         "summary": "Update Account",
-        "description": "Change the display name. The email is the identity and is not editable.",
         "operationId": "updateAccount",
         "requestBody": {
           "content": {
@@ -276,7 +270,6 @@
     "/api/auth/logout": {
       "post": {
         "summary": "Sign Out",
-        "description": "End this session \u2014 the row goes, and the browser stops carrying its key.\n\nOther sessions of the same user are untouched; `logout-all` is the one\nthat reaches them.",
         "operationId": "signOut",
         "responses": {
           "204": {
@@ -298,7 +291,6 @@
     "/api/auth/logout-all": {
       "post": {
         "summary": "Sign Out Everywhere",
-        "description": "End every session this account has, this one included.\n\nThe action for a browser the person no longer has \u2014 a phone left in a taxi,\na machine at an old job \u2014 so it deliberately reaches the sessions this\nrequest cannot see, and takes the asking one with them.",
         "operationId": "signOutEverywhere",
         "responses": {
           "204": {
@@ -320,7 +312,6 @@
     "/api/orgs/{org_id}/invitations": {
       "get": {
         "summary": "List Invitations",
-        "description": "The offers this Organization has standing \u2014 never the spent ones.\n\nAn Invitation that was accepted, revoked, or has run out is not a thing\nanyone can act on, so it is not on a list whose every row has actions.",
         "operationId": "listInvitations",
         "parameters": [
           {
@@ -383,7 +374,6 @@
       },
       "post": {
         "summary": "Create Invitation",
-        "description": "Invite an address into this Organization, and mail it the offer.",
         "operationId": "createInvitation",
         "parameters": [
           {
@@ -464,7 +454,6 @@
     "/api/orgs/{org_id}/invitations/{invitation_id}": {
       "delete": {
         "summary": "Revoke Invitation",
-        "description": "Withdraw an offer: the invitee stops seeing it and cannot take it up.",
         "operationId": "revokeInvitation",
         "parameters": [
           {
@@ -538,7 +527,6 @@
     "/api/invitations/{invitation_id}/accept": {
       "post": {
         "summary": "Accept Invitation",
-        "description": "Take up an offer made to this account's address, which joins the team.\n\nBeing signed in as the invited address is the whole of the proof, because\nsigning in is proof of the address the offer was made to.",
         "operationId": "acceptInvitation",
         "parameters": [
           {
@@ -592,7 +580,6 @@
     "/api/orgs": {
       "post": {
         "summary": "Create Organization",
-        "description": "Start a further Organization, owned by whoever asked for it.\n\nSigning up makes the first one; this is every one after it \u2014 a second team,\na client's work kept apart from another's \u2014 and it answers with the same\nshape the current-user view lists, because that is where it turns up next.",
         "operationId": "createOrganization",
         "requestBody": {
           "content": {
@@ -641,7 +628,6 @@
     "/api/orgs/{org_id}": {
       "delete": {
         "summary": "Delete Organization",
-        "description": "End the Organization, and everything that belonged to it.\n\nThe owner's alone, and behind typing the name: the Memberships, the\nInvitations, and every piece of work the Organization owns go with it, and\nnothing brings them back. Its people keep their accounts and their other\nOrganizations \u2014 what ends is the team, not the members.",
         "operationId": "deleteOrganization",
         "parameters": [
           {
@@ -713,7 +699,6 @@
       },
       "patch": {
         "summary": "Rename Organization",
-        "description": "Rename the Organization, which an owner and the admins may both do.\n\nThe name a signup made is the local part of an address, so the first thing\na team does with an Organization is give it their own name for it.",
         "operationId": "renameOrganization",
         "parameters": [
           {
@@ -784,7 +769,6 @@
     "/api/orgs/{org_id}/members": {
       "get": {
         "summary": "List Members",
-        "description": "Who else is here \u2014 a question every role in an Organization may ask.\n\nKnowing who you work with is not managing them: the roles that gate this\nscreen's controls do not gate the screen.",
         "operationId": "listMembers",
         "parameters": [
           {
@@ -849,7 +833,6 @@
     "/api/orgs/{org_id}/members/{user_id}": {
       "patch": {
         "summary": "Change Member Role",
-        "description": "Move somebody between member and admin, which owners and admins both do.",
         "operationId": "changeMemberRole",
         "parameters": [
           {
@@ -938,7 +921,6 @@
       },
       "delete": {
         "summary": "Remove Member",
-        "description": "End a Membership \u2014 an owner's or an admin's removal, or anyone's leaving.\n\nAccess ends with the row: the next request naming this Organization has no\nMembership behind it, and the gate refuses it. The session is untouched,\nbecause it is the account's and not this Organization's.",
         "operationId": "removeMember",
         "parameters": [
           {
@@ -1012,7 +994,6 @@
     "/api/orgs/{org_id}/transfer-ownership": {
       "post": {
         "summary": "Transfer Ownership",
-        "description": "Hand the Organization to another of its members, and stay on as an admin.",
         "operationId": "transferOwnership",
         "parameters": [
           {
@@ -1201,7 +1182,6 @@
     "/api/extension/version": {
       "get": {
         "summary": "Get Extension Version",
-        "description": "What this instance serves, and the oldest it will record with.\n\nUnauthenticated: the app shows an out-of-date banner before a recording is\nattempted, and the extension has no session of its own to ask with.",
         "operationId": "getExtensionVersion",
         "responses": {
           "200": {
@@ -1230,7 +1210,6 @@
     "/api/extension/connect-codes": {
       "post": {
         "summary": "Create Connect Code",
-        "description": "Take a code to read out to the extension.\n\nAuthenticated, because the code is this person authorizing the pairing:\nwhat spending it proves to the extension is that somebody signed into this\ninstance meant to connect.",
         "operationId": "createExtensionConnectCode",
         "responses": {
           "201": {
@@ -1259,7 +1238,6 @@
     "/api/extension/connect": {
       "post": {
         "summary": "Connect Extension",
-        "description": "Spend a connect code.\n\nUnauthenticated: the extension has no session, which is the whole point of\nthe code. The commit happens before the refusal for the same reason the\nSign-in Code's does \u2014 a spent code must stay spent whatever the answer is.",
         "operationId": "connectExtension",
         "requestBody": {
           "content": {
@@ -1847,7 +1825,6 @@
     "/api/workflows": {
       "post": {
         "summary": "Create Workflow",
-        "description": "Make an empty Workflow in the acting Organization.\n\nIts Draft exists from this moment, empty: a recorder or an editor opening\na Workflow that has never been touched must find a document to write into\nrather than a missing row.",
         "operationId": "createWorkflow",
         "parameters": [
           {
@@ -1932,7 +1909,6 @@
       },
       "get": {
         "summary": "List Workflows",
-        "description": "The acting Organization's Workflows, narrowed by what was typed.\n\nActivity by default, because a list of automations is a list of what has\nbeen happening; the other two orders are for finding one by hand.\n\nOne row more than was asked for is read, and dropped: whether a next page\nexists is a fact about the data, and asking for it as a count would be a\nsecond query over the same rows.",
         "operationId": "listWorkflows",
         "parameters": [
           {
@@ -2057,7 +2033,6 @@
     "/api/workflows/{workflow_id}/versions": {
       "post": {
         "summary": "Publish Workflow Version",
-        "description": "Snapshot the Draft as the next Version.\n\nThe document is copied across as it is stored rather than re-serialized\nthrough the models: what a Run reads weeks from now has to be what the\neditor was looking at, down to the byte, and a round trip through code\nthat has changed since is exactly how that stops being true.",
         "operationId": "publishWorkflowVersion",
         "parameters": [
           {
@@ -2152,7 +2127,6 @@
       },
       "get": {
         "summary": "List Workflow Versions",
-        "description": "Every Version of this Workflow, oldest first, without their documents.",
         "operationId": "listWorkflowVersions",
         "parameters": [
           {
@@ -2253,7 +2227,6 @@
     "/api/workflows/{workflow_id}/versions/{number}": {
       "get": {
         "summary": "Get Workflow Version",
-        "description": "One published document, exactly as the publish that minted it left it.",
         "operationId": "getWorkflowVersion",
         "parameters": [
           {
@@ -2359,7 +2332,6 @@
     "/api/workflows/{workflow_id}/versions/{number}/restore": {
       "post": {
         "summary": "Restore Workflow Version",
-        "description": "Copy a Version's document back into the Draft.\n\nAn edit of the Draft and nothing more: the Version stays where it is, and\nwhat Schedules and Batches execute does not change until the user\npublishes what they restored.\n\nThe document is not revalidated on the way in. It passed the rules at the\nsave that preceded its publish, and a Version is executable forever \u2014\nrefusing to bring one back because a rule has since grown stricter would\nmake it exactly not that.",
         "operationId": "restoreWorkflowVersion",
         "parameters": [
           {
@@ -2465,7 +2437,6 @@
     "/api/workflows/{workflow_id}/draft/diff": {
       "get": {
         "summary": "Get Workflow Draft Diff",
-        "description": "What publishing would change, and where the Draft stands.\n\nAgainst the latest Version and no other: it is what Schedules and Batches\nexecute, so it is the only thing \"unpublished changes\" can mean.",
         "operationId": "getWorkflowDraftDiff",
         "parameters": [
           {
@@ -2562,7 +2533,6 @@
     "/api/workflows/{workflow_id}/draft": {
       "get": {
         "summary": "Get Workflow Draft",
-        "description": "The Draft as one document: its Steps and the Variables they reference.",
         "operationId": "getWorkflowDraft",
         "parameters": [
           {
@@ -2657,7 +2627,6 @@
       },
       "put": {
         "summary": "Save Workflow Draft",
-        "description": "Replace the Draft with the document sent, whole.\n\nWhole rather than patched: the editor holds the document it is editing, so\na save is a statement of what the Draft now is, and there is no order of\narrival in which two saves leave a Draft nobody wrote.",
         "operationId": "saveWorkflowDraft",
         "parameters": [
           {
@@ -2764,7 +2733,6 @@
     "/api/workflows/{workflow_id}/recording-sessions": {
       "post": {
         "summary": "Mint Session",
-        "description": "Mint or rotate a one-hour token for this user and this Draft.",
         "operationId": "createRecordingSession",
         "parameters": [
           {
@@ -2897,7 +2865,6 @@
     "/api/recording-sessions/{session_id}/checkpoint": {
       "post": {
         "summary": "Save Checkpoint",
-        "description": "Keep only the newest full buffer; repeating a sequence changes nothing.",
         "operationId": "checkpointRecordingSession",
         "parameters": [
           {
@@ -2977,7 +2944,6 @@
     "/api/recording-sessions/{session_id}/secrets": {
       "post": {
         "summary": "Create Recording Secret",
-        "description": "Create an Organization Secret through this recording capability.",
         "operationId": "createRecordingSecret",
         "parameters": [
           {
@@ -3064,7 +3030,6 @@
     "/api/recording-sessions/{session_id}/auth-state-options": {
       "post": {
         "summary": "Auth State Options",
-        "description": "Collapse visited hosts and describe both destinations for the checklist.",
         "operationId": "recordingAuthStateOptions",
         "parameters": [
           {
@@ -3155,7 +3120,6 @@
     "/api/recording-sessions/{session_id}/auth-states": {
       "post": {
         "summary": "Capture Auth States",
-        "description": "Store only the destinations explicitly selected at recording save.",
         "operationId": "captureRecordingAuthStates",
         "parameters": [
           {
@@ -3235,7 +3199,6 @@
     "/api/recording-sessions/{session_id}/finalize": {
       "post": {
         "summary": "Finalize Session",
-        "description": "Replace the Draft from a recording, or patch one Re-pick target.",
         "operationId": "finalizeRecordingSession",
         "parameters": [
           {
@@ -3332,7 +3295,6 @@
     "/api/workflows/{workflow_id}": {
       "get": {
         "summary": "Get Workflow",
-        "description": "One Workflow, as the same row the list would have drawn.\n\nThe Workflow page needs it: opened by its address rather than by a click,\nit has no row to have carried the name and the draft state across. The\nsame query answers it, so the header a reload draws is the header the row\npromised.",
         "operationId": "getWorkflow",
         "parameters": [
           {
@@ -3427,7 +3389,6 @@
       },
       "patch": {
         "summary": "Rename Workflow",
-        "description": "Change what a Workflow is called, and nothing else about it.\n\nThe name is the only field a row shows and the only one housekeeping\ntouches; the timeouts and the document have their own routes.",
         "operationId": "renameWorkflow",
         "parameters": [
           {
@@ -3532,7 +3493,6 @@
       },
       "delete": {
         "summary": "Delete Workflow",
-        "description": "Delete a Workflow, and everything that only existed because of it.\n\nDrafts, Versions, Schedules, Batches, Runs, Step Results, and Artifact\nrows go with it on the foreign keys that already say so. Garage objects\ndo not: they are purged here, the same way deleting one Run purges them.\nA live Run refuses the delete \u2014 two copies of one Workflow never act at\nonce, and deleting the Workflow under one would be the same as cancelling\nit from the wrong end.",
         "operationId": "deleteWorkflow",
         "parameters": [
           {
@@ -3632,7 +3592,6 @@
     "/api/workflows/{workflow_id}/duplicate": {
       "post": {
         "summary": "Duplicate Workflow",
-        "description": "A second Workflow holding a copy of this one's Draft.\n\nThe Draft and nothing else. Versions are not copied \u2014 a Version is what a\nSchedule and a Batch execute, and a copy that arrived already published\nwould be an automation nobody has looked at that is ready to act on a real\nwebsite. The copy starts never-published, which is exactly true of it.",
         "operationId": "duplicateWorkflow",
         "parameters": [
           {
@@ -3732,7 +3691,6 @@
           "runs"
         ],
         "summary": "Start Run",
-        "description": "Persist one queued Run, then place its id on the dumb dispatch pipe.",
         "operationId": "startRun",
         "parameters": [
           {
@@ -3852,7 +3810,6 @@
           "runs"
         ],
         "summary": "Get Workflow Selector Drift",
-        "description": "The Steps whose recent Runs resolved through a lower-ranked candidate.\n\nThe editor is where repair happens, so the warning is computed here from\nStep Results rather than on each Run. Rank 0 is the recorded best; anything\nabove it in the last ten Runs of this Workflow is Selector Drift.",
         "operationId": "getWorkflowSelectorDrift",
         "parameters": [
           {
@@ -3952,7 +3909,6 @@
           "runs"
         ],
         "summary": "List Runs",
-        "description": "Runs in newest-first order, optionally narrowed by Workflow, status, trigger.",
         "operationId": "listRuns",
         "parameters": [
           {
@@ -4109,7 +4065,6 @@
           "runs"
         ],
         "summary": "Get Attention",
-        "description": "The active Organization's non-terminal Run summary for the shell.",
         "operationId": "getAttention",
         "parameters": [
           {
@@ -4189,7 +4144,6 @@
           "runs"
         ],
         "summary": "Get Run",
-        "description": "The persisted state a reconnect needs, in one payload.",
         "operationId": "getRun",
         "parameters": [
           {
@@ -4287,7 +4241,6 @@
           "runs"
         ],
         "summary": "Delete Run",
-        "description": "Purge a terminal Run, its rows, and its Garage objects.",
         "operationId": "deleteRun",
         "parameters": [
           {
@@ -4390,7 +4343,6 @@
           "runs"
         ],
         "summary": "Consent Run Auth State",
-        "description": "Record where a new takeover domain should land on the next write-back.",
         "operationId": "consentRunAuthState",
         "parameters": [
           {
@@ -4493,7 +4445,6 @@
           "runs"
         ],
         "summary": "Stream Run Events",
-        "description": "Fan out `run:{id}:events` after the Organization gate; never replay.",
         "operationId": "streamRunEvents",
         "parameters": [
           {
@@ -4593,7 +4544,6 @@
           "runs"
         ],
         "summary": "List Run Logs",
-        "description": "The persisted log, optionally after a seq or for one Step.",
         "operationId": "listRunLogs",
         "parameters": [
           {
@@ -4730,7 +4680,6 @@
           "runs"
         ],
         "summary": "Get Run Output",
-        "description": "Assembled on read from extract Step Results. Nothing is stored twice.",
         "operationId": "getRunOutput",
         "parameters": [
           {
@@ -4842,7 +4791,6 @@
           "runs"
         ],
         "summary": "Download Run Artifact",
-        "description": "Mint a presigned GET after the Organization gate; never leak existence.",
         "operationId": "downloadRunArtifact",
         "parameters": [
           {
@@ -4939,13 +4887,122 @@
         }
       }
     },
+    "/api/runs/{run_id}/artifacts/{artifact_id}/location": {
+      "get": {
+        "tags": [
+          "runs"
+        ],
+        "summary": "Locate Run Artifact",
+        "description": "Mint the same presigned URL as the download route, but hand it back in a body.\n\nA browser cannot read where a redirect went, and an `<img>` or a plain link\ncarries no Organization header, so the app asks here and then loads the URL.",
+        "operationId": "locateRunArtifact",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "artifact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Artifact Id"
+            }
+          },
+          {
+            "name": "X-Organization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Organization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactLocation"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/runs/{run_id}/cancel": {
       "post": {
         "tags": [
           "runs"
         ],
         "summary": "Cancel Run",
-        "description": "Cancel queued or waiting work now; stamp a request on a running Run.",
         "operationId": "cancelRun",
         "parameters": [
           {
@@ -5053,7 +5110,6 @@
           "runs"
         ],
         "summary": "Pause Run",
-        "description": "Request takeover at the next safe boundary. Status stays running.",
         "operationId": "pauseRun",
         "parameters": [
           {
@@ -5161,7 +5217,6 @@
           "runs"
         ],
         "summary": "Mint Stream Ticket",
-        "description": "Mint a view-only ticket for any non-terminal Run.",
         "operationId": "mintStreamTicket",
         "parameters": [
           {
@@ -5271,7 +5326,6 @@
           "runs"
         ],
         "summary": "Take Over Run",
-        "description": "Mint a control ticket for a waiting Run. One session holds it at a time.",
         "operationId": "takeOverRun",
         "parameters": [
           {
@@ -5381,7 +5435,6 @@
           "runs"
         ],
         "summary": "Hold Takeover",
-        "description": "Disable or re-enable auto hand-back for the rest of this takeover.",
         "operationId": "holdTakeover",
         "parameters": [
           {
@@ -5494,7 +5547,6 @@
           "runs"
         ],
         "summary": "Hand Back Run",
-        "description": "Ask the Worker to resume after a manual hand-back.",
         "operationId": "handBackRun",
         "parameters": [
           {
@@ -5602,7 +5654,6 @@
           "runs"
         ],
         "summary": "Abandon Takeover",
-        "description": "Give up during takeover: the Run fails and the browser can close.",
         "operationId": "abandonTakeover",
         "parameters": [
           {
@@ -5710,7 +5761,6 @@
           "schedules"
         ],
         "summary": "Preview Schedule",
-        "description": "The next five Occurrences of an expression. No Schedule has to exist.",
         "operationId": "previewSchedule",
         "parameters": [
           {
@@ -5800,7 +5850,6 @@
           "schedules"
         ],
         "summary": "List All Schedules",
-        "description": "Every Schedule in the active Organization, newest-created last.",
         "operationId": "listAllSchedules",
         "parameters": [
           {
@@ -6451,7 +6500,6 @@
           "schedules"
         ],
         "summary": "Run Schedule Now",
-        "description": "Queue a Run of this Schedule now. Two copies never act at once.",
         "operationId": "runScheduleNow",
         "parameters": [
           {
@@ -6561,7 +6609,6 @@
           "batches"
         ],
         "summary": "Create Batch",
-        "description": "Persist the rows and start the first queued one. Secrets never enter a row.",
         "operationId": "createBatch",
         "parameters": [
           {
@@ -6691,7 +6738,6 @@
           "batches"
         ],
         "summary": "List Batches",
-        "description": "The Workflow's Batches, newest first, with counts derived from rows.",
         "operationId": "listBatches",
         "parameters": [
           {
@@ -6819,7 +6865,6 @@
           "batches"
         ],
         "summary": "Get Batch",
-        "description": "The Batch, its rows, derived counts, and an ETA once three rows finished.",
         "operationId": "getBatch",
         "parameters": [
           {
@@ -6919,7 +6964,6 @@
           "batches"
         ],
         "summary": "Get Batch Output",
-        "description": "One table: the union of the rows' Variables and extract output names.",
         "operationId": "getBatchOutput",
         "parameters": [
           {
@@ -7031,7 +7075,6 @@
           "batches"
         ],
         "summary": "Stream Batch Events",
-        "description": "Fan out `batch:{id}:events` after the Organization gate; never replay.",
         "operationId": "streamBatchEvents",
         "parameters": [
           {
@@ -7131,7 +7174,6 @@
           "batches"
         ],
         "summary": "Cancel Batch",
-        "description": "Cancel the current Run and mark every remaining row cancelled.",
         "operationId": "cancelBatch",
         "parameters": [
           {
@@ -7229,7 +7271,6 @@
           "batches"
         ],
         "summary": "Update Batch Row",
-        "description": "Edit a queued, skipped, or failed row's values. Status does not change.",
         "operationId": "updateBatchRow",
         "parameters": [
           {
@@ -7358,7 +7399,6 @@
           "batches"
         ],
         "summary": "Fill Batch Rows",
-        "description": "Set one Variable on every queued row that has no value for it.",
         "operationId": "fillBatchRows",
         "parameters": [
           {
@@ -7468,7 +7508,6 @@
           "batches"
         ],
         "summary": "Skip Batch Row",
-        "description": "Cancel a waiting row's Run, mark it skipped, and advance at once.",
         "operationId": "skipBatchRow",
         "parameters": [
           {
@@ -7585,7 +7624,6 @@
           "batches"
         ],
         "summary": "Rerun Batch Row",
-        "description": "Attach a new attempt to one finished row. Other rows stay as they are.",
         "operationId": "rerunBatchRow",
         "parameters": [
           {
@@ -7803,8 +7841,7 @@
           "orgs",
           "invitations"
         ],
-        "title": "Account",
-        "description": "Who the caller is. The email is theirs as they typed it."
+        "title": "Account"
       },
       "AccountDeletion": {
         "properties": {
@@ -7818,8 +7855,7 @@
         "required": [
           "email_confirmation"
         ],
-        "title": "AccountDeletion",
-        "description": "The account's own address, typed by the person ending it."
+        "title": "AccountDeletion"
       },
       "AccountUpdate": {
         "properties": {
@@ -7837,8 +7873,7 @@
           }
         },
         "type": "object",
-        "title": "AccountUpdate",
-        "description": "The one thing about an account its owner may change here."
+        "title": "AccountUpdate"
       },
       "ArtifactKind": {
         "type": "string",
@@ -7848,6 +7883,24 @@
           "download"
         ],
         "title": "ArtifactKind"
+      },
+      "ArtifactLocation": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "expires_in_seconds": {
+            "type": "integer",
+            "title": "Expires In Seconds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "expires_in_seconds"
+        ],
+        "title": "ArtifactLocation"
       },
       "ArtifactRecord": {
         "properties": {
@@ -7912,8 +7965,7 @@
           "admin",
           "member"
         ],
-        "title": "AssignableRole",
-        "description": "The two roles a Membership may be given.\n\nNot owner: an Organization has exactly one, and it changes hands by the\ntransfer that replaces its holder \u2014 never by an offer somebody might never\ntake up, and never by a role change that would leave two."
+        "title": "AssignableRole"
       },
       "AttemptRecord": {
         "properties": {
@@ -8514,8 +8566,7 @@
           "title",
           "css"
         ],
-        "title": "CandidateKind",
-        "description": "The ways of finding an element, in the order the recorder ranks them."
+        "title": "CandidateKind"
       },
       "ChangeSchedule": {
         "properties": {
@@ -8723,8 +8774,7 @@
         "required": [
           "email"
         ],
-        "title": "CodeRequest",
-        "description": "Step one of the sign-in screen: the address to send a code to."
+        "title": "CodeRequest"
       },
       "ConnectCode": {
         "properties": {
@@ -8743,8 +8793,7 @@
           "code",
           "expires_at"
         ],
-        "title": "ConnectCode",
-        "description": "A one-time code the app shows, for the extension's popup to take."
+        "title": "ConnectCode"
       },
       "ConnectRequest": {
         "properties": {
@@ -8759,14 +8808,12 @@
         "required": [
           "code"
         ],
-        "title": "ConnectRequest",
-        "description": "What the extension presents: the code, however it was pasted."
+        "title": "ConnectRequest"
       },
       "Connected": {
         "properties": {},
         "type": "object",
-        "title": "Connected",
-        "description": "Nothing \u2014 and deliberately.\n\nThe extension learns that the address it was given is a live instance that\naccepted the pairing. Anything else here would be something an unauthenticated\ncaller could ask this endpoint for."
+        "title": "Connected"
       },
       "ControlIntervalRecord": {
         "properties": {
@@ -8873,8 +8920,7 @@
           "value",
           "domain"
         ],
-        "title": "Cookie",
-        "description": "The common Chrome and Playwright cookie fields, preserving newer fields."
+        "title": "Cookie"
       },
       "CreateBatch": {
         "properties": {
@@ -9088,8 +9134,7 @@
           "latest_version",
           "stranded_schedules"
         ],
-        "title": "DraftComparison",
-        "description": "The Draft measured against the latest Version.\n\nOne answer for two readers: the publish modal renders the three lists, and\nthe Draft chip in the editor header \u2014 and the same chip in the Workflows\nlist \u2014 renders the state. They are one derivation because they are one\nquestion, and two answers could disagree. The stranded list is what the\nsame modal names when publishing would stop Schedules firing."
+        "title": "DraftComparison"
       },
       "DraftState": {
         "type": "string",
@@ -9098,8 +9143,7 @@
           "unpublished-changes",
           "in-sync"
         ],
-        "title": "DraftState",
-        "description": "Where a Draft stands against what has been published, in three words."
+        "title": "DraftState"
       },
       "DurationWaitPayload": {
         "properties": {
@@ -9157,8 +9201,7 @@
           "code",
           "message"
         ],
-        "title": "ErrorBody",
-        "description": "What every refusal this application raises looks like."
+        "title": "ErrorBody"
       },
       "ExtensionVersion": {
         "properties": {
@@ -9176,8 +9219,7 @@
           "current",
           "minimum_supported"
         ],
-        "title": "ExtensionVersion",
-        "description": "The two versions an instance and its extension have to agree about."
+        "title": "ExtensionVersion"
       },
       "ExtractField": {
         "properties": {
@@ -9207,8 +9249,7 @@
           "name",
           "subSelector"
         ],
-        "title": "ExtractField",
-        "description": "One column of a list extraction, bound within the repeating element."
+        "title": "ExtractField"
       },
       "ExtractStep": {
         "properties": {
@@ -9411,8 +9452,7 @@
         "required": [
           "index"
         ],
-        "title": "FrameHop",
-        "description": "One step of the path into the frame an element lives in."
+        "title": "FrameHop"
       },
       "Greeting": {
         "properties": {
@@ -9468,8 +9508,7 @@
           "signup_mode",
           "default_timezone"
         ],
-        "title": "Instance",
-        "description": "What an unauthenticated visitor may learn about this instance."
+        "title": "Instance"
       },
       "InvitationRequest": {
         "properties": {
@@ -9489,8 +9528,7 @@
           "email",
           "role"
         ],
-        "title": "InvitationRequest",
-        "description": "An offer to make: the address, and what it may do once it is taken."
+        "title": "InvitationRequest"
       },
       "LastRun": {
         "properties": {
@@ -9521,8 +9559,7 @@
           "status",
           "finished_at"
         ],
-        "title": "LastRun",
-        "description": "The newest Run of a Workflow, as the list row's meta line draws it."
+        "title": "LastRun"
       },
       "LastRunRecord": {
         "properties": {
@@ -9595,8 +9632,7 @@
           "mode",
           "fields"
         ],
-        "title": "ListExtractPayload",
-        "description": "A flat list of records. There is no nesting, by decision."
+        "title": "ListExtractPayload"
       },
       "LogLevel": {
         "type": "string",
@@ -9688,8 +9724,7 @@
           "role",
           "joined_at"
         ],
-        "title": "Member",
-        "description": "One person in an Organization, as its members screen shows them."
+        "title": "Member"
       },
       "MintRequest": {
         "properties": {
@@ -9723,8 +9758,7 @@
           }
         },
         "type": "object",
-        "title": "MintRequest",
-        "description": "A new scope, or the id of an expired scope whose buffer must survive."
+        "title": "MintRequest"
       },
       "MintedSession": {
         "properties": {
@@ -9916,8 +9950,7 @@
           "org_name",
           "role"
         ],
-        "title": "OfferedMembership",
-        "description": "An Invitation as the person invited sees it: whose team, and as what."
+        "title": "OfferedMembership"
       },
       "OrganizationDeletion": {
         "properties": {
@@ -9931,8 +9964,7 @@
         "required": [
           "name_confirmation"
         ],
-        "title": "OrganizationDeletion",
-        "description": "The Organization's own name, typed by the owner who is ending it."
+        "title": "OrganizationDeletion"
       },
       "OrganizationMembership": {
         "properties": {
@@ -9955,8 +9987,7 @@
           "name",
           "role"
         ],
-        "title": "OrganizationMembership",
-        "description": "One Organization a user acts in, and what they may do there."
+        "title": "OrganizationMembership"
       },
       "OrganizationRequest": {
         "properties": {
@@ -9971,8 +10002,7 @@
         "required": [
           "name"
         ],
-        "title": "OrganizationRequest",
-        "description": "What an Organization is made and renamed with: a name people read."
+        "title": "OrganizationRequest"
       },
       "OriginStorage": {
         "properties": {
@@ -10035,8 +10065,7 @@
         "required": [
           "user_id"
         ],
-        "title": "OwnershipTransfer",
-        "description": "Who the Organization is being handed to."
+        "title": "OwnershipTransfer"
       },
       "PendingInvitation": {
         "properties": {
@@ -10071,8 +10100,7 @@
           "created_at",
           "expires_at"
         ],
-        "title": "PendingInvitation",
-        "description": "An offer an Organization has out, as its owner and admins see it."
+        "title": "PendingInvitation"
       },
       "PreviewRequest": {
         "properties": {
@@ -10127,8 +10155,7 @@
           "record",
           "repick"
         ],
-        "title": "RecordingMode",
-        "description": "Whether a recording session replaces the Draft or repairs one Step."
+        "title": "RecordingMode"
       },
       "RerunCreated": {
         "properties": {
@@ -10164,8 +10191,7 @@
           "admin",
           "member"
         ],
-        "title": "Role",
-        "description": "What a Membership lets a user do in its Organization.\n\nExactly three, and an Organization has exactly one owner. Roles gate\nmembership and lifecycle actions only \u2014 every role does the domain work."
+        "title": "Role"
       },
       "RoleChange": {
         "properties": {
@@ -10177,8 +10203,7 @@
         "required": [
           "role"
         ],
-        "title": "RoleChange",
-        "description": "The one thing about a Membership that changes: what it lets them do."
+        "title": "RoleChange"
       },
       "RunControlKind": {
         "type": "string",
@@ -10701,8 +10726,7 @@
           "outputName",
           "mode"
         ],
-        "title": "ScalarExtractPayload",
-        "description": "One named value: an element's text, or one of its attributes."
+        "title": "ScalarExtractPayload"
       },
       "ScheduleDetail": {
         "properties": {
@@ -11090,8 +11114,7 @@
           "kind",
           "value"
         ],
-        "title": "SelectorCandidate",
-        "description": "One way of finding an element, verified unique when it was recorded."
+        "title": "SelectorCandidate"
       },
       "SelectorDrift": {
         "properties": {
@@ -11142,8 +11165,7 @@
         "required": [
           "created"
         ],
-        "title": "SignedIn",
-        "description": "What signing in tells the screen: whether this visit made the account.\n\nThe screen needs it to decide between welcoming someone and letting them\ncarry on, and it is the only thing that differs between the two."
+        "title": "SignedIn"
       },
       "SignupMode": {
         "type": "string",
@@ -11186,8 +11208,7 @@
           "id",
           "label"
         ],
-        "title": "StepRef",
-        "description": "One Step in a diff: what names it in a modal, and nothing else."
+        "title": "StepRef"
       },
       "StepResultRecord": {
         "properties": {
@@ -11376,8 +11397,7 @@
           "name",
           "cron"
         ],
-        "title": "StrandedScheduleRef",
-        "description": "A Schedule the candidate Version would leave unable to fire."
+        "title": "StrandedScheduleRef"
       },
       "StreamTicket": {
         "properties": {
@@ -11454,8 +11474,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "title": "TakeoverPayload",
-        "description": "What the person is asked to do, and how the Run can tell they did it."
+        "title": "TakeoverPayload"
       },
       "TakeoverStep": {
         "properties": {
@@ -11591,8 +11610,7 @@
         "required": [
           "candidates"
         ],
-        "title": "Target",
-        "description": "How a Step finds its element: candidates best-first, and where they live."
+        "title": "Target"
       },
       "TypePayload": {
         "properties": {
@@ -11686,8 +11704,7 @@
           "reason",
           "warning"
         ],
-        "title": "Unsupported",
-        "description": "A target the recorder captured and expects replay to fail on.\n\nThe warning is written at capture, in plain language, because the person\nwho can still do something about it is the person recording."
+        "title": "Unsupported"
       },
       "UnsupportedReason": {
         "type": "string",
@@ -11695,8 +11712,7 @@
           "closed-shadow-root",
           "cross-origin-frame"
         ],
-        "title": "UnsupportedReason",
-        "description": "Why a recorded target will not be findable again, whatever we do."
+        "title": "UnsupportedReason"
       },
       "ValidationError": {
         "properties": {
@@ -11781,8 +11797,7 @@
         "required": [
           "name"
         ],
-        "title": "Variable",
-        "description": "A named input a Workflow declares. Step values reference it by name.\n\nA secret Variable may point at a vault Secret by id. The name beside the\nid is a cache for display: renaming the Secret never rewrites a Version,\nand a deleted Secret still has a name to show."
+        "title": "Variable"
       },
       "VerificationRequest": {
         "properties": {
@@ -11805,8 +11820,7 @@
           "email",
           "code"
         ],
-        "title": "VerificationRequest",
-        "description": "Step two of the sign-in screen: the address, and the code it received."
+        "title": "VerificationRequest"
       },
       "VersionSummary": {
         "properties": {
@@ -11825,8 +11839,7 @@
           "number",
           "created_at"
         ],
-        "title": "VersionSummary",
-        "description": "A Version without its document \u2014 what a version dropdown lists."
+        "title": "VersionSummary"
       },
       "WaitStep": {
         "properties": {
@@ -11945,8 +11958,7 @@
         "required": [
           "name"
         ],
-        "title": "WorkflowCreation",
-        "description": "Everything creating a Workflow asks for: what to call it."
+        "title": "WorkflowCreation"
       },
       "WorkflowDocument": {
         "properties": {
@@ -12007,8 +12019,7 @@
         },
         "additionalProperties": false,
         "type": "object",
-        "title": "WorkflowDocument",
-        "description": "A Draft, or a Version, as one value: the Steps and the Variables."
+        "title": "WorkflowDocument"
       },
       "WorkflowNamed": {
         "properties": {
@@ -12027,8 +12038,7 @@
           "id",
           "name"
         ],
-        "title": "WorkflowNamed",
-        "description": "A Workflow and what it is called: what renaming and duplicating answer."
+        "title": "WorkflowNamed"
       },
       "WorkflowPage": {
         "properties": {
@@ -12055,8 +12065,7 @@
         "required": [
           "items"
         ],
-        "title": "WorkflowPage",
-        "description": "One page of the list, and where the next one starts.\n\n`next_cursor` is absent on the last page, which is how a caller knows it\nhas reached the end: an empty page would be one request too many, and a\ncount would be a second query nobody asked for."
+        "title": "WorkflowPage"
       },
       "WorkflowRecord": {
         "properties": {
@@ -12091,8 +12100,7 @@
           "takeover_timeout_ms",
           "created_at"
         ],
-        "title": "WorkflowRecord",
-        "description": "The Workflow row itself, without its document.\n\nWhat creating one answers with. The list has a summary of its own, richer\nand joined against the Draft and the Versions; this is the plain row."
+        "title": "WorkflowRecord"
       },
       "WorkflowRename": {
         "properties": {
@@ -12107,8 +12115,7 @@
         "required": [
           "name"
         ],
-        "title": "WorkflowRename",
-        "description": "Everything renaming asks for. A name is all a row shows of a Workflow."
+        "title": "WorkflowRename"
       },
       "WorkflowSort": {
         "type": "string",
@@ -12117,8 +12124,7 @@
           "name",
           "created"
         ],
-        "title": "WorkflowSort",
-        "description": "The three orders the list offers, and nothing else.\n\nThree rather than a free-form order-by: every one of them is a keyset the\ncursor can be built on, and a fourth would have to earn its index first."
+        "title": "WorkflowSort"
       },
       "WorkflowSummary": {
         "properties": {
@@ -12211,8 +12217,7 @@
           "schedule_count",
           "run_count"
         ],
-        "title": "WorkflowSummary",
-        "description": "A Workflow as a list row: everything the row draws, and no document."
+        "title": "WorkflowSummary"
       }
     }
   }

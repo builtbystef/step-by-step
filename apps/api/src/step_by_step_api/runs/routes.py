@@ -651,16 +651,51 @@ def download_run_artifact(
     member: ActiveMembership,
     db: SessionDep,
 ) -> RedirectResponse:
-    owned_run(db, member.org_id, run_id)
+    artifact = owned_artifact(db, member.org_id, run_id, artifact_id)
+    return RedirectResponse(url=artifact_url(artifact), status_code=307)
+
+
+class ArtifactLocation(BaseModel):
+    url: str
+    expires_in_seconds: int
+
+
+@router.get(
+    "/api/runs/{run_id}/artifacts/{artifact_id}/location",
+    operation_id="locateRunArtifact",
+    responses=errors(400, 401, 403, 404),
+)
+def locate_run_artifact(
+    run_id: UUID,
+    artifact_id: UUID,
+    member: ActiveMembership,
+    db: SessionDep,
+) -> ArtifactLocation:
+    """Mint the same presigned URL as the download route, but hand it back in a body.
+
+    A browser cannot read where a redirect went, and an `<img>` or a plain link
+    carries no Organization header, so the app asks here and then loads the URL.
+    """
+    artifact = owned_artifact(db, member.org_id, run_id, artifact_id)
+    return ArtifactLocation(
+        url=artifact_url(artifact), expires_in_seconds=PRESIGN_SECONDS
+    )
+
+
+def owned_artifact(
+    db: SessionDep, org_id: UUID, run_id: UUID, artifact_id: UUID
+) -> Artifact:
+    owned_run(db, org_id, run_id)
     artifact = db.execute(
         select(Artifact).where(Artifact.id == artifact_id, Artifact.run_id == run_id)
     ).scalar_one_or_none()
     if artifact is None:
         raise ApiError(404, "artifact_not_found", "no such Artifact")
-    filename = Path(artifact.object_key).name
-    return RedirectResponse(
-        url=presign_download(artifact.object_key, filename), status_code=307
-    )
+    return artifact
+
+
+def artifact_url(artifact: Artifact) -> str:
+    return presign_download(artifact.object_key, Path(artifact.object_key).name)
 
 
 @router.delete(

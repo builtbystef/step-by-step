@@ -168,10 +168,6 @@ function countdownLabel(deadlineAt: string, now: Date): string {
   return `${String(minutes)}:${String(seconds).padStart(2, "0")} left`;
 }
 
-export function outputDownloadHref(batchId: string, format: "json" | "csv"): string {
-  return `/api/batches/${batchId}/output?format=${format}`;
-}
-
 export type OutputTable = {
   columns: string[];
   rows: string[][];

@@ -174,6 +174,68 @@ def test_another_organizations_download_is_404_and_mints_no_url(
     assert minted == []
 
 
+def locate(account: Account, run_id: str, artifact_id: UUID):
+    return account.client.get(f"/api/runs/{run_id}/artifacts/{artifact_id}/location")
+
+
+def test_locating_an_artifact_hands_back_the_presigned_url_in_a_body(
+    new_account: NewAccount,
+    monkeypatch: pytest.MonkeyPatch,
+    owned_keys: list[str],
+) -> None:
+    account = new_account()
+    run_id = start(account, published_workflow(account), variables={}).json()["run_id"]
+    artifact = seed_artifact(UUID(run_id), owned_keys)
+    monkeypatch.setattr(run_routes, "PRESIGN_SECONDS", 1)
+
+    response = locate(account, run_id, artifact.id)
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["expires_in_seconds"] == 1
+    assert fetch(body["url"]) == (200, FIXTURE_BYTES)
+    time.sleep(2)
+    status, _ = fetch(body["url"])
+    assert status >= 400
+
+
+def test_another_organizations_location_is_404_and_mints_no_url(
+    new_account: NewAccount,
+    monkeypatch: pytest.MonkeyPatch,
+    owned_keys: list[str],
+) -> None:
+    owner = new_account()
+    stranger = new_account()
+    run_id = start(owner, published_workflow(owner), variables={}).json()["run_id"]
+    artifact = seed_artifact(UUID(run_id), owned_keys)
+    minted: list[str] = []
+    original = run_routes.presign_download
+
+    def wrapped(object_key: str, filename: str) -> str:
+        minted.append(object_key)
+        return original(object_key, filename)
+
+    monkeypatch.setattr(run_routes, "presign_download", wrapped)
+
+    refused = locate(stranger, run_id, artifact.id)
+
+    assert refused.status_code == 404
+    assert refused.json()["code"] == "run_not_found"
+    assert minted == []
+
+
+def test_a_missing_artifact_has_no_location(
+    new_account: NewAccount,
+) -> None:
+    account = new_account()
+    run_id = start(account, published_workflow(account), variables={}).json()["run_id"]
+
+    refused = locate(account, run_id, uuid4())
+
+    assert refused.status_code == 404
+    assert refused.json()["code"] == "artifact_not_found"
+
+
 def test_any_member_of_the_run_organization_may_download(
     new_account: NewAccount, owned_keys: list[str]
 ) -> None:

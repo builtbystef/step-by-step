@@ -21,7 +21,6 @@ import {
   driftedCount,
   elapsedMs,
   EMPTY_OUTPUT,
-  outputDownloadHref,
   outputTable,
   panePlaceholder,
   recordCount,
@@ -472,10 +471,5 @@ describe("the Output tab", () => {
     expect(outputTable({})).toBeNull();
     expect(outputTable([])).toBeNull();
     expect(EMPTY_OUTPUT).toBe("This Run extracted no data.");
-  });
-
-  it("points both download buttons at the endpoint's formats", () => {
-    expect(outputDownloadHref("run-1", "json")).toBe("/api/runs/run-1/output?format=json");
-    expect(outputDownloadHref("run-1", "csv")).toBe("/api/runs/run-1/output?format=csv");
   });
 });

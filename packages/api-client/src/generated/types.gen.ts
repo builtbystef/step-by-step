@@ -6,8 +6,6 @@ export type ClientOptions = {
 
 /**
  * Account
- *
- * Who the caller is. The email is theirs as they typed it.
  */
 export type Account = {
     /**
@@ -34,8 +32,6 @@ export type Account = {
 
 /**
  * AccountDeletion
- *
- * The account's own address, typed by the person ending it.
  */
 export type AccountDeletion = {
     /**
@@ -46,8 +42,6 @@ export type AccountDeletion = {
 
 /**
  * AccountUpdate
- *
- * The one thing about an account its owner may change here.
  */
 export type AccountUpdate = {
     /**
@@ -60,6 +54,20 @@ export type AccountUpdate = {
  * ArtifactKind
  */
 export type ArtifactKind = 'screenshot' | 'trace' | 'download';
+
+/**
+ * ArtifactLocation
+ */
+export type ArtifactLocation = {
+    /**
+     * Url
+     */
+    url: string;
+    /**
+     * Expires In Seconds
+     */
+    expires_in_seconds: number;
+};
 
 /**
  * ArtifactRecord
@@ -98,12 +106,6 @@ export type ArtifactRecord = {
 
 /**
  * AssignableRole
- *
- * The two roles a Membership may be given.
- *
- * Not owner: an Organization has exactly one, and it changes hands by the
- * transfer that replaces its holder — never by an offer somebody might never
- * take up, and never by a role change that would leave two.
  */
 export type AssignableRole = 'admin' | 'member';
 
@@ -450,8 +452,6 @@ export type BatchSummary = {
 
 /**
  * CandidateKind
- *
- * The ways of finding an element, in the order the recorder ranks them.
  */
 export type CandidateKind = 'testid' | 'role' | 'placeholder' | 'label' | 'alt' | 'text' | 'title' | 'css';
 
@@ -561,8 +561,6 @@ export type ClickStep = {
 
 /**
  * CodeRequest
- *
- * Step one of the sign-in screen: the address to send a code to.
  */
 export type CodeRequest = {
     /**
@@ -573,8 +571,6 @@ export type CodeRequest = {
 
 /**
  * ConnectCode
- *
- * A one-time code the app shows, for the extension's popup to take.
  */
 export type ConnectCode = {
     /**
@@ -589,8 +585,6 @@ export type ConnectCode = {
 
 /**
  * ConnectRequest
- *
- * What the extension presents: the code, however it was pasted.
  */
 export type ConnectRequest = {
     /**
@@ -601,12 +595,6 @@ export type ConnectRequest = {
 
 /**
  * Connected
- *
- * Nothing — and deliberately.
- *
- * The extension learns that the address it was given is a live instance that
- * accepted the pairing. Anything else here would be something an unauthenticated
- * caller could ask this endpoint for.
  */
 export type Connected = {
     [key: string]: unknown;
@@ -633,8 +621,6 @@ export type ControlIntervalRecord = {
 
 /**
  * Cookie
- *
- * The common Chrome and Playwright cookie fields, preserving newer fields.
  */
 export type Cookie = {
     /**
@@ -780,14 +766,6 @@ export type DownloadStep = {
 
 /**
  * DraftComparison
- *
- * The Draft measured against the latest Version.
- *
- * One answer for two readers: the publish modal renders the three lists, and
- * the Draft chip in the editor header — and the same chip in the Workflows
- * list — renders the state. They are one derivation because they are one
- * question, and two answers could disagree. The stranded list is what the
- * same modal names when publishing would stop Schedules firing.
  */
 export type DraftComparison = {
     /**
@@ -815,8 +793,6 @@ export type DraftComparison = {
 
 /**
  * DraftState
- *
- * Where a Draft stands against what has been published, in three words.
  */
 export type DraftState = 'never-published' | 'unpublished-changes' | 'in-sync';
 
@@ -847,8 +823,6 @@ export type ElementWaitPayload = {
 
 /**
  * ErrorBody
- *
- * What every refusal this application raises looks like.
  */
 export type ErrorBody = {
     /**
@@ -863,8 +837,6 @@ export type ErrorBody = {
 
 /**
  * ExtensionVersion
- *
- * The two versions an instance and its extension have to agree about.
  */
 export type ExtensionVersion = {
     /**
@@ -879,8 +851,6 @@ export type ExtensionVersion = {
 
 /**
  * ExtractField
- *
- * One column of a list extraction, bound within the repeating element.
  */
 export type ExtractField = {
     /**
@@ -992,8 +962,6 @@ export type FinalizeRequest = {
 
 /**
  * FrameHop
- *
- * One step of the path into the frame an element lives in.
  */
 export type FrameHop = {
     /**
@@ -1042,8 +1010,6 @@ export type Health = {
 
 /**
  * Instance
- *
- * What an unauthenticated visitor may learn about this instance.
  */
 export type Instance = {
     signup_mode: SignupMode;
@@ -1055,8 +1021,6 @@ export type Instance = {
 
 /**
  * InvitationRequest
- *
- * An offer to make: the address, and what it may do once it is taken.
  */
 export type InvitationRequest = {
     /**
@@ -1068,8 +1032,6 @@ export type InvitationRequest = {
 
 /**
  * LastRun
- *
- * The newest Run of a Workflow, as the list row's meta line draws it.
  */
 export type LastRun = {
     /**
@@ -1101,8 +1063,6 @@ export type LastRunRecord = {
 
 /**
  * ListExtractPayload
- *
- * A flat list of records. There is no nesting, by decision.
  */
 export type ListExtractPayload = {
     target: Target;
@@ -1150,8 +1110,6 @@ export type LogLine = {
 
 /**
  * Member
- *
- * One person in an Organization, as its members screen shows them.
  */
 export type Member = {
     /**
@@ -1175,8 +1133,6 @@ export type Member = {
 
 /**
  * MintRequest
- *
- * A new scope, or the id of an expired scope whose buffer must survive.
  */
 export type MintRequest = {
     /**
@@ -1291,8 +1247,6 @@ export type OccurrenceRecord = {
 
 /**
  * OfferedMembership
- *
- * An Invitation as the person invited sees it: whose team, and as what.
  */
 export type OfferedMembership = {
     /**
@@ -1308,8 +1262,6 @@ export type OfferedMembership = {
 
 /**
  * OrganizationDeletion
- *
- * The Organization's own name, typed by the owner who is ending it.
  */
 export type OrganizationDeletion = {
     /**
@@ -1320,8 +1272,6 @@ export type OrganizationDeletion = {
 
 /**
  * OrganizationMembership
- *
- * One Organization a user acts in, and what they may do there.
  */
 export type OrganizationMembership = {
     /**
@@ -1337,8 +1287,6 @@ export type OrganizationMembership = {
 
 /**
  * OrganizationRequest
- *
- * What an Organization is made and renamed with: a name people read.
  */
 export type OrganizationRequest = {
     /**
@@ -1383,8 +1331,6 @@ export type OverrideValue = {
 
 /**
  * OwnershipTransfer
- *
- * Who the Organization is being handed to.
  */
 export type OwnershipTransfer = {
     /**
@@ -1395,8 +1341,6 @@ export type OwnershipTransfer = {
 
 /**
  * PendingInvitation
- *
- * An offer an Organization has out, as its owner and admins see it.
  */
 export type PendingInvitation = {
     /**
@@ -1448,8 +1392,6 @@ export type PreviewResult = {
 
 /**
  * RecordingMode
- *
- * Whether a recording session replaces the Draft or repairs one Step.
  */
 export type RecordingMode = 'record' | 'repick';
 
@@ -1475,18 +1417,11 @@ export type RevealedValue = {
 
 /**
  * Role
- *
- * What a Membership lets a user do in its Organization.
- *
- * Exactly three, and an Organization has exactly one owner. Roles gate
- * membership and lifecycle actions only — every role does the domain work.
  */
 export type Role = 'owner' | 'admin' | 'member';
 
 /**
  * RoleChange
- *
- * The one thing about a Membership that changes: what it lets them do.
  */
 export type RoleChange = {
     role: AssignableRole;
@@ -1724,8 +1659,6 @@ export type RunTrigger = 'manual' | 'schedule' | 'batch' | 'test';
 
 /**
  * ScalarExtractPayload
- *
- * One named value: an element's text, or one of its attributes.
  */
 export type ScalarExtractPayload = {
     target: Target;
@@ -1930,8 +1863,6 @@ export type SelectStep = {
 
 /**
  * SelectorCandidate
- *
- * One way of finding an element, verified unique when it was recorded.
  */
 export type SelectorCandidate = {
     kind: CandidateKind;
@@ -1971,11 +1902,6 @@ export type SessionStorage = {
 
 /**
  * SignedIn
- *
- * What signing in tells the screen: whether this visit made the account.
- *
- * The screen needs it to decide between welcoming someone and letting them
- * carry on, and it is the only thing that differs between the two.
  */
 export type SignedIn = {
     /**
@@ -2007,8 +1933,6 @@ export type StartRun = {
 
 /**
  * StepRef
- *
- * One Step in a diff: what names it in a modal, and nothing else.
  */
 export type StepRef = {
     /**
@@ -2099,8 +2023,6 @@ export type StorageItem = {
 
 /**
  * StrandedScheduleRef
- *
- * A Schedule the candidate Version would leave unable to fire.
  */
 export type StrandedScheduleRef = {
     /**
@@ -2147,8 +2069,6 @@ export type TakeoverHold = {
 
 /**
  * TakeoverPayload
- *
- * What the person is asked to do, and how the Run can tell they did it.
  */
 export type TakeoverPayload = {
     /**
@@ -2221,8 +2141,6 @@ export type TakeoverTicket = {
 
 /**
  * Target
- *
- * How a Step finds its element: candidates best-first, and where they live.
  */
 export type Target = {
     /**
@@ -2284,11 +2202,6 @@ export type TypeStep = {
 
 /**
  * Unsupported
- *
- * A target the recorder captured and expects replay to fail on.
- *
- * The warning is written at capture, in plain language, because the person
- * who can still do something about it is the person recording.
  */
 export type Unsupported = {
     reason: UnsupportedReason;
@@ -2300,8 +2213,6 @@ export type Unsupported = {
 
 /**
  * UnsupportedReason
- *
- * Why a recorded target will not be findable again, whatever we do.
  */
 export type UnsupportedReason = 'closed-shadow-root' | 'cross-origin-frame';
 
@@ -2335,12 +2246,6 @@ export type ValidationError = {
 
 /**
  * Variable
- *
- * A named input a Workflow declares. Step values reference it by name.
- *
- * A secret Variable may point at a vault Secret by id. The name beside the
- * id is a cache for display: renaming the Secret never rewrites a Version,
- * and a deleted Secret still has a name to show.
  */
 export type Variable = {
     /**
@@ -2363,8 +2268,6 @@ export type Variable = {
 
 /**
  * VerificationRequest
- *
- * Step two of the sign-in screen: the address, and the code it received.
  */
 export type VerificationRequest = {
     /**
@@ -2379,8 +2282,6 @@ export type VerificationRequest = {
 
 /**
  * VersionSummary
- *
- * A Version without its document — what a version dropdown lists.
  */
 export type VersionSummary = {
     /**
@@ -2459,8 +2360,6 @@ export type WaitingAttention = {
 
 /**
  * WorkflowCreation
- *
- * Everything creating a Workflow asks for: what to call it.
  */
 export type WorkflowCreation = {
     /**
@@ -2471,8 +2370,6 @@ export type WorkflowCreation = {
 
 /**
  * WorkflowDocument
- *
- * A Draft, or a Version, as one value: the Steps and the Variables.
  */
 export type WorkflowDocument = {
     /**
@@ -2487,8 +2384,6 @@ export type WorkflowDocument = {
 
 /**
  * WorkflowNamed
- *
- * A Workflow and what it is called: what renaming and duplicating answer.
  */
 export type WorkflowNamed = {
     /**
@@ -2503,12 +2398,6 @@ export type WorkflowNamed = {
 
 /**
  * WorkflowPage
- *
- * One page of the list, and where the next one starts.
- *
- * `next_cursor` is absent on the last page, which is how a caller knows it
- * has reached the end: an empty page would be one request too many, and a
- * count would be a second query nobody asked for.
  */
 export type WorkflowPage = {
     /**
@@ -2523,11 +2412,6 @@ export type WorkflowPage = {
 
 /**
  * WorkflowRecord
- *
- * The Workflow row itself, without its document.
- *
- * What creating one answers with. The list has a summary of its own, richer
- * and joined against the Draft and the Versions; this is the plain row.
  */
 export type WorkflowRecord = {
     /**
@@ -2554,8 +2438,6 @@ export type WorkflowRecord = {
 
 /**
  * WorkflowRename
- *
- * Everything renaming asks for. A name is all a row shows of a Workflow.
  */
 export type WorkflowRename = {
     /**
@@ -2566,18 +2448,11 @@ export type WorkflowRename = {
 
 /**
  * WorkflowSort
- *
- * The three orders the list offers, and nothing else.
- *
- * Three rather than a free-form order-by: every one of them is a keyset the
- * cursor can be built on, and a fourth would have to earn its index first.
  */
 export type WorkflowSort = 'activity' | 'name' | 'created';
 
 /**
  * WorkflowSummary
- *
- * A Workflow as a list row: everything the row draws, and no document.
  */
 export type WorkflowSummary = {
     /**
@@ -5321,6 +5196,62 @@ export type DownloadRunArtifactErrors = {
 };
 
 export type DownloadRunArtifactError = DownloadRunArtifactErrors[keyof DownloadRunArtifactErrors];
+
+export type LocateRunArtifactData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Organization
+         */
+        'X-Organization'?: string | null;
+    };
+    path: {
+        /**
+         * Run Id
+         */
+        run_id: string;
+        /**
+         * Artifact Id
+         */
+        artifact_id: string;
+    };
+    query?: never;
+    url: '/api/runs/{run_id}/artifacts/{artifact_id}/location';
+};
+
+export type LocateRunArtifactErrors = {
+    /**
+     * Bad Request
+     */
+    400: ErrorBody;
+    /**
+     * Unauthorized
+     */
+    401: ErrorBody;
+    /**
+     * Forbidden
+     */
+    403: ErrorBody;
+    /**
+     * Not Found
+     */
+    404: ErrorBody;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LocateRunArtifactError = LocateRunArtifactErrors[keyof LocateRunArtifactErrors];
+
+export type LocateRunArtifactResponses = {
+    /**
+     * Successful Response
+     */
+    200: ArtifactLocation;
+};
+
+export type LocateRunArtifactResponse = LocateRunArtifactResponses[keyof LocateRunArtifactResponses];
 
 export type CancelRunData = {
     body?: never;

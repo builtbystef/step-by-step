@@ -8,7 +8,6 @@ import {
   failureReasonWords,
   fillRowsBody,
   liveRowIndex,
-  outputDownloadHref,
   progressSegments,
   rowChipState,
   rowDurationMs,
@@ -239,13 +238,6 @@ describe("the stalled callout", () => {
 
   it("is absent when no row is waiting", () => {
     expect(stalledCallout(null)).toBeNull();
-  });
-});
-
-describe("the Output tab", () => {
-  it("downloads both formats from the endpoint", () => {
-    expect(outputDownloadHref("bat-1", "json")).toBe("/api/batches/bat-1/output?format=json");
-    expect(outputDownloadHref("bat-1", "csv")).toBe("/api/batches/bat-1/output?format=csv");
   });
 });
 

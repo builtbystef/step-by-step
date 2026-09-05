@@ -581,10 +581,6 @@ export function outputTable(assembled: unknown): OutputTable | null {
   return null;
 }
 
-export function outputDownloadHref(runId: string, format: "json" | "csv"): string {
-  return `/api/runs/${runId}/output?format=${format}`;
-}
-
 function isRecordList(value: unknown): value is Record<string, unknown>[] {
   return Array.isArray(value) && value.every(isPlainObject);
 }

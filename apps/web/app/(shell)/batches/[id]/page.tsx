@@ -26,7 +26,6 @@ import {
   failureReasonWords,
   fillRowsBody,
   liveRowIndex,
-  outputDownloadHref,
   progressSegments,
   rowChipState,
   rowDurationMs,
@@ -54,12 +53,14 @@ import type { Step } from "../../workflows/[id]/editor/steps";
 import { workflowQuery } from "../../workflows/[id]/queries";
 import { useActiveOrganization } from "../../use-active-organization";
 
+import { OutputDownloads } from "@/components/primitives/output-downloads";
 import { AttributeBadge } from "@/components/primitives/attribute-badge";
 import { Callout } from "@/components/primitives/callout";
 import { ExpandableRow } from "@/components/primitives/expandable-row";
 import { StatusChip } from "@/components/primitives/status-chip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { downloadBatchOutput } from "@/lib/downloads";
 import { invalidateRunState } from "@/lib/attention";
 import { duration } from "@/lib/duration";
 import { cn } from "@/lib/utils";
@@ -753,22 +754,7 @@ function OutputTab({
   }
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex gap-3">
-        <a
-          className="text-small font-semibold text-accent"
-          href={outputDownloadHref(batchId, "json")}
-          download="batch.json"
-        >
-          Download JSON
-        </a>
-        <a
-          className="text-small font-semibold text-accent"
-          href={outputDownloadHref(batchId, "csv")}
-          download="batch.csv"
-        >
-          Download CSV
-        </a>
-      </div>
+      <OutputDownloads download={(format) => downloadBatchOutput(batchId, format)} />
       <OutputGrid table={table} />
     </div>
   );

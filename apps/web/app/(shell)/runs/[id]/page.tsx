@@ -2,7 +2,6 @@
 
 import {
   cancelRun,
-  downloadRunArtifact,
   type ArtifactRecord,
   type AuthStateConsentScope,
   type LogLine,
@@ -32,7 +31,6 @@ import {
   EMPTY_OUTPUT,
   isTerminal,
   offersRepick,
-  outputDownloadHref,
   outputTable,
   railItems,
   stepsDoneLabel,
@@ -58,10 +56,12 @@ import { useActiveOrganization } from "../../use-active-organization";
 
 import { AttributeBadge } from "@/components/primitives/attribute-badge";
 import { Callout } from "@/components/primitives/callout";
+import { OutputDownloads } from "@/components/primitives/output-downloads";
 import { StatusChip } from "@/components/primitives/status-chip";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { downloadRunOutput, locateArtifact, openArtifact } from "@/lib/downloads";
 import { invalidateRunState } from "@/lib/attention";
 import { duration } from "@/lib/duration";
 import { cn } from "@/lib/utils";
@@ -696,16 +696,12 @@ function StepRow({
 }
 
 function FailureShot({ runId, artifact }: { runId: string; artifact: ArtifactRecord }) {
+  // The URL lives a minute: keep it while this stays mounted, and mint afresh after.
   const url = useQuery({
     queryKey: ["artifact-location", runId, artifact.id],
-    queryFn: async (): Promise<string> => {
-      const fallback = `/api/runs/${runId}/artifacts/${artifact.id}/download`;
-      const { response } = await downloadRunArtifact({
-        path: { run_id: runId, artifact_id: artifact.id },
-        redirect: "manual",
-      });
-      return response?.headers.get("Location") ?? fallback;
-    },
+    queryFn: () => locateArtifact(runId, artifact.id),
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: 0,
   });
   if (url.data === undefined) {
     return <p className="text-micro text-mut">{artifact.filename}</p>;
@@ -786,22 +782,7 @@ function OutputPanel({
   }
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex gap-3">
-        <a
-          className="text-small font-semibold text-accent"
-          href={outputDownloadHref(runId, "json")}
-          download="run.json"
-        >
-          Download JSON
-        </a>
-        <a
-          className="text-small font-semibold text-accent"
-          href={outputDownloadHref(runId, "csv")}
-          download="run.csv"
-        >
-          Download CSV
-        </a>
-      </div>
+      <OutputDownloads download={(format) => downloadRunOutput(runId, format)} />
       <div className="max-h-64 overflow-auto">
         <table className="w-full text-left text-half">
           <thead>
@@ -842,9 +823,15 @@ function ArtifactList({ runId, artifacts }: { runId: string; artifacts: Artifact
       {artifacts.map((artifact) => (
         <li key={artifact.id} className="flex items-center gap-2">
           <AttributeBadge tone="neutral">{artifact.kind}</AttributeBadge>
-          <a className="text-accent" href={`/api/runs/${runId}/artifacts/${artifact.id}/download`}>
+          <button
+            type="button"
+            className="text-accent hover:underline"
+            onClick={() => {
+              void openArtifact(runId, artifact.id);
+            }}
+          >
             {artifact.filename}
-          </a>
+          </button>
         </li>
       ))}
     </ul>

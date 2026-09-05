@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { AbandonTakeoverData, AbandonTakeoverErrors, AbandonTakeoverResponses, AcceptInvitationData, AcceptInvitationErrors, AcceptInvitationResponses, CancelBatchData, CancelBatchErrors, CancelBatchResponses, CancelRunData, CancelRunErrors, CancelRunResponses, CaptureRecordingAuthStatesData, CaptureRecordingAuthStatesErrors, CaptureRecordingAuthStatesResponses, ChangeMemberRoleData, ChangeMemberRoleErrors, ChangeMemberRoleResponses, CheckpointRecordingSessionData, CheckpointRecordingSessionErrors, CheckpointRecordingSessionResponses, ConnectExtensionData, ConnectExtensionErrors, ConnectExtensionResponses, ConsentRunAuthStateData, ConsentRunAuthStateErrors, ConsentRunAuthStateResponses, CreateBatchData, CreateBatchErrors, CreateBatchResponses, CreateExtensionConnectCodeData, CreateExtensionConnectCodeErrors, CreateExtensionConnectCodeResponses, CreateInvitationData, CreateInvitationErrors, CreateInvitationResponses, CreateOrganizationData, CreateOrganizationErrors, CreateOrganizationResponses, CreateRecordingSecretData, CreateRecordingSecretErrors, CreateRecordingSecretResponses, CreateRecordingSessionData, CreateRecordingSessionErrors, CreateRecordingSessionResponses, CreateScheduleData, CreateScheduleErrors, CreateScheduleResponses, CreateSecretData, CreateSecretErrors, CreateSecretResponses, CreateWorkflowData, CreateWorkflowErrors, CreateWorkflowResponses, DeleteAccountData, DeleteAccountErrors, DeleteAccountResponses, DeleteAuthStateData, DeleteAuthStateErrors, DeleteAuthStateResponses, DeleteOrganizationData, DeleteOrganizationErrors, DeleteOrganizationResponses, DeleteRunData, DeleteRunErrors, DeleteRunResponses, DeleteScheduleData, DeleteScheduleErrors, DeleteScheduleResponses, DeleteSecretData, DeleteSecretErrors, DeleteSecretOverrideData, DeleteSecretOverrideErrors, DeleteSecretOverrideResponses, DeleteSecretResponses, DeleteWorkflowData, DeleteWorkflowErrors, DeleteWorkflowResponses, DownloadRunArtifactData, DownloadRunArtifactErrors, DuplicateWorkflowData, DuplicateWorkflowErrors, DuplicateWorkflowResponses, FillBatchRowsData, FillBatchRowsErrors, FillBatchRowsResponses, FinalizeRecordingSessionData, FinalizeRecordingSessionErrors, FinalizeRecordingSessionResponses, GetAttentionData, GetAttentionErrors, GetAttentionResponses, GetBatchData, GetBatchErrors, GetBatchOutputData, GetBatchOutputErrors, GetBatchOutputResponses, GetBatchResponses, GetCurrentAccountData, GetCurrentAccountErrors, GetCurrentAccountResponses, GetExtensionVersionData, GetExtensionVersionErrors, GetExtensionVersionResponses, GetGreetingData, GetGreetingErrors, GetGreetingResponses, GetHealthData, GetHealthResponses, GetInstanceData, GetInstanceResponses, GetRunData, GetRunErrors, GetRunOutputData, GetRunOutputErrors, GetRunOutputResponses, GetRunResponses, GetScheduleData, GetScheduleErrors, GetScheduleResponses, GetWorkflowData, GetWorkflowDraftData, GetWorkflowDraftDiffData, GetWorkflowDraftDiffErrors, GetWorkflowDraftDiffResponses, GetWorkflowDraftErrors, GetWorkflowDraftResponses, GetWorkflowErrors, GetWorkflowResponses, GetWorkflowSelectorDriftData, GetWorkflowSelectorDriftErrors, GetWorkflowSelectorDriftResponses, GetWorkflowVersionData, GetWorkflowVersionErrors, GetWorkflowVersionResponses, HandBackRunData, HandBackRunErrors, HandBackRunResponses, HoldTakeoverData, HoldTakeoverErrors, HoldTakeoverResponses, ListAllSchedulesData, ListAllSchedulesErrors, ListAllSchedulesResponses, ListAuthStatesData, ListAuthStatesErrors, ListAuthStatesResponses, ListBatchesData, ListBatchesErrors, ListBatchesResponses, ListInvitationsData, ListInvitationsErrors, ListInvitationsResponses, ListMembersData, ListMembersErrors, ListMembersResponses, ListRunLogsData, ListRunLogsErrors, ListRunLogsResponses, ListRunsData, ListRunsErrors, ListRunsResponses, ListSchedulesData, ListSchedulesErrors, ListSchedulesResponses, ListSecretsData, ListSecretsErrors, ListSecretsResponses, ListWorkflowsData, ListWorkflowsErrors, ListWorkflowsResponses, ListWorkflowVersionsData, ListWorkflowVersionsErrors, ListWorkflowVersionsResponses, MintStreamTicketData, MintStreamTicketErrors, MintStreamTicketResponses, PauseRunData, PauseRunErrors, PauseRunResponses, PreviewScheduleData, PreviewScheduleErrors, PreviewScheduleResponses, PublishWorkflowVersionData, PublishWorkflowVersionErrors, PublishWorkflowVersionResponses, RecordingAuthStateOptionsData, RecordingAuthStateOptionsErrors, RecordingAuthStateOptionsResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, RenameOrganizationData, RenameOrganizationErrors, RenameOrganizationResponses, RenameWorkflowData, RenameWorkflowErrors, RenameWorkflowResponses, RequestSigninCodeData, RequestSigninCodeErrors, RequestSigninCodeResponses, RerunBatchRowData, RerunBatchRowErrors, RerunBatchRowResponses, RestoreWorkflowVersionData, RestoreWorkflowVersionErrors, RestoreWorkflowVersionResponses, RevealSecretData, RevealSecretErrors, RevealSecretOverrideData, RevealSecretOverrideErrors, RevealSecretOverrideResponses, RevealSecretResponses, RevokeInvitationData, RevokeInvitationErrors, RevokeInvitationResponses, RunScheduleNowData, RunScheduleNowErrors, RunScheduleNowResponses, SaveWorkflowDraftData, SaveWorkflowDraftErrors, SaveWorkflowDraftResponses, SetSecretOverrideData, SetSecretOverrideErrors, SetSecretOverrideResponses, SignOutData, SignOutErrors, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, SkipBatchRowData, SkipBatchRowErrors, SkipBatchRowResponses, StartRunData, StartRunErrors, StartRunResponses, StreamBatchEventsData, StreamBatchEventsErrors, StreamBatchEventsResponse, StreamBatchEventsResponses, StreamRunEventsData, StreamRunEventsErrors, StreamRunEventsResponse, StreamRunEventsResponses, TakeOverRunData, TakeOverRunErrors, TakeOverRunResponses, TransferOwnershipData, TransferOwnershipErrors, TransferOwnershipResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, UpdateBatchRowData, UpdateBatchRowErrors, UpdateBatchRowResponses, UpdateScheduleData, UpdateScheduleErrors, UpdateScheduleResponses, UpdateSecretData, UpdateSecretErrors, UpdateSecretResponses, VerifySigninCodeData, VerifySigninCodeErrors, VerifySigninCodeResponses } from './types.gen';
+import type { AbandonTakeoverData, AbandonTakeoverErrors, AbandonTakeoverResponses, AcceptInvitationData, AcceptInvitationErrors, AcceptInvitationResponses, CancelBatchData, CancelBatchErrors, CancelBatchResponses, CancelRunData, CancelRunErrors, CancelRunResponses, CaptureRecordingAuthStatesData, CaptureRecordingAuthStatesErrors, CaptureRecordingAuthStatesResponses, ChangeMemberRoleData, ChangeMemberRoleErrors, ChangeMemberRoleResponses, CheckpointRecordingSessionData, CheckpointRecordingSessionErrors, CheckpointRecordingSessionResponses, ConnectExtensionData, ConnectExtensionErrors, ConnectExtensionResponses, ConsentRunAuthStateData, ConsentRunAuthStateErrors, ConsentRunAuthStateResponses, CreateBatchData, CreateBatchErrors, CreateBatchResponses, CreateExtensionConnectCodeData, CreateExtensionConnectCodeErrors, CreateExtensionConnectCodeResponses, CreateInvitationData, CreateInvitationErrors, CreateInvitationResponses, CreateOrganizationData, CreateOrganizationErrors, CreateOrganizationResponses, CreateRecordingSecretData, CreateRecordingSecretErrors, CreateRecordingSecretResponses, CreateRecordingSessionData, CreateRecordingSessionErrors, CreateRecordingSessionResponses, CreateScheduleData, CreateScheduleErrors, CreateScheduleResponses, CreateSecretData, CreateSecretErrors, CreateSecretResponses, CreateWorkflowData, CreateWorkflowErrors, CreateWorkflowResponses, DeleteAccountData, DeleteAccountErrors, DeleteAccountResponses, DeleteAuthStateData, DeleteAuthStateErrors, DeleteAuthStateResponses, DeleteOrganizationData, DeleteOrganizationErrors, DeleteOrganizationResponses, DeleteRunData, DeleteRunErrors, DeleteRunResponses, DeleteScheduleData, DeleteScheduleErrors, DeleteScheduleResponses, DeleteSecretData, DeleteSecretErrors, DeleteSecretOverrideData, DeleteSecretOverrideErrors, DeleteSecretOverrideResponses, DeleteSecretResponses, DeleteWorkflowData, DeleteWorkflowErrors, DeleteWorkflowResponses, DownloadRunArtifactData, DownloadRunArtifactErrors, DuplicateWorkflowData, DuplicateWorkflowErrors, DuplicateWorkflowResponses, FillBatchRowsData, FillBatchRowsErrors, FillBatchRowsResponses, FinalizeRecordingSessionData, FinalizeRecordingSessionErrors, FinalizeRecordingSessionResponses, GetAttentionData, GetAttentionErrors, GetAttentionResponses, GetBatchData, GetBatchErrors, GetBatchOutputData, GetBatchOutputErrors, GetBatchOutputResponses, GetBatchResponses, GetCurrentAccountData, GetCurrentAccountErrors, GetCurrentAccountResponses, GetExtensionVersionData, GetExtensionVersionErrors, GetExtensionVersionResponses, GetGreetingData, GetGreetingErrors, GetGreetingResponses, GetHealthData, GetHealthResponses, GetInstanceData, GetInstanceResponses, GetRunData, GetRunErrors, GetRunOutputData, GetRunOutputErrors, GetRunOutputResponses, GetRunResponses, GetScheduleData, GetScheduleErrors, GetScheduleResponses, GetWorkflowData, GetWorkflowDraftData, GetWorkflowDraftDiffData, GetWorkflowDraftDiffErrors, GetWorkflowDraftDiffResponses, GetWorkflowDraftErrors, GetWorkflowDraftResponses, GetWorkflowErrors, GetWorkflowResponses, GetWorkflowSelectorDriftData, GetWorkflowSelectorDriftErrors, GetWorkflowSelectorDriftResponses, GetWorkflowVersionData, GetWorkflowVersionErrors, GetWorkflowVersionResponses, HandBackRunData, HandBackRunErrors, HandBackRunResponses, HoldTakeoverData, HoldTakeoverErrors, HoldTakeoverResponses, ListAllSchedulesData, ListAllSchedulesErrors, ListAllSchedulesResponses, ListAuthStatesData, ListAuthStatesErrors, ListAuthStatesResponses, ListBatchesData, ListBatchesErrors, ListBatchesResponses, ListInvitationsData, ListInvitationsErrors, ListInvitationsResponses, ListMembersData, ListMembersErrors, ListMembersResponses, ListRunLogsData, ListRunLogsErrors, ListRunLogsResponses, ListRunsData, ListRunsErrors, ListRunsResponses, ListSchedulesData, ListSchedulesErrors, ListSchedulesResponses, ListSecretsData, ListSecretsErrors, ListSecretsResponses, ListWorkflowsData, ListWorkflowsErrors, ListWorkflowsResponses, ListWorkflowVersionsData, ListWorkflowVersionsErrors, ListWorkflowVersionsResponses, LocateRunArtifactData, LocateRunArtifactErrors, LocateRunArtifactResponses, MintStreamTicketData, MintStreamTicketErrors, MintStreamTicketResponses, PauseRunData, PauseRunErrors, PauseRunResponses, PreviewScheduleData, PreviewScheduleErrors, PreviewScheduleResponses, PublishWorkflowVersionData, PublishWorkflowVersionErrors, PublishWorkflowVersionResponses, RecordingAuthStateOptionsData, RecordingAuthStateOptionsErrors, RecordingAuthStateOptionsResponses, RemoveMemberData, RemoveMemberErrors, RemoveMemberResponses, RenameOrganizationData, RenameOrganizationErrors, RenameOrganizationResponses, RenameWorkflowData, RenameWorkflowErrors, RenameWorkflowResponses, RequestSigninCodeData, RequestSigninCodeErrors, RequestSigninCodeResponses, RerunBatchRowData, RerunBatchRowErrors, RerunBatchRowResponses, RestoreWorkflowVersionData, RestoreWorkflowVersionErrors, RestoreWorkflowVersionResponses, RevealSecretData, RevealSecretErrors, RevealSecretOverrideData, RevealSecretOverrideErrors, RevealSecretOverrideResponses, RevealSecretResponses, RevokeInvitationData, RevokeInvitationErrors, RevokeInvitationResponses, RunScheduleNowData, RunScheduleNowErrors, RunScheduleNowResponses, SaveWorkflowDraftData, SaveWorkflowDraftErrors, SaveWorkflowDraftResponses, SetSecretOverrideData, SetSecretOverrideErrors, SetSecretOverrideResponses, SignOutData, SignOutErrors, SignOutEverywhereData, SignOutEverywhereErrors, SignOutEverywhereResponses, SignOutResponses, SkipBatchRowData, SkipBatchRowErrors, SkipBatchRowResponses, StartRunData, StartRunErrors, StartRunResponses, StreamBatchEventsData, StreamBatchEventsErrors, StreamBatchEventsResponse, StreamBatchEventsResponses, StreamRunEventsData, StreamRunEventsErrors, StreamRunEventsResponse, StreamRunEventsResponses, TakeOverRunData, TakeOverRunErrors, TakeOverRunResponses, TransferOwnershipData, TransferOwnershipErrors, TransferOwnershipResponses, UpdateAccountData, UpdateAccountErrors, UpdateAccountResponses, UpdateBatchRowData, UpdateBatchRowErrors, UpdateBatchRowResponses, UpdateScheduleData, UpdateScheduleErrors, UpdateScheduleResponses, UpdateSecretData, UpdateSecretErrors, UpdateSecretResponses, VerifySigninCodeData, VerifySigninCodeErrors, VerifySigninCodeResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -20,21 +20,11 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 
 /**
  * Get Instance
- *
- * Signup mode for the sign-in screen, and a new Schedule's default timezone.
  */
 export const getInstance = <ThrowOnError extends boolean = false>(options?: Options<GetInstanceData, ThrowOnError>): RequestResult<GetInstanceResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetInstanceResponses, unknown, ThrowOnError>({ url: '/api/instance', ...options });
 
 /**
  * Request Signin Code
- *
- * Mail a Sign-in Code to an address — 202 whether or not it is anybody.
- *
- * The answer must not vary with whether an account exists, or it becomes a
- * way to ask which addresses are on this instance. So there is nothing in
- * the body to differ, and the caller learns what happened by entering a code.
- * The issuance limit is the one refusal this route has, and it is about how
- * often the caller has asked rather than about who the address is.
  */
 export const requestSigninCode = <ThrowOnError extends boolean = false>(options: Options<RequestSigninCodeData, ThrowOnError>): RequestResult<RequestSigninCodeResponses, RequestSigninCodeErrors, ThrowOnError> => (options.client ?? client).post<RequestSigninCodeResponses, RequestSigninCodeErrors, ThrowOnError>({
     url: '/api/auth/request-code',
@@ -47,8 +37,6 @@ export const requestSigninCode = <ThrowOnError extends boolean = false>(options:
 
 /**
  * Verify Signin Code
- *
- * Prove control of an address, which signs in — and signs up if it is new.
  */
 export const verifySigninCode = <ThrowOnError extends boolean = false>(options: Options<VerifySigninCodeData, ThrowOnError>): RequestResult<VerifySigninCodeResponses, VerifySigninCodeErrors, ThrowOnError> => (options.client ?? client).post<VerifySigninCodeResponses, VerifySigninCodeErrors, ThrowOnError>({
     url: '/api/auth/verify-code',
@@ -61,20 +49,11 @@ export const verifySigninCode = <ThrowOnError extends boolean = false>(options: 
 
 /**
  * Get Current Account
- *
- * Who the caller is, and which Organizations they can act in.
  */
 export const getCurrentAccount = <ThrowOnError extends boolean = false>(options?: Options<GetCurrentAccountData, ThrowOnError>): RequestResult<GetCurrentAccountResponses, GetCurrentAccountErrors, ThrowOnError> => (options?.client ?? client).get<GetCurrentAccountResponses, GetCurrentAccountErrors, ThrowOnError>({ url: '/api/auth/me', ...options });
 
 /**
  * Delete Account
- *
- * End this account, behind typing its address — hard, and for good.
- *
- * Every session goes with it, so the browser asking is signed out by the
- * answer it gets, and the cookie it still carries is taken back here. An
- * account that owns an Organization is refused: leaving must not leave a
- * team with nobody who can act for it.
  */
 export const deleteAccount = <ThrowOnError extends boolean = false>(options: Options<DeleteAccountData, ThrowOnError>): RequestResult<DeleteAccountResponses, DeleteAccountErrors, ThrowOnError> => (options.client ?? client).delete<DeleteAccountResponses, DeleteAccountErrors, ThrowOnError>({
     url: '/api/account',
@@ -87,8 +66,6 @@ export const deleteAccount = <ThrowOnError extends boolean = false>(options: Opt
 
 /**
  * Update Account
- *
- * Change the display name. The email is the identity and is not editable.
  */
 export const updateAccount = <ThrowOnError extends boolean = false>(options: Options<UpdateAccountData, ThrowOnError>): RequestResult<UpdateAccountResponses, UpdateAccountErrors, ThrowOnError> => (options.client ?? client).patch<UpdateAccountResponses, UpdateAccountErrors, ThrowOnError>({
     url: '/api/account',
@@ -101,39 +78,21 @@ export const updateAccount = <ThrowOnError extends boolean = false>(options: Opt
 
 /**
  * Sign Out
- *
- * End this session — the row goes, and the browser stops carrying its key.
- *
- * Other sessions of the same user are untouched; `logout-all` is the one
- * that reaches them.
  */
 export const signOut = <ThrowOnError extends boolean = false>(options?: Options<SignOutData, ThrowOnError>): RequestResult<SignOutResponses, SignOutErrors, ThrowOnError> => (options?.client ?? client).post<SignOutResponses, SignOutErrors, ThrowOnError>({ url: '/api/auth/logout', ...options });
 
 /**
  * Sign Out Everywhere
- *
- * End every session this account has, this one included.
- *
- * The action for a browser the person no longer has — a phone left in a taxi,
- * a machine at an old job — so it deliberately reaches the sessions this
- * request cannot see, and takes the asking one with them.
  */
 export const signOutEverywhere = <ThrowOnError extends boolean = false>(options?: Options<SignOutEverywhereData, ThrowOnError>): RequestResult<SignOutEverywhereResponses, SignOutEverywhereErrors, ThrowOnError> => (options?.client ?? client).post<SignOutEverywhereResponses, SignOutEverywhereErrors, ThrowOnError>({ url: '/api/auth/logout-all', ...options });
 
 /**
  * List Invitations
- *
- * The offers this Organization has standing — never the spent ones.
- *
- * An Invitation that was accepted, revoked, or has run out is not a thing
- * anyone can act on, so it is not on a list whose every row has actions.
  */
 export const listInvitations = <ThrowOnError extends boolean = false>(options: Options<ListInvitationsData, ThrowOnError>): RequestResult<ListInvitationsResponses, ListInvitationsErrors, ThrowOnError> => (options.client ?? client).get<ListInvitationsResponses, ListInvitationsErrors, ThrowOnError>({ url: '/api/orgs/{org_id}/invitations', ...options });
 
 /**
  * Create Invitation
- *
- * Invite an address into this Organization, and mail it the offer.
  */
 export const createInvitation = <ThrowOnError extends boolean = false>(options: Options<CreateInvitationData, ThrowOnError>): RequestResult<CreateInvitationResponses, CreateInvitationErrors, ThrowOnError> => (options.client ?? client).post<CreateInvitationResponses, CreateInvitationErrors, ThrowOnError>({
     url: '/api/orgs/{org_id}/invitations',
@@ -146,29 +105,16 @@ export const createInvitation = <ThrowOnError extends boolean = false>(options: 
 
 /**
  * Revoke Invitation
- *
- * Withdraw an offer: the invitee stops seeing it and cannot take it up.
  */
 export const revokeInvitation = <ThrowOnError extends boolean = false>(options: Options<RevokeInvitationData, ThrowOnError>): RequestResult<RevokeInvitationResponses, RevokeInvitationErrors, ThrowOnError> => (options.client ?? client).delete<RevokeInvitationResponses, RevokeInvitationErrors, ThrowOnError>({ url: '/api/orgs/{org_id}/invitations/{invitation_id}', ...options });
 
 /**
  * Accept Invitation
- *
- * Take up an offer made to this account's address, which joins the team.
- *
- * Being signed in as the invited address is the whole of the proof, because
- * signing in is proof of the address the offer was made to.
  */
 export const acceptInvitation = <ThrowOnError extends boolean = false>(options: Options<AcceptInvitationData, ThrowOnError>): RequestResult<AcceptInvitationResponses, AcceptInvitationErrors, ThrowOnError> => (options.client ?? client).post<AcceptInvitationResponses, AcceptInvitationErrors, ThrowOnError>({ url: '/api/invitations/{invitation_id}/accept', ...options });
 
 /**
  * Create Organization
- *
- * Start a further Organization, owned by whoever asked for it.
- *
- * Signing up makes the first one; this is every one after it — a second team,
- * a client's work kept apart from another's — and it answers with the same
- * shape the current-user view lists, because that is where it turns up next.
  */
 export const createOrganization = <ThrowOnError extends boolean = false>(options: Options<CreateOrganizationData, ThrowOnError>): RequestResult<CreateOrganizationResponses, CreateOrganizationErrors, ThrowOnError> => (options.client ?? client).post<CreateOrganizationResponses, CreateOrganizationErrors, ThrowOnError>({
     url: '/api/orgs',
@@ -181,13 +127,6 @@ export const createOrganization = <ThrowOnError extends boolean = false>(options
 
 /**
  * Delete Organization
- *
- * End the Organization, and everything that belonged to it.
- *
- * The owner's alone, and behind typing the name: the Memberships, the
- * Invitations, and every piece of work the Organization owns go with it, and
- * nothing brings them back. Its people keep their accounts and their other
- * Organizations — what ends is the team, not the members.
  */
 export const deleteOrganization = <ThrowOnError extends boolean = false>(options: Options<DeleteOrganizationData, ThrowOnError>): RequestResult<DeleteOrganizationResponses, DeleteOrganizationErrors, ThrowOnError> => (options.client ?? client).delete<DeleteOrganizationResponses, DeleteOrganizationErrors, ThrowOnError>({
     url: '/api/orgs/{org_id}',
@@ -200,11 +139,6 @@ export const deleteOrganization = <ThrowOnError extends boolean = false>(options
 
 /**
  * Rename Organization
- *
- * Rename the Organization, which an owner and the admins may both do.
- *
- * The name a signup made is the local part of an address, so the first thing
- * a team does with an Organization is give it their own name for it.
  */
 export const renameOrganization = <ThrowOnError extends boolean = false>(options: Options<RenameOrganizationData, ThrowOnError>): RequestResult<RenameOrganizationResponses, RenameOrganizationErrors, ThrowOnError> => (options.client ?? client).patch<RenameOrganizationResponses, RenameOrganizationErrors, ThrowOnError>({
     url: '/api/orgs/{org_id}',
@@ -217,29 +151,16 @@ export const renameOrganization = <ThrowOnError extends boolean = false>(options
 
 /**
  * List Members
- *
- * Who else is here — a question every role in an Organization may ask.
- *
- * Knowing who you work with is not managing them: the roles that gate this
- * screen's controls do not gate the screen.
  */
 export const listMembers = <ThrowOnError extends boolean = false>(options: Options<ListMembersData, ThrowOnError>): RequestResult<ListMembersResponses, ListMembersErrors, ThrowOnError> => (options.client ?? client).get<ListMembersResponses, ListMembersErrors, ThrowOnError>({ url: '/api/orgs/{org_id}/members', ...options });
 
 /**
  * Remove Member
- *
- * End a Membership — an owner's or an admin's removal, or anyone's leaving.
- *
- * Access ends with the row: the next request naming this Organization has no
- * Membership behind it, and the gate refuses it. The session is untouched,
- * because it is the account's and not this Organization's.
  */
 export const removeMember = <ThrowOnError extends boolean = false>(options: Options<RemoveMemberData, ThrowOnError>): RequestResult<RemoveMemberResponses, RemoveMemberErrors, ThrowOnError> => (options.client ?? client).delete<RemoveMemberResponses, RemoveMemberErrors, ThrowOnError>({ url: '/api/orgs/{org_id}/members/{user_id}', ...options });
 
 /**
  * Change Member Role
- *
- * Move somebody between member and admin, which owners and admins both do.
  */
 export const changeMemberRole = <ThrowOnError extends boolean = false>(options: Options<ChangeMemberRoleData, ThrowOnError>): RequestResult<ChangeMemberRoleResponses, ChangeMemberRoleErrors, ThrowOnError> => (options.client ?? client).patch<ChangeMemberRoleResponses, ChangeMemberRoleErrors, ThrowOnError>({
     url: '/api/orgs/{org_id}/members/{user_id}',
@@ -252,8 +173,6 @@ export const changeMemberRole = <ThrowOnError extends boolean = false>(options: 
 
 /**
  * Transfer Ownership
- *
- * Hand the Organization to another of its members, and stay on as an admin.
  */
 export const transferOwnership = <ThrowOnError extends boolean = false>(options: Options<TransferOwnershipData, ThrowOnError>): RequestResult<TransferOwnershipResponses, TransferOwnershipErrors, ThrowOnError> => (options.client ?? client).post<TransferOwnershipResponses, TransferOwnershipErrors, ThrowOnError>({
     url: '/api/orgs/{org_id}/transfer-ownership',
@@ -276,33 +195,16 @@ export const deleteAuthState = <ThrowOnError extends boolean = false>(options: O
 
 /**
  * Get Extension Version
- *
- * What this instance serves, and the oldest it will record with.
- *
- * Unauthenticated: the app shows an out-of-date banner before a recording is
- * attempted, and the extension has no session of its own to ask with.
  */
 export const getExtensionVersion = <ThrowOnError extends boolean = false>(options?: Options<GetExtensionVersionData, ThrowOnError>): RequestResult<GetExtensionVersionResponses, GetExtensionVersionErrors, ThrowOnError> => (options?.client ?? client).get<GetExtensionVersionResponses, GetExtensionVersionErrors, ThrowOnError>({ url: '/api/extension/version', ...options });
 
 /**
  * Create Connect Code
- *
- * Take a code to read out to the extension.
- *
- * Authenticated, because the code is this person authorizing the pairing:
- * what spending it proves to the extension is that somebody signed into this
- * instance meant to connect.
  */
 export const createExtensionConnectCode = <ThrowOnError extends boolean = false>(options?: Options<CreateExtensionConnectCodeData, ThrowOnError>): RequestResult<CreateExtensionConnectCodeResponses, CreateExtensionConnectCodeErrors, ThrowOnError> => (options?.client ?? client).post<CreateExtensionConnectCodeResponses, CreateExtensionConnectCodeErrors, ThrowOnError>({ url: '/api/extension/connect-codes', ...options });
 
 /**
  * Connect Extension
- *
- * Spend a connect code.
- *
- * Unauthenticated: the extension has no session, which is the whole point of
- * the code. The commit happens before the refusal for the same reason the
- * Sign-in Code's does — a spent code must stay spent whatever the answer is.
  */
 export const connectExtension = <ThrowOnError extends boolean = false>(options: Options<ConnectExtensionData, ThrowOnError>): RequestResult<ConnectExtensionResponses, ConnectExtensionErrors, ThrowOnError> => (options.client ?? client).post<ConnectExtensionResponses, ConnectExtensionErrors, ThrowOnError>({
     url: '/api/extension/connect',
@@ -376,26 +278,11 @@ export const revealSecretOverride = <ThrowOnError extends boolean = false>(optio
 
 /**
  * List Workflows
- *
- * The acting Organization's Workflows, narrowed by what was typed.
- *
- * Activity by default, because a list of automations is a list of what has
- * been happening; the other two orders are for finding one by hand.
- *
- * One row more than was asked for is read, and dropped: whether a next page
- * exists is a fact about the data, and asking for it as a count would be a
- * second query over the same rows.
  */
 export const listWorkflows = <ThrowOnError extends boolean = false>(options?: Options<ListWorkflowsData, ThrowOnError>): RequestResult<ListWorkflowsResponses, ListWorkflowsErrors, ThrowOnError> => (options?.client ?? client).get<ListWorkflowsResponses, ListWorkflowsErrors, ThrowOnError>({ url: '/api/workflows', ...options });
 
 /**
  * Create Workflow
- *
- * Make an empty Workflow in the acting Organization.
- *
- * Its Draft exists from this moment, empty: a recorder or an editor opening
- * a Workflow that has never been touched must find a document to write into
- * rather than a missing row.
  */
 export const createWorkflow = <ThrowOnError extends boolean = false>(options: Options<CreateWorkflowData, ThrowOnError>): RequestResult<CreateWorkflowResponses, CreateWorkflowErrors, ThrowOnError> => (options.client ?? client).post<CreateWorkflowResponses, CreateWorkflowErrors, ThrowOnError>({
     url: '/api/workflows',
@@ -408,71 +295,36 @@ export const createWorkflow = <ThrowOnError extends boolean = false>(options: Op
 
 /**
  * List Workflow Versions
- *
- * Every Version of this Workflow, oldest first, without their documents.
  */
 export const listWorkflowVersions = <ThrowOnError extends boolean = false>(options: Options<ListWorkflowVersionsData, ThrowOnError>): RequestResult<ListWorkflowVersionsResponses, ListWorkflowVersionsErrors, ThrowOnError> => (options.client ?? client).get<ListWorkflowVersionsResponses, ListWorkflowVersionsErrors, ThrowOnError>({ url: '/api/workflows/{workflow_id}/versions', ...options });
 
 /**
  * Publish Workflow Version
- *
- * Snapshot the Draft as the next Version.
- *
- * The document is copied across as it is stored rather than re-serialized
- * through the models: what a Run reads weeks from now has to be what the
- * editor was looking at, down to the byte, and a round trip through code
- * that has changed since is exactly how that stops being true.
  */
 export const publishWorkflowVersion = <ThrowOnError extends boolean = false>(options: Options<PublishWorkflowVersionData, ThrowOnError>): RequestResult<PublishWorkflowVersionResponses, PublishWorkflowVersionErrors, ThrowOnError> => (options.client ?? client).post<PublishWorkflowVersionResponses, PublishWorkflowVersionErrors, ThrowOnError>({ url: '/api/workflows/{workflow_id}/versions', ...options });
 
 /**
  * Get Workflow Version
- *
- * One published document, exactly as the publish that minted it left it.
  */
 export const getWorkflowVersion = <ThrowOnError extends boolean = false>(options: Options<GetWorkflowVersionData, ThrowOnError>): RequestResult<GetWorkflowVersionResponses, GetWorkflowVersionErrors, ThrowOnError> => (options.client ?? client).get<GetWorkflowVersionResponses, GetWorkflowVersionErrors, ThrowOnError>({ url: '/api/workflows/{workflow_id}/versions/{number}', ...options });
 
 /**
  * Restore Workflow Version
- *
- * Copy a Version's document back into the Draft.
- *
- * An edit of the Draft and nothing more: the Version stays where it is, and
- * what Schedules and Batches execute does not change until the user
- * publishes what they restored.
- *
- * The document is not revalidated on the way in. It passed the rules at the
- * save that preceded its publish, and a Version is executable forever —
- * refusing to bring one back because a rule has since grown stricter would
- * make it exactly not that.
  */
 export const restoreWorkflowVersion = <ThrowOnError extends boolean = false>(options: Options<RestoreWorkflowVersionData, ThrowOnError>): RequestResult<RestoreWorkflowVersionResponses, RestoreWorkflowVersionErrors, ThrowOnError> => (options.client ?? client).post<RestoreWorkflowVersionResponses, RestoreWorkflowVersionErrors, ThrowOnError>({ url: '/api/workflows/{workflow_id}/versions/{number}/restore', ...options });
 
 /**
  * Get Workflow Draft Diff
- *
- * What publishing would change, and where the Draft stands.
- *
- * Against the latest Version and no other: it is what Schedules and Batches
- * execute, so it is the only thing "unpublished changes" can mean.
  */
 export const getWorkflowDraftDiff = <ThrowOnError extends boolean = false>(options: Options<GetWorkflowDraftDiffData, ThrowOnError>): RequestResult<GetWorkflowDraftDiffResponses, GetWorkflowDraftDiffErrors, ThrowOnError> => (options.client ?? client).get<GetWorkflowDraftDiffResponses, GetWorkflowDraftDiffErrors, ThrowOnError>({ url: '/api/workflows/{workflow_id}/draft/diff', ...options });
 
 /**
  * Get Workflow Draft
- *
- * The Draft as one document: its Steps and the Variables they reference.
  */
 export const getWorkflowDraft = <ThrowOnError extends boolean = false>(options: Options<GetWorkflowDraftData, ThrowOnError>): RequestResult<GetWorkflowDraftResponses, GetWorkflowDraftErrors, ThrowOnError> => (options.client ?? client).get<GetWorkflowDraftResponses, GetWorkflowDraftErrors, ThrowOnError>({ url: '/api/workflows/{workflow_id}/draft', ...options });
 
 /**
  * Save Workflow Draft
- *
- * Replace the Draft with the document sent, whole.
- *
- * Whole rather than patched: the editor holds the document it is editing, so
- * a save is a statement of what the Draft now is, and there is no order of
- * arrival in which two saves leave a Draft nobody wrote.
  */
 export const saveWorkflowDraft = <ThrowOnError extends boolean = false>(options: Options<SaveWorkflowDraftData, ThrowOnError>): RequestResult<SaveWorkflowDraftResponses, SaveWorkflowDraftErrors, ThrowOnError> => (options.client ?? client).put<SaveWorkflowDraftResponses, SaveWorkflowDraftErrors, ThrowOnError>({
     url: '/api/workflows/{workflow_id}/draft',
@@ -485,8 +337,6 @@ export const saveWorkflowDraft = <ThrowOnError extends boolean = false>(options:
 
 /**
  * Mint Session
- *
- * Mint or rotate a one-hour token for this user and this Draft.
  */
 export const createRecordingSession = <ThrowOnError extends boolean = false>(options: Options<CreateRecordingSessionData, ThrowOnError>): RequestResult<CreateRecordingSessionResponses, CreateRecordingSessionErrors, ThrowOnError> => (options.client ?? client).post<CreateRecordingSessionResponses, CreateRecordingSessionErrors, ThrowOnError>({
     url: '/api/workflows/{workflow_id}/recording-sessions',
@@ -499,8 +349,6 @@ export const createRecordingSession = <ThrowOnError extends boolean = false>(opt
 
 /**
  * Save Checkpoint
- *
- * Keep only the newest full buffer; repeating a sequence changes nothing.
  */
 export const checkpointRecordingSession = <ThrowOnError extends boolean = false>(options: Options<CheckpointRecordingSessionData, ThrowOnError>): RequestResult<CheckpointRecordingSessionResponses, CheckpointRecordingSessionErrors, ThrowOnError> => (options.client ?? client).post<CheckpointRecordingSessionResponses, CheckpointRecordingSessionErrors, ThrowOnError>({
     url: '/api/recording-sessions/{session_id}/checkpoint',
@@ -513,8 +361,6 @@ export const checkpointRecordingSession = <ThrowOnError extends boolean = false>
 
 /**
  * Create Recording Secret
- *
- * Create an Organization Secret through this recording capability.
  */
 export const createRecordingSecret = <ThrowOnError extends boolean = false>(options: Options<CreateRecordingSecretData, ThrowOnError>): RequestResult<CreateRecordingSecretResponses, CreateRecordingSecretErrors, ThrowOnError> => (options.client ?? client).post<CreateRecordingSecretResponses, CreateRecordingSecretErrors, ThrowOnError>({
     url: '/api/recording-sessions/{session_id}/secrets',
@@ -527,8 +373,6 @@ export const createRecordingSecret = <ThrowOnError extends boolean = false>(opti
 
 /**
  * Auth State Options
- *
- * Collapse visited hosts and describe both destinations for the checklist.
  */
 export const recordingAuthStateOptions = <ThrowOnError extends boolean = false>(options: Options<RecordingAuthStateOptionsData, ThrowOnError>): RequestResult<RecordingAuthStateOptionsResponses, RecordingAuthStateOptionsErrors, ThrowOnError> => (options.client ?? client).post<RecordingAuthStateOptionsResponses, RecordingAuthStateOptionsErrors, ThrowOnError>({
     url: '/api/recording-sessions/{session_id}/auth-state-options',
@@ -541,8 +385,6 @@ export const recordingAuthStateOptions = <ThrowOnError extends boolean = false>(
 
 /**
  * Capture Auth States
- *
- * Store only the destinations explicitly selected at recording save.
  */
 export const captureRecordingAuthStates = <ThrowOnError extends boolean = false>(options: Options<CaptureRecordingAuthStatesData, ThrowOnError>): RequestResult<CaptureRecordingAuthStatesResponses, CaptureRecordingAuthStatesErrors, ThrowOnError> => (options.client ?? client).post<CaptureRecordingAuthStatesResponses, CaptureRecordingAuthStatesErrors, ThrowOnError>({
     url: '/api/recording-sessions/{session_id}/auth-states',
@@ -555,8 +397,6 @@ export const captureRecordingAuthStates = <ThrowOnError extends boolean = false>
 
 /**
  * Finalize Session
- *
- * Replace the Draft from a recording, or patch one Re-pick target.
  */
 export const finalizeRecordingSession = <ThrowOnError extends boolean = false>(options: Options<FinalizeRecordingSessionData, ThrowOnError>): RequestResult<FinalizeRecordingSessionResponses, FinalizeRecordingSessionErrors, ThrowOnError> => (options.client ?? client).post<FinalizeRecordingSessionResponses, FinalizeRecordingSessionErrors, ThrowOnError>({
     url: '/api/recording-sessions/{session_id}/finalize',
@@ -569,37 +409,16 @@ export const finalizeRecordingSession = <ThrowOnError extends boolean = false>(o
 
 /**
  * Delete Workflow
- *
- * Delete a Workflow, and everything that only existed because of it.
- *
- * Drafts, Versions, Schedules, Batches, Runs, Step Results, and Artifact
- * rows go with it on the foreign keys that already say so. Garage objects
- * do not: they are purged here, the same way deleting one Run purges them.
- * A live Run refuses the delete — two copies of one Workflow never act at
- * once, and deleting the Workflow under one would be the same as cancelling
- * it from the wrong end.
  */
 export const deleteWorkflow = <ThrowOnError extends boolean = false>(options: Options<DeleteWorkflowData, ThrowOnError>): RequestResult<DeleteWorkflowResponses, DeleteWorkflowErrors, ThrowOnError> => (options.client ?? client).delete<DeleteWorkflowResponses, DeleteWorkflowErrors, ThrowOnError>({ url: '/api/workflows/{workflow_id}', ...options });
 
 /**
  * Get Workflow
- *
- * One Workflow, as the same row the list would have drawn.
- *
- * The Workflow page needs it: opened by its address rather than by a click,
- * it has no row to have carried the name and the draft state across. The
- * same query answers it, so the header a reload draws is the header the row
- * promised.
  */
 export const getWorkflow = <ThrowOnError extends boolean = false>(options: Options<GetWorkflowData, ThrowOnError>): RequestResult<GetWorkflowResponses, GetWorkflowErrors, ThrowOnError> => (options.client ?? client).get<GetWorkflowResponses, GetWorkflowErrors, ThrowOnError>({ url: '/api/workflows/{workflow_id}', ...options });
 
 /**
  * Rename Workflow
- *
- * Change what a Workflow is called, and nothing else about it.
- *
- * The name is the only field a row shows and the only one housekeeping
- * touches; the timeouts and the document have their own routes.
  */
 export const renameWorkflow = <ThrowOnError extends boolean = false>(options: Options<RenameWorkflowData, ThrowOnError>): RequestResult<RenameWorkflowResponses, RenameWorkflowErrors, ThrowOnError> => (options.client ?? client).patch<RenameWorkflowResponses, RenameWorkflowErrors, ThrowOnError>({
     url: '/api/workflows/{workflow_id}',
@@ -612,20 +431,11 @@ export const renameWorkflow = <ThrowOnError extends boolean = false>(options: Op
 
 /**
  * Duplicate Workflow
- *
- * A second Workflow holding a copy of this one's Draft.
- *
- * The Draft and nothing else. Versions are not copied — a Version is what a
- * Schedule and a Batch execute, and a copy that arrived already published
- * would be an automation nobody has looked at that is ready to act on a real
- * website. The copy starts never-published, which is exactly true of it.
  */
 export const duplicateWorkflow = <ThrowOnError extends boolean = false>(options: Options<DuplicateWorkflowData, ThrowOnError>): RequestResult<DuplicateWorkflowResponses, DuplicateWorkflowErrors, ThrowOnError> => (options.client ?? client).post<DuplicateWorkflowResponses, DuplicateWorkflowErrors, ThrowOnError>({ url: '/api/workflows/{workflow_id}/duplicate', ...options });
 
 /**
  * Start Run
- *
- * Persist one queued Run, then place its id on the dumb dispatch pipe.
  */
 export const startRun = <ThrowOnError extends boolean = false>(options: Options<StartRunData, ThrowOnError>): RequestResult<StartRunResponses, StartRunErrors, ThrowOnError> => (options.client ?? client).post<StartRunResponses, StartRunErrors, ThrowOnError>({
     url: '/api/workflows/{workflow_id}/runs',
@@ -638,47 +448,31 @@ export const startRun = <ThrowOnError extends boolean = false>(options: Options<
 
 /**
  * Get Workflow Selector Drift
- *
- * The Steps whose recent Runs resolved through a lower-ranked candidate.
- *
- * The editor is where repair happens, so the warning is computed here from
- * Step Results rather than on each Run. Rank 0 is the recorded best; anything
- * above it in the last ten Runs of this Workflow is Selector Drift.
  */
 export const getWorkflowSelectorDrift = <ThrowOnError extends boolean = false>(options: Options<GetWorkflowSelectorDriftData, ThrowOnError>): RequestResult<GetWorkflowSelectorDriftResponses, GetWorkflowSelectorDriftErrors, ThrowOnError> => (options.client ?? client).get<GetWorkflowSelectorDriftResponses, GetWorkflowSelectorDriftErrors, ThrowOnError>({ url: '/api/workflows/{workflow_id}/selector-drift', ...options });
 
 /**
  * List Runs
- *
- * Runs in newest-first order, optionally narrowed by Workflow, status, trigger.
  */
 export const listRuns = <ThrowOnError extends boolean = false>(options?: Options<ListRunsData, ThrowOnError>): RequestResult<ListRunsResponses, ListRunsErrors, ThrowOnError> => (options?.client ?? client).get<ListRunsResponses, ListRunsErrors, ThrowOnError>({ url: '/api/runs', ...options });
 
 /**
  * Get Attention
- *
- * The active Organization's non-terminal Run summary for the shell.
  */
 export const getAttention = <ThrowOnError extends boolean = false>(options?: Options<GetAttentionData, ThrowOnError>): RequestResult<GetAttentionResponses, GetAttentionErrors, ThrowOnError> => (options?.client ?? client).get<GetAttentionResponses, GetAttentionErrors, ThrowOnError>({ url: '/api/attention', ...options });
 
 /**
  * Delete Run
- *
- * Purge a terminal Run, its rows, and its Garage objects.
  */
 export const deleteRun = <ThrowOnError extends boolean = false>(options: Options<DeleteRunData, ThrowOnError>): RequestResult<DeleteRunResponses, DeleteRunErrors, ThrowOnError> => (options.client ?? client).delete<DeleteRunResponses, DeleteRunErrors, ThrowOnError>({ url: '/api/runs/{run_id}', ...options });
 
 /**
  * Get Run
- *
- * The persisted state a reconnect needs, in one payload.
  */
 export const getRun = <ThrowOnError extends boolean = false>(options: Options<GetRunData, ThrowOnError>): RequestResult<GetRunResponses, GetRunErrors, ThrowOnError> => (options.client ?? client).get<GetRunResponses, GetRunErrors, ThrowOnError>({ url: '/api/runs/{run_id}', ...options });
 
 /**
  * Consent Run Auth State
- *
- * Record where a new takeover domain should land on the next write-back.
  */
 export const consentRunAuthState = <ThrowOnError extends boolean = false>(options: Options<ConsentRunAuthStateData, ThrowOnError>): RequestResult<ConsentRunAuthStateResponses, ConsentRunAuthStateErrors, ThrowOnError> => (options.client ?? client).post<ConsentRunAuthStateResponses, ConsentRunAuthStateErrors, ThrowOnError>({
     url: '/api/runs/{run_id}/auth-state-consents',
@@ -691,64 +485,56 @@ export const consentRunAuthState = <ThrowOnError extends boolean = false>(option
 
 /**
  * Stream Run Events
- *
- * Fan out `run:{id}:events` after the Organization gate; never replay.
  */
 export const streamRunEvents = <ThrowOnError extends boolean = false>(options: Options<StreamRunEventsData, ThrowOnError, StreamRunEventsResponse>): Promise<ServerSentEventsResult<StreamRunEventsResponses>> => (options.client ?? client).sse.get<StreamRunEventsResponses, StreamRunEventsErrors, ThrowOnError>({ url: '/api/runs/{run_id}/events', ...options });
 
 /**
  * List Run Logs
- *
- * The persisted log, optionally after a seq or for one Step.
  */
 export const listRunLogs = <ThrowOnError extends boolean = false>(options: Options<ListRunLogsData, ThrowOnError>): RequestResult<ListRunLogsResponses, ListRunLogsErrors, ThrowOnError> => (options.client ?? client).get<ListRunLogsResponses, ListRunLogsErrors, ThrowOnError>({ url: '/api/runs/{run_id}/logs', ...options });
 
 /**
  * Get Run Output
- *
- * Assembled on read from extract Step Results. Nothing is stored twice.
  */
 export const getRunOutput = <ThrowOnError extends boolean = false>(options: Options<GetRunOutputData, ThrowOnError>): RequestResult<GetRunOutputResponses, GetRunOutputErrors, ThrowOnError> => (options.client ?? client).get<GetRunOutputResponses, GetRunOutputErrors, ThrowOnError>({ url: '/api/runs/{run_id}/output', ...options });
 
 /**
  * Download Run Artifact
- *
- * Mint a presigned GET after the Organization gate; never leak existence.
  */
 export const downloadRunArtifact = <ThrowOnError extends boolean = false>(options: Options<DownloadRunArtifactData, ThrowOnError>): RequestResult<unknown, DownloadRunArtifactErrors, ThrowOnError> => (options.client ?? client).get<unknown, DownloadRunArtifactErrors, ThrowOnError>({ url: '/api/runs/{run_id}/artifacts/{artifact_id}/download', ...options });
 
 /**
- * Cancel Run
+ * Locate Run Artifact
  *
- * Cancel queued or waiting work now; stamp a request on a running Run.
+ * Mint the same presigned URL as the download route, but hand it back in a body.
+ *
+ * A browser cannot read where a redirect went, and an `<img>` or a plain link
+ * carries no Organization header, so the app asks here and then loads the URL.
+ */
+export const locateRunArtifact = <ThrowOnError extends boolean = false>(options: Options<LocateRunArtifactData, ThrowOnError>): RequestResult<LocateRunArtifactResponses, LocateRunArtifactErrors, ThrowOnError> => (options.client ?? client).get<LocateRunArtifactResponses, LocateRunArtifactErrors, ThrowOnError>({ url: '/api/runs/{run_id}/artifacts/{artifact_id}/location', ...options });
+
+/**
+ * Cancel Run
  */
 export const cancelRun = <ThrowOnError extends boolean = false>(options: Options<CancelRunData, ThrowOnError>): RequestResult<CancelRunResponses, CancelRunErrors, ThrowOnError> => (options.client ?? client).post<CancelRunResponses, CancelRunErrors, ThrowOnError>({ url: '/api/runs/{run_id}/cancel', ...options });
 
 /**
  * Pause Run
- *
- * Request takeover at the next safe boundary. Status stays running.
  */
 export const pauseRun = <ThrowOnError extends boolean = false>(options: Options<PauseRunData, ThrowOnError>): RequestResult<PauseRunResponses, PauseRunErrors, ThrowOnError> => (options.client ?? client).post<PauseRunResponses, PauseRunErrors, ThrowOnError>({ url: '/api/runs/{run_id}/pause', ...options });
 
 /**
  * Mint Stream Ticket
- *
- * Mint a view-only ticket for any non-terminal Run.
  */
 export const mintStreamTicket = <ThrowOnError extends boolean = false>(options: Options<MintStreamTicketData, ThrowOnError>): RequestResult<MintStreamTicketResponses, MintStreamTicketErrors, ThrowOnError> => (options.client ?? client).post<MintStreamTicketResponses, MintStreamTicketErrors, ThrowOnError>({ url: '/api/runs/{run_id}/stream-ticket', ...options });
 
 /**
  * Take Over Run
- *
- * Mint a control ticket for a waiting Run. One session holds it at a time.
  */
 export const takeOverRun = <ThrowOnError extends boolean = false>(options: Options<TakeOverRunData, ThrowOnError>): RequestResult<TakeOverRunResponses, TakeOverRunErrors, ThrowOnError> => (options.client ?? client).post<TakeOverRunResponses, TakeOverRunErrors, ThrowOnError>({ url: '/api/runs/{run_id}/takeover', ...options });
 
 /**
  * Hold Takeover
- *
- * Disable or re-enable auto hand-back for the rest of this takeover.
  */
 export const holdTakeover = <ThrowOnError extends boolean = false>(options: Options<HoldTakeoverData, ThrowOnError>): RequestResult<HoldTakeoverResponses, HoldTakeoverErrors, ThrowOnError> => (options.client ?? client).post<HoldTakeoverResponses, HoldTakeoverErrors, ThrowOnError>({
     url: '/api/runs/{run_id}/takeover/hold',
@@ -761,22 +547,16 @@ export const holdTakeover = <ThrowOnError extends boolean = false>(options: Opti
 
 /**
  * Hand Back Run
- *
- * Ask the Worker to resume after a manual hand-back.
  */
 export const handBackRun = <ThrowOnError extends boolean = false>(options: Options<HandBackRunData, ThrowOnError>): RequestResult<HandBackRunResponses, HandBackRunErrors, ThrowOnError> => (options.client ?? client).post<HandBackRunResponses, HandBackRunErrors, ThrowOnError>({ url: '/api/runs/{run_id}/handback', ...options });
 
 /**
  * Abandon Takeover
- *
- * Give up during takeover: the Run fails and the browser can close.
  */
 export const abandonTakeover = <ThrowOnError extends boolean = false>(options: Options<AbandonTakeoverData, ThrowOnError>): RequestResult<AbandonTakeoverResponses, AbandonTakeoverErrors, ThrowOnError> => (options.client ?? client).post<AbandonTakeoverResponses, AbandonTakeoverErrors, ThrowOnError>({ url: '/api/runs/{run_id}/takeover/abandon', ...options });
 
 /**
  * Preview Schedule
- *
- * The next five Occurrences of an expression. No Schedule has to exist.
  */
 export const previewSchedule = <ThrowOnError extends boolean = false>(options: Options<PreviewScheduleData, ThrowOnError>): RequestResult<PreviewScheduleResponses, PreviewScheduleErrors, ThrowOnError> => (options.client ?? client).post<PreviewScheduleResponses, PreviewScheduleErrors, ThrowOnError>({
     url: '/api/schedules/preview',
@@ -789,8 +569,6 @@ export const previewSchedule = <ThrowOnError extends boolean = false>(options: O
 
 /**
  * List All Schedules
- *
- * Every Schedule in the active Organization, newest-created last.
  */
 export const listAllSchedules = <ThrowOnError extends boolean = false>(options?: Options<ListAllSchedulesData, ThrowOnError>): RequestResult<ListAllSchedulesResponses, ListAllSchedulesErrors, ThrowOnError> => (options?.client ?? client).get<ListAllSchedulesResponses, ListAllSchedulesErrors, ThrowOnError>({ url: '/api/schedules', ...options });
 
@@ -835,15 +613,11 @@ export const updateSchedule = <ThrowOnError extends boolean = false>(options: Op
 
 /**
  * Run Schedule Now
- *
- * Queue a Run of this Schedule now. Two copies never act at once.
  */
 export const runScheduleNow = <ThrowOnError extends boolean = false>(options: Options<RunScheduleNowData, ThrowOnError>): RequestResult<RunScheduleNowResponses, RunScheduleNowErrors, ThrowOnError> => (options.client ?? client).post<RunScheduleNowResponses, RunScheduleNowErrors, ThrowOnError>({ url: '/api/schedules/{schedule_id}/run-now', ...options });
 
 /**
  * Create Batch
- *
- * Persist the rows and start the first queued one. Secrets never enter a row.
  */
 export const createBatch = <ThrowOnError extends boolean = false>(options: Options<CreateBatchData, ThrowOnError>): RequestResult<CreateBatchResponses, CreateBatchErrors, ThrowOnError> => (options.client ?? client).post<CreateBatchResponses, CreateBatchErrors, ThrowOnError>({
     url: '/api/workflows/{workflow_id}/batches',
@@ -856,43 +630,31 @@ export const createBatch = <ThrowOnError extends boolean = false>(options: Optio
 
 /**
  * List Batches
- *
- * The Workflow's Batches, newest first, with counts derived from rows.
  */
 export const listBatches = <ThrowOnError extends boolean = false>(options: Options<ListBatchesData, ThrowOnError>): RequestResult<ListBatchesResponses, ListBatchesErrors, ThrowOnError> => (options.client ?? client).get<ListBatchesResponses, ListBatchesErrors, ThrowOnError>({ url: '/api/batches', ...options });
 
 /**
  * Get Batch
- *
- * The Batch, its rows, derived counts, and an ETA once three rows finished.
  */
 export const getBatch = <ThrowOnError extends boolean = false>(options: Options<GetBatchData, ThrowOnError>): RequestResult<GetBatchResponses, GetBatchErrors, ThrowOnError> => (options.client ?? client).get<GetBatchResponses, GetBatchErrors, ThrowOnError>({ url: '/api/batches/{batch_id}', ...options });
 
 /**
  * Get Batch Output
- *
- * One table: the union of the rows' Variables and extract output names.
  */
 export const getBatchOutput = <ThrowOnError extends boolean = false>(options: Options<GetBatchOutputData, ThrowOnError>): RequestResult<GetBatchOutputResponses, GetBatchOutputErrors, ThrowOnError> => (options.client ?? client).get<GetBatchOutputResponses, GetBatchOutputErrors, ThrowOnError>({ url: '/api/batches/{batch_id}/output', ...options });
 
 /**
  * Stream Batch Events
- *
- * Fan out `batch:{id}:events` after the Organization gate; never replay.
  */
 export const streamBatchEvents = <ThrowOnError extends boolean = false>(options: Options<StreamBatchEventsData, ThrowOnError, StreamBatchEventsResponse>): Promise<ServerSentEventsResult<StreamBatchEventsResponses>> => (options.client ?? client).sse.get<StreamBatchEventsResponses, StreamBatchEventsErrors, ThrowOnError>({ url: '/api/batches/{batch_id}/events', ...options });
 
 /**
  * Cancel Batch
- *
- * Cancel the current Run and mark every remaining row cancelled.
  */
 export const cancelBatch = <ThrowOnError extends boolean = false>(options: Options<CancelBatchData, ThrowOnError>): RequestResult<CancelBatchResponses, CancelBatchErrors, ThrowOnError> => (options.client ?? client).post<CancelBatchResponses, CancelBatchErrors, ThrowOnError>({ url: '/api/batches/{batch_id}/cancel', ...options });
 
 /**
  * Update Batch Row
- *
- * Edit a queued, skipped, or failed row's values. Status does not change.
  */
 export const updateBatchRow = <ThrowOnError extends boolean = false>(options: Options<UpdateBatchRowData, ThrowOnError>): RequestResult<UpdateBatchRowResponses, UpdateBatchRowErrors, ThrowOnError> => (options.client ?? client).patch<UpdateBatchRowResponses, UpdateBatchRowErrors, ThrowOnError>({
     url: '/api/batches/{batch_id}/rows/{index}',
@@ -905,8 +667,6 @@ export const updateBatchRow = <ThrowOnError extends boolean = false>(options: Op
 
 /**
  * Fill Batch Rows
- *
- * Set one Variable on every queued row that has no value for it.
  */
 export const fillBatchRows = <ThrowOnError extends boolean = false>(options: Options<FillBatchRowsData, ThrowOnError>): RequestResult<FillBatchRowsResponses, FillBatchRowsErrors, ThrowOnError> => (options.client ?? client).post<FillBatchRowsResponses, FillBatchRowsErrors, ThrowOnError>({
     url: '/api/batches/{batch_id}/rows/fill',
@@ -919,15 +679,11 @@ export const fillBatchRows = <ThrowOnError extends boolean = false>(options: Opt
 
 /**
  * Skip Batch Row
- *
- * Cancel a waiting row's Run, mark it skipped, and advance at once.
  */
 export const skipBatchRow = <ThrowOnError extends boolean = false>(options: Options<SkipBatchRowData, ThrowOnError>): RequestResult<SkipBatchRowResponses, SkipBatchRowErrors, ThrowOnError> => (options.client ?? client).post<SkipBatchRowResponses, SkipBatchRowErrors, ThrowOnError>({ url: '/api/batches/{batch_id}/rows/{index}/skip', ...options });
 
 /**
  * Rerun Batch Row
- *
- * Attach a new attempt to one finished row. Other rows stay as they are.
  */
 export const rerunBatchRow = <ThrowOnError extends boolean = false>(options: Options<RerunBatchRowData, ThrowOnError>): RequestResult<RerunBatchRowResponses, RerunBatchRowErrors, ThrowOnError> => (options.client ?? client).post<RerunBatchRowResponses, RerunBatchRowErrors, ThrowOnError>({ url: '/api/batches/{batch_id}/rows/{index}/rerun', ...options });
 
