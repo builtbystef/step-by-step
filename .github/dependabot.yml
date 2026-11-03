@@ -7,16 +7,26 @@ updates:
     # Mirrors pnpm's minimumReleaseAge (5760 min): don't propose versions younger than 4 days.
     cooldown:
       default-days: 4
+    ignore:
+      # @types/node tracks the runtime major in .node-version; bump it with Node.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      # packages/api-client pins typescript 5: openapi-ts needs the TypeScript 5
+      # compiler API and crashes under 7. The catalog is on 7. See the
+      # "//typescript" note in packages/api-client/package.json.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+    # A dependency joins the first group it matches, so the lockstep groups
+    # come before dev-dependencies.
     groups:
       # vite-plus and vite need a manual bump together. See: pnpm-workspace.yaml
       vite-plus:
         patterns: ["vite", "vite-plus", "@voidzero-dev/vite-plus-core"]
+      # react-dom requires the matching react; bumping one alone breaks the pair.
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
       dev-dependencies:
         dependency-type: development
-    # @types/node tracks the runtime major in .node-version; bump it with Node.
-    ignore:
-      - dependency-name: "@types/node"
-        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: uv
     directory: /
@@ -24,6 +34,10 @@ updates:
       interval: weekly
     cooldown:
       default-days: 4
+    groups:
+      # uv does not support dependency-type grouping, so group by pattern.
+      python-dependencies:
+        patterns: ["*"]
 
   - package-ecosystem: github-actions
     directory: /
