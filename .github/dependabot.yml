@@ -13,6 +13,10 @@ updates:
         patterns: ["vite", "vite-plus", "@voidzero-dev/vite-plus-core"]
       dev-dependencies:
         dependency-type: development
+    # @types/node tracks the runtime major in .node-version; bump it with Node.
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: uv
     directory: /
